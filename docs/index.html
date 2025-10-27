@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PNG Concat - Live Examples</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 3rem 2rem;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        header p {
+            font-size: 1.2rem;
+            opacity: 0.95;
+        }
+
+        .content {
+            padding: 2rem;
+        }
+
+        .intro {
+            text-align: center;
+            margin-bottom: 3rem;
+            padding: 2rem;
+            background: #f7f7f7;
+            border-radius: 8px;
+        }
+
+        .intro h2 {
+            color: #667eea;
+            margin-bottom: 1rem;
+        }
+
+        .example {
+            margin-bottom: 3rem;
+            padding: 2rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            background: #fafafa;
+        }
+
+        .example h3 {
+            color: #764ba2;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .example p {
+            margin-bottom: 1.5rem;
+            color: #555;
+        }
+
+        .code-block {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 1.5rem;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin-bottom: 1.5rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .code-block .keyword {
+            color: #ff79c6;
+        }
+
+        .code-block .string {
+            color: #f1fa8c;
+        }
+
+        .code-block .function {
+            color: #50fa7b;
+        }
+
+        .code-block .comment {
+            color: #6272a4;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            font-weight: 600;
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .result {
+            margin-top: 1.5rem;
+            padding: 1.5rem;
+            background: white;
+            border-radius: 6px;
+            border: 2px solid #667eea;
+        }
+
+        .result h4 {
+            color: #667eea;
+            margin-bottom: 1rem;
+        }
+
+        .result img {
+            max-width: 100%;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            display: block;
+            margin-bottom: 1rem;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #fee;
+            border: 2px solid #fcc;
+            color: #c33;
+            padding: 1rem;
+            border-radius: 6px;
+            margin-top: 1rem;
+        }
+
+        .source-images {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+        }
+
+        .source-images img {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            max-height: 100px;
+        }
+
+        footer {
+            background: #2d2d2d;
+            color: white;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        footer a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+
+        .github-link {
+            display: inline-block;
+            margin-top: 1rem;
+            padding: 0.5rem 1rem;
+            background: #333;
+            border-radius: 6px;
+            text-decoration: none;
+            color: white;
+            transition: background 0.2s;
+        }
+
+        .github-link:hover {
+            background: #444;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>PNG Concat</h1>
+            <p>A streaming PNG concatenation library for Node.js and web browsers</p>
+        </header>
+
+        <div class="content">
+            <div class="intro">
+                <h2>Live Examples & Documentation</h2>
+                <p>Try out the library's features right in your browser! Each example shows the code and lets you run it to see the results.</p>
+                <p><strong>Features:</strong> No Canvas Required • Streaming Output • Zero Dependencies • Type Safe • Flexible Layouts</p>
+            </div>
+
+            <!-- Example 1: Horizontal Concatenation -->
+            <div class="example" id="example1">
+                <h3>1. Horizontal Concatenation</h3>
+                <p>Combine multiple images side by side in a single row.</p>
+
+                <div class="code-block"><span class="keyword">const</span> result = <span class="keyword">await</span> <span class="function">concatPngs</span>({
+  inputs: [png1, png2, png3],
+  layout: { columns: <span class="string">3</span> }  <span class="comment">// 3 images in a row</span>
+});</div>
+
+                <div class="button-group">
+                    <button onclick="runExample1()">Run Example</button>
+                    <button id="download1" style="display:none" onclick="downloadResult('example1')">Download Result</button>
+                </div>
+
+                <div class="source-images">
+                    <div>
+                        <p><strong>Source Images:</strong></p>
+                        <img src="images/basn2c08.png" alt="Image 1">
+                        <img src="images/basn0g08.png" alt="Image 2">
+                        <img src="images/basn6a08.png" alt="Image 3">
+                    </div>
+                </div>
+
+                <div id="result1"></div>
+            </div>
+
+            <!-- Example 2: Vertical Concatenation -->
+            <div class="example" id="example2">
+                <h3>2. Vertical Concatenation</h3>
+                <p>Stack multiple images vertically in a single column.</p>
+
+                <div class="code-block"><span class="keyword">const</span> result = <span class="keyword">await</span> <span class="function">concatPngs</span>({
+  inputs: [png1, png2, png3],
+  layout: { rows: <span class="string">3</span> }  <span class="comment">// 3 images stacked vertically</span>
+});</div>
+
+                <div class="button-group">
+                    <button onclick="runExample2()">Run Example</button>
+                    <button id="download2" style="display:none" onclick="downloadResult('example2')">Download Result</button>
+                </div>
+
+                <div class="source-images">
+                    <div>
+                        <p><strong>Source Images:</strong></p>
+                        <img src="images/basn2c08.png" alt="Image 1">
+                        <img src="images/basn0g08.png" alt="Image 2">
+                        <img src="images/basn6a08.png" alt="Image 3">
+                    </div>
+                </div>
+
+                <div id="result2"></div>
+            </div>
+
+            <!-- Example 3: Grid Layout -->
+            <div class="example" id="example3">
+                <h3>3. Grid Layout</h3>
+                <p>Arrange images in a grid pattern with multiple rows and columns.</p>
+
+                <div class="code-block"><span class="keyword">const</span> result = <span class="keyword">await</span> <span class="function">concatPngs</span>({
+  inputs: [png1, png2, png3, png4, png5, png6],
+  layout: { columns: <span class="string">3</span> }  <span class="comment">// 2 rows × 3 columns grid</span>
+});</div>
+
+                <div class="button-group">
+                    <button onclick="runExample3()">Run Example</button>
+                    <button id="download3" style="display:none" onclick="downloadResult('example3')">Download Result</button>
+                </div>
+
+                <div class="source-images">
+                    <div>
+                        <p><strong>Source Images:</strong></p>
+                        <img src="images/basn2c08.png" alt="Image 1">
+                        <img src="images/basn0g08.png" alt="Image 2">
+                        <img src="images/basn6a08.png" alt="Image 3">
+                        <img src="images/basn4a08.png" alt="Image 4">
+                        <img src="images/basn2c16.png" alt="Image 5">
+                        <img src="images/basn0g16.png" alt="Image 6">
+                    </div>
+                </div>
+
+                <div id="result3"></div>
+            </div>
+
+            <!-- Example 4: Different Image Sizes -->
+            <div class="example" id="example4">
+                <h3>4. Arbitrary Image Sizes</h3>
+                <p>Mix images of different dimensions - smaller images are automatically padded with transparency.</p>
+
+                <div class="code-block"><span class="keyword">const</span> result = <span class="keyword">await</span> <span class="function">concatPngs</span>({
+  inputs: [small, medium, large],
+  layout: { columns: <span class="string">3</span> }
+  <span class="comment">// Automatically handles different sizes with transparent padding</span>
+});</div>
+
+                <div class="button-group">
+                    <button onclick="runExample4()">Run Example</button>
+                    <button id="download4" style="display:none" onclick="downloadResult('example4')">Download Result</button>
+                </div>
+
+                <div class="source-images">
+                    <div>
+                        <p><strong>Source Images (different sizes):</strong></p>
+                        <img src="images/basn0g01.png" alt="Small" style="max-height: 32px;">
+                        <img src="images/basn0g04.png" alt="Medium" style="max-height: 64px;">
+                        <img src="images/basn2c08.png" alt="Large">
+                    </div>
+                </div>
+
+                <div id="result4"></div>
+            </div>
+
+            <!-- Example 5: Width Limit with Wrapping -->
+            <div class="example" id="example5">
+                <h3>5. Width Limit with Wrapping</h3>
+                <p>Limit the output width - images automatically wrap to new rows when the limit is reached.</p>
+
+                <div class="code-block"><span class="keyword">const</span> result = <span class="keyword">await</span> <span class="function">concatPngs</span>({
+  inputs: [png1, png2, png3, png4],
+  layout: { width: <span class="string">100</span> }  <span class="comment">// Max 100px wide, wraps automatically</span>
+});</div>
+
+                <div class="button-group">
+                    <button onclick="runExample5()">Run Example</button>
+                    <button id="download5" style="display:none" onclick="downloadResult('example5')">Download Result</button>
+                </div>
+
+                <div class="source-images">
+                    <div>
+                        <p><strong>Source Images:</strong></p>
+                        <img src="images/basn2c08.png" alt="Image 1">
+                        <img src="images/basn0g08.png" alt="Image 2">
+                        <img src="images/basn6a08.png" alt="Image 3">
+                        <img src="images/basn4a08.png" alt="Image 4">
+                    </div>
+                </div>
+
+                <div id="result5"></div>
+            </div>
+
+        </div>
+
+        <footer>
+            <p>Built with png-concat - A canvas-free PNG concatenation library</p>
+            <a href="https://github.com/jburnhams/Png-concat" class="github-link">View on GitHub</a>
+        </footer>
+    </div>
+
+    <script type="module">
+        import { concatPngs } from './png-concat.bundle.js';
+
+        // Store results for download
+        const results = {};
+
+        // Helper function to load an image
+        async function loadImage(url) {
+            const response = await fetch(url);
+            return new Uint8Array(await response.arrayBuffer());
+        }
+
+        // Helper function to display result
+        function displayResult(exampleId, resultData) {
+            const resultDiv = document.getElementById(`result${exampleId.slice(-1)}`);
+            const blob = new Blob([resultData], { type: 'image/png' });
+            const url = URL.createObjectURL(blob);
+
+            results[exampleId] = { blob, url };
+
+            resultDiv.innerHTML = `
+                <div class="result">
+                    <h4>Result:</h4>
+                    <img src="${url}" alt="Result">
+                    <p><strong>Size:</strong> ${resultData.length.toLocaleString()} bytes</p>
+                </div>
+            `;
+
+            document.getElementById(`download${exampleId.slice(-1)}`).style.display = 'inline-block';
+        }
+
+        // Helper function to show error
+        function showError(exampleId, error) {
+            const resultDiv = document.getElementById(`result${exampleId.slice(-1)}`);
+            resultDiv.innerHTML = `
+                <div class="error">
+                    <strong>Error:</strong> ${error.message}
+                </div>
+            `;
+        }
+
+        // Helper function to show loading
+        function showLoading(exampleId) {
+            const resultDiv = document.getElementById(`result${exampleId.slice(-1)}`);
+            resultDiv.innerHTML = `
+                <div class="result">
+                    <h4>Processing...</h4>
+                    <div class="loading"></div>
+                </div>
+            `;
+        }
+
+        // Example 1: Horizontal
+        window.runExample1 = async function() {
+            const exampleId = 'example1';
+            try {
+                showLoading(exampleId);
+                const [img1, img2, img3] = await Promise.all([
+                    loadImage('images/basn2c08.png'),
+                    loadImage('images/basn0g08.png'),
+                    loadImage('images/basn6a08.png')
+                ]);
+
+                const result = await concatPngs({
+                    inputs: [img1, img2, img3],
+                    layout: { columns: 3 }
+                });
+
+                displayResult(exampleId, result);
+            } catch (error) {
+                showError(exampleId, error);
+            }
+        };
+
+        // Example 2: Vertical
+        window.runExample2 = async function() {
+            const exampleId = 'example2';
+            try {
+                showLoading(exampleId);
+                const [img1, img2, img3] = await Promise.all([
+                    loadImage('images/basn2c08.png'),
+                    loadImage('images/basn0g08.png'),
+                    loadImage('images/basn6a08.png')
+                ]);
+
+                const result = await concatPngs({
+                    inputs: [img1, img2, img3],
+                    layout: { rows: 3 }
+                });
+
+                displayResult(exampleId, result);
+            } catch (error) {
+                showError(exampleId, error);
+            }
+        };
+
+        // Example 3: Grid
+        window.runExample3 = async function() {
+            const exampleId = 'example3';
+            try {
+                showLoading(exampleId);
+                const [img1, img2, img3, img4, img5, img6] = await Promise.all([
+                    loadImage('images/basn2c08.png'),
+                    loadImage('images/basn0g08.png'),
+                    loadImage('images/basn6a08.png'),
+                    loadImage('images/basn4a08.png'),
+                    loadImage('images/basn2c16.png'),
+                    loadImage('images/basn0g16.png')
+                ]);
+
+                const result = await concatPngs({
+                    inputs: [img1, img2, img3, img4, img5, img6],
+                    layout: { columns: 3 }
+                });
+
+                displayResult(exampleId, result);
+            } catch (error) {
+                showError(exampleId, error);
+            }
+        };
+
+        // Example 4: Different sizes
+        window.runExample4 = async function() {
+            const exampleId = 'example4';
+            try {
+                showLoading(exampleId);
+                const [img1, img2, img3] = await Promise.all([
+                    loadImage('images/basn0g01.png'),
+                    loadImage('images/basn0g04.png'),
+                    loadImage('images/basn2c08.png')
+                ]);
+
+                const result = await concatPngs({
+                    inputs: [img1, img2, img3],
+                    layout: { columns: 3 }
+                });
+
+                displayResult(exampleId, result);
+            } catch (error) {
+                showError(exampleId, error);
+            }
+        };
+
+        // Example 5: Width limit
+        window.runExample5 = async function() {
+            const exampleId = 'example5';
+            try {
+                showLoading(exampleId);
+                const [img1, img2, img3, img4] = await Promise.all([
+                    loadImage('images/basn2c08.png'),
+                    loadImage('images/basn0g08.png'),
+                    loadImage('images/basn6a08.png'),
+                    loadImage('images/basn4a08.png')
+                ]);
+
+                const result = await concatPngs({
+                    inputs: [img1, img2, img3, img4],
+                    layout: { width: 100 }
+                });
+
+                displayResult(exampleId, result);
+            } catch (error) {
+                showError(exampleId, error);
+            }
+        };
+
+        // Download function
+        window.downloadResult = function(exampleId) {
+            const result = results[exampleId];
+            if (result) {
+                const a = document.createElement('a');
+                a.href = result.url;
+                a.download = `${exampleId}-result.png`;
+                a.click();
+            }
+        };
+    </script>
+</body>
+</html>
