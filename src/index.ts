@@ -5,17 +5,16 @@
  * that works without canvas and can handle large files efficiently.
  */
 
-export { concatPngs, PngConcatenator } from './png-concat.js';
-export {
-  concatPngsStream,
-  concatPngsToStream,
-  PngConcatenatorStream
-} from './png-concat-stream.js';
-export {
-  concatPngsTrueStreaming,
-  concatPngsTrueStreamingToStream,
-  TrueStreamingConcatenator
-} from './png-concat-true-streaming.js';
+// Main unified API - use this!
+export { concatPngs, concatPngsToFile } from './png-concat-unified.js';
+export type { UnifiedConcatOptions } from './png-concat-unified.js';
+
+// Legacy/advanced APIs (kept for backwards compatibility)
+export { PngConcatenator } from './png-concat-legacy.js';
+export { PngConcatenatorStream } from './png-concat-stream.js';
+export { TrueStreamingConcatenator } from './png-concat-true-streaming.js';
+
+// Low-level APIs for advanced use
 export { parsePngHeader, parsePngChunks, PngParser } from './png-parser.js';
 export {
   createChunk,
