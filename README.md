@@ -299,8 +299,22 @@ The library includes comprehensive tests covering:
 - Round-trip filter/unfilter operations
 - Image concatenation (horizontal, vertical, grid)
 - Error handling and validation
+- **PngSuite integration**: Validates compatibility with the official PNG test suite created by Willem van Schaik, containing 175+ test images covering diverse PNG formats and edge cases
 
-All 62 tests pass with 100% success rate.
+All 90 tests pass with 100% success rate.
+
+## PngSuite Integration
+
+This library has been validated against [PngSuite](http://www.schaik.com/pngsuite/), the official PNG test suite created by Willem van Schaik. PngSuite contains 175+ test images that comprehensively test PNG implementations across various formats and edge cases.
+
+The test suite (`src/pngsuite.test.ts`) validates:
+- Parsing of all basic PNG color types (Grayscale, RGB, Indexed, Grayscale+Alpha, RGBA)
+- Support for both 8-bit and 16-bit color depths
+- Handling of interlaced images
+- Concatenation of various PNG formats
+- Correct chunk reading and validation
+
+PngSuite test images are included in the `pngsuite/` directory and are automatically tested as part of the test suite.
 
 ## Performance Considerations
 
