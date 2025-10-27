@@ -1,5 +1,8 @@
 # png-concat
 
+[![CI](https://github.com/jburnhams/Png-concat/actions/workflows/ci.yml/badge.svg)](https://github.com/jburnhams/Png-concat/actions/workflows/ci.yml)
+
+
 A streaming PNG concatenation library for Node.js and web browsers that works without canvas and can handle large files efficiently.
 
 ## Features
@@ -302,6 +305,17 @@ The library includes comprehensive tests covering:
 - **PngSuite integration**: Validates compatibility with the official PNG test suite created by Willem van Schaik, containing 175+ test images covering diverse PNG formats and edge cases
 
 All 90 tests pass with 100% success rate.
+
+Coverage
+--------
+
+Run the coverage report locally with:
+
+```bash
+npm run coverage
+```
+
+This produces a text summary on the console and an lcov file at `coverage/lcov.info`. The CI workflow also generates coverage and uploads the `coverage/lcov.info` file as a workflow artifact for each run.
 
 ## PngSuite Integration
 
