@@ -167,24 +167,77 @@ class StreamingPngInput {
 }
 
 /**
- * Combines multiple scanlines horizontally into one output scanline
+ * Combines multiple scanlines horizontally into one output scanline with variable widths
  */
 function combineScanlines(
   scanlines: Uint8Array[],
-  imageWidth: number,
-  bytesPerPixel: number,
-  columns: number
+  widths: number[],
+  bytesPerPixel: number
 ): Uint8Array {
-  const outputWidth = columns * imageWidth;
-  const output = new Uint8Array(outputWidth * bytesPerPixel);
+  const totalWidth = widths.reduce((sum, w) => sum + w, 0);
+  const output = new Uint8Array(totalWidth * bytesPerPixel);
 
+  let offset = 0;
   for (let i = 0; i < scanlines.length; i++) {
-    const col = i % columns;
-    const offset = col * imageWidth * bytesPerPixel;
     output.set(scanlines[i], offset);
+    offset += widths[i] * bytesPerPixel;
   }
 
   return output;
+}
+
+/**
+ * Get transparent color for padding
+ */
+function getTransparentColor(colorType: number, bitDepth: number): Uint8Array {
+  const bytesPerSample = bitDepth === 16 ? 2 : 1;
+
+  switch (colorType) {
+    case 0: return new Uint8Array(bytesPerSample).fill(0);
+    case 2: return new Uint8Array(3 * bytesPerSample).fill(0);
+    case 4:
+      return bitDepth === 16 ? new Uint8Array([0, 0, 0, 0]) : new Uint8Array([0, 0]);
+    case 6:
+      return bitDepth === 16 ? new Uint8Array([0, 0, 0, 0, 0, 0, 0, 0]) : new Uint8Array([0, 0, 0, 0]);
+    default:
+      throw new Error(`Unsupported color type: ${colorType}`);
+  }
+}
+
+/**
+ * Create a transparent scanline of given width
+ */
+function createTransparentScanline(width: number, bytesPerPixel: number, transparentColor: Uint8Array): Uint8Array {
+  const scanline = new Uint8Array(width * bytesPerPixel);
+  for (let i = 0; i < width; i++) {
+    scanline.set(transparentColor, i * bytesPerPixel);
+  }
+  return scanline;
+}
+
+/**
+ * Pad a scanline to a target width with transparent pixels
+ */
+function padScanline(
+  scanline: Uint8Array,
+  currentWidth: number,
+  targetWidth: number,
+  bytesPerPixel: number,
+  transparentColor: Uint8Array
+): Uint8Array {
+  if (currentWidth >= targetWidth) {
+    return scanline;
+  }
+
+  const padded = new Uint8Array(targetWidth * bytesPerPixel);
+  padded.set(scanline, 0);
+
+  // Fill padding with transparent color
+  for (let i = currentWidth; i < targetWidth; i++) {
+    padded.set(transparentColor, i * bytesPerPixel);
+  }
+
+  return padded;
 }
 
 /**
@@ -204,7 +257,7 @@ export class TrueStreamingConcatenator {
   }
 
   /**
-   * Stream concatenated PNG output scanline-by-scanline
+   * Stream concatenated PNG output scanline-by-scanline with support for arbitrary sizes
    */
   async *stream(): AsyncGenerator<Uint8Array> {
     // PASS 1: Read headers and validate
@@ -228,27 +281,23 @@ export class TrueStreamingConcatenator {
       inputs.push(streamInput);
     }
 
-    // Validate all images have same dimensions and format
+    // Validate all images have compatible format
     const firstHeader = headers[0];
     for (let i = 1; i < headers.length; i++) {
-      if (headers[i].width !== firstHeader.width ||
-          headers[i].height !== firstHeader.height ||
-          headers[i].bitDepth !== firstHeader.bitDepth ||
+      if (headers[i].bitDepth !== firstHeader.bitDepth ||
           headers[i].colorType !== firstHeader.colorType) {
-        throw new Error('All images must have same dimensions and format');
+        throw new Error('All images must have same bit depth and color type');
       }
     }
 
-    // Calculate layout
-    const imageWidth = firstHeader.width;
-    const imageHeight = firstHeader.height;
-    const columns = this.options.layout.columns || Math.ceil(inputs.length / (this.options.layout.rows || 1));
-    const rows = Math.ceil(inputs.length / columns);
+    // Calculate layout with variable image sizes
+    const layout = this.calculateLayout(headers);
+    const { grid, rowHeights, colWidths, totalWidth, totalHeight } = layout;
 
     // Create output header
     const outputHeader: PngHeader = {
-      width: columns * imageWidth,
-      height: rows * imageHeight,
+      width: totalWidth,
+      height: totalHeight,
       bitDepth: firstHeader.bitDepth,
       colorType: firstHeader.colorType,
       compressionMethod: 0,
@@ -266,6 +315,7 @@ export class TrueStreamingConcatenator {
     // Create iterators for each input
     const iterators = inputs.map(input => input.scanlines());
     const bytesPerPixel = getBytesPerPixel(firstHeader.bitDepth, firstHeader.colorType);
+    const transparentColor = getTransparentColor(firstHeader.colorType, firstHeader.bitDepth);
 
     // Set up streaming compression
     const compressedChunks: Buffer[] = [];
@@ -277,54 +327,79 @@ export class TrueStreamingConcatenator {
 
     let previousOutputScanline: Uint8Array | null = null;
 
-    // Process each output row
-    for (let outputY = 0; outputY < outputHeader.height; outputY++) {
-      const inputRow = Math.floor(outputY / imageHeight);
-      // localY = outputY % imageHeight (not needed - iterators auto-advance)
+    // Process each output scanline
+    let currentY = 0;
+    for (let row = 0; row < grid.length; row++) {
+      const rowHeight = rowHeights[row];
+      const rowColWidths = colWidths[row];
 
-      // Collect scanlines from all images in this row
-      const scanlines: Uint8Array[] = [];
-      for (let col = 0; col < columns; col++) {
-        const imageIndex = inputRow * columns + col;
+      // Process each scanline in this row
+      for (let localY = 0; localY < rowHeight; localY++) {
+        const scanlines: Uint8Array[] = [];
 
-        if (imageIndex < inputs.length) {
-          // Read next scanline from this input
-          const { value, done } = await iterators[imageIndex].next();
-          if (!done) {
-            scanlines.push(value);
+        // Collect scanlines from all images in this row
+        for (let col = 0; col < grid[row].length; col++) {
+          const imageIdx = grid[row][col];
+          const colWidth = rowColWidths[col];
+
+          if (imageIdx >= 0) {
+            const imageHeader = headers[imageIdx];
+            const imageHeight = imageHeader.height;
+            const imageWidth = imageHeader.width;
+
+            if (localY < imageHeight) {
+              // Read scanline from this image
+              const { value, done } = await iterators[imageIdx].next();
+              if (!done) {
+                // Pad scanline if image is narrower than column
+                const paddedScanline = padScanline(
+                  value,
+                  imageWidth,
+                  colWidth,
+                  bytesPerPixel,
+                  transparentColor
+                );
+                scanlines.push(paddedScanline);
+              } else {
+                // Shouldn't happen, but handle gracefully
+                scanlines.push(createTransparentScanline(colWidth, bytesPerPixel, transparentColor));
+              }
+            } else {
+              // Below image - use transparent scanline
+              scanlines.push(createTransparentScanline(colWidth, bytesPerPixel, transparentColor));
+            }
           } else {
-            // Pad with zeros if image doesn't exist
-            scanlines.push(new Uint8Array(imageWidth * bytesPerPixel));
+            // Empty cell - use transparent scanline
+            scanlines.push(createTransparentScanline(colWidth, bytesPerPixel, transparentColor));
           }
-        } else {
-          // Pad with zeros
-          scanlines.push(new Uint8Array(imageWidth * bytesPerPixel));
         }
-      }
 
-      // Combine scanlines horizontally
-      const outputScanline = combineScanlines(scanlines, imageWidth, bytesPerPixel, columns);
+        // Combine scanlines horizontally
+        const outputScanline = combineScanlines(scanlines, rowColWidths, bytesPerPixel);
 
-      // Filter the scanline
-      const { filterType, filtered } = filterScanline(
-        outputScanline,
-        previousOutputScanline,
-        bytesPerPixel
-      );
+        // Filter the scanline
+        const { filterType, filtered } = filterScanline(
+          outputScanline,
+          previousOutputScanline,
+          bytesPerPixel
+        );
 
-      // Write filter type + filtered data to compressor
-      const scanlineWithFilter = new Uint8Array(1 + filtered.length);
-      scanlineWithFilter[0] = filterType;
-      scanlineWithFilter.set(filtered, 1);
+        // Write filter type + filtered data to compressor
+        const scanlineWithFilter = new Uint8Array(1 + filtered.length);
+        scanlineWithFilter[0] = filterType;
+        scanlineWithFilter.set(filtered, 1);
 
-      deflate.write(Buffer.from(scanlineWithFilter));
+        deflate.write(Buffer.from(scanlineWithFilter));
 
-      previousOutputScanline = outputScanline;
+        previousOutputScanline = outputScanline;
 
-      // Yield any compressed chunks that are ready
-      while (compressedChunks.length > 0) {
-        const chunk = compressedChunks.shift()!;
-        yield serializeChunk(createChunk('IDAT', new Uint8Array(chunk)));
+        // Yield any compressed chunks that are ready
+        while (compressedChunks.length > 0) {
+          const chunk = compressedChunks.shift()!;
+          yield serializeChunk(createChunk('IDAT', new Uint8Array(chunk)));
+        }
+
+        currentY++;
       }
     }
 
@@ -349,6 +424,137 @@ export class TrueStreamingConcatenator {
     for (const input of inputs) {
       await input.close();
     }
+  }
+
+  /**
+   * Calculate grid layout (same logic as legacy concatenator)
+   */
+  private calculateLayout(headers: PngHeader[]): {
+    grid: number[][];
+    rowHeights: number[];
+    colWidths: number[][];
+    totalWidth: number;
+    totalHeight: number;
+  } {
+    const { layout } = this.options;
+    const numImages = headers.length;
+
+    let grid: number[][] = [];
+
+    if (layout.columns && !layout.height) {
+      const columns = layout.columns;
+      const rows = Math.ceil(numImages / columns);
+      grid = Array.from({ length: rows }, (_, row) =>
+        Array.from({ length: columns }, (_, col) => {
+          const idx = row * columns + col;
+          return idx < numImages ? idx : -1;
+        })
+      );
+    } else if (layout.rows && !layout.width) {
+      const rows = layout.rows;
+      const columns = Math.ceil(numImages / rows);
+      grid = Array.from({ length: rows }, (_, row) =>
+        Array.from({ length: columns }, (_, col) => {
+          const idx = col * rows + row;
+          return idx < numImages ? idx : -1;
+        })
+      );
+    } else if (layout.width || layout.height) {
+      grid = this.calculatePixelBasedLayout(
+        headers,
+        layout.width,
+        layout.height,
+        layout.columns,
+        layout.rows
+      );
+    } else {
+      grid = [Array.from({ length: numImages }, (_, i) => i)];
+    }
+
+    // Calculate max width per column in each row and max height per row
+    const rowHeights: number[] = [];
+    const colWidths: number[][] = [];
+
+    for (let row = 0; row < grid.length; row++) {
+      let maxHeight = 0;
+      const rowColWidths: number[] = [];
+
+      for (let col = 0; col < grid[row].length; col++) {
+        const imageIdx = grid[row][col];
+        if (imageIdx >= 0) {
+          const header = headers[imageIdx];
+          maxHeight = Math.max(maxHeight, header.height);
+          rowColWidths[col] = Math.max(rowColWidths[col] || 0, header.width);
+        } else {
+          rowColWidths[col] = rowColWidths[col] || 0;
+        }
+      }
+
+      rowHeights.push(maxHeight);
+      colWidths.push(rowColWidths);
+    }
+
+    const totalHeight = rowHeights.reduce((sum, h) => sum + h, 0);
+    const totalWidth = Math.max(...colWidths.map(row => row.reduce((sum, w) => sum + w, 0)));
+
+    return { grid, rowHeights, colWidths, totalWidth, totalHeight };
+  }
+
+  /**
+   * Calculate layout when pixel-based width/height limits are specified
+   */
+  private calculatePixelBasedLayout(
+    headers: PngHeader[],
+    maxWidth?: number,
+    maxHeight?: number,
+    fixedColumns?: number,
+    fixedRows?: number
+  ): number[][] {
+    const grid: number[][] = [];
+    let currentRow: number[] = [];
+    let currentRowWidth = 0;
+    let currentRowMaxHeight = 0;
+    let totalHeight = 0;
+
+    for (let i = 0; i < headers.length; i++) {
+      const header = headers[i];
+      const imageWidth = header.width;
+      const imageHeight = header.height;
+
+      const wouldExceedWidth = maxWidth && (currentRowWidth + imageWidth > maxWidth);
+      const wouldExceedColumns = fixedColumns && (currentRow.length >= fixedColumns);
+
+      if ((wouldExceedWidth || wouldExceedColumns) && currentRow.length > 0) {
+        // Need to start a new row - check if it would exceed height limit
+        const newRowHeight = imageHeight;
+        const wouldExceedHeight = maxHeight && (totalHeight + currentRowMaxHeight + newRowHeight > maxHeight);
+
+        if (wouldExceedHeight) {
+          // Can't fit this image - stop here
+          break;
+        }
+
+        grid.push(currentRow);
+        totalHeight += currentRowMaxHeight;
+        currentRow = [i];
+        currentRowWidth = imageWidth;
+        currentRowMaxHeight = imageHeight;
+      } else {
+        currentRow.push(i);
+        currentRowWidth += imageWidth;
+        currentRowMaxHeight = Math.max(currentRowMaxHeight, imageHeight);
+      }
+
+      if (fixedRows && grid.length >= fixedRows && currentRow.length === 0) {
+        break;
+      }
+    }
+
+    if (currentRow.length > 0) {
+      grid.push(currentRow);
+    }
+
+    return grid;
   }
 
   /**
