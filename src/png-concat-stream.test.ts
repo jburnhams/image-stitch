@@ -89,7 +89,7 @@ test('concatPngsStream produces same result as concatPngs', async () => {
   }
 
   // Get non-streaming result
-  const { concatPngs } = await import('./png-concat.js');
+  const { concatPngs } = await import('./png-concat-legacy.js');
   const normalResult = await concatPngs({
     inputs: [png1, png2],
     layout: { rows: 2 }

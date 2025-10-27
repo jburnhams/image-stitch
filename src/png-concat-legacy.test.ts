@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { concatPngs, PngConcatenator } from './png-concat.js';
+import { concatPngs, PngConcatenator } from './png-concat-legacy.js';
 import { parsePngHeader, parsePngChunks } from './png-parser.js';
 import { createIHDR, createIEND, createChunk, buildPng } from './png-writer.js';
 import { compressImageData } from './png-decompress.js';
