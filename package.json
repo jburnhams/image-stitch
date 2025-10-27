@@ -8,8 +8,8 @@
   "scripts": {
     "build": "tsc",
     "build:docs": "npm run build && node scripts/build-browser-bundle.js",
-    "test": "node --test dist/**/*.test.js",
-    "coverage": "npm run build && c8 --reporter=lcov --reporter=text node --test dist/**/*.test.js",
+    "test": "node --test dist/*.test.js",
+    "coverage": "npm run build && c8 --reporter=lcov --reporter=text node --test dist/*.test.js",
     "example": "npm run build && node examples/basic-usage.js",
     "example:stream": "npm run build && node examples/streaming-usage.js",
     "prepublishOnly": "npm run build"
