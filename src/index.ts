@@ -6,6 +6,11 @@
  */
 
 export { concatPngs, PngConcatenator } from './png-concat.js';
+export {
+  concatPngsStream,
+  concatPngsToStream,
+  PngConcatenatorStream
+} from './png-concat-stream.js';
 export { parsePngHeader, parsePngChunks, PngParser } from './png-parser.js';
 export {
   createChunk,

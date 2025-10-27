@@ -9,6 +9,7 @@
     "build": "tsc",
     "test": "node --test dist/**/*.test.js",
     "example": "npm run build && node examples/basic-usage.js",
+    "example:stream": "npm run build && node examples/streaming-usage.js",
     "prepublishOnly": "npm run build"
   },
   "keywords": [

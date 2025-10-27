@@ -5,11 +5,11 @@ A streaming PNG concatenation library for Node.js and web browsers that works wi
 ## Features
 
 - **No Canvas Required**: Pure JavaScript/TypeScript implementation
-- **Memory Efficient**: Processes images without loading everything into memory
+- **Streaming Output**: Stream PNG output chunks without holding the entire result in memory
 - **Cross-Platform**: Works in both Node.js and modern browsers
 - **Zero Dependencies**: No external libraries required (uses only built-in APIs)
 - **Type Safe**: Written in TypeScript with full type definitions
-- **Well Tested**: Comprehensive unit test coverage (62 tests)
+- **Well Tested**: Comprehensive unit test coverage (69 tests)
 - **Flexible Layouts**: Horizontal, vertical, or grid arrangements
 
 ## Installation
@@ -111,6 +111,65 @@ const result = await concatPngs({
 - All input images must have the same bit depth and color type
 - Supports 8-bit and 16-bit images
 - Supports RGB, RGBA, Grayscale, and Grayscale+Alpha
+
+## Streaming API
+
+For applications that need to stream the output (e.g., HTTP responses, large files), use the streaming API:
+
+### `concatPngsStream(options: ConcatOptions): AsyncGenerator<Uint8Array>`
+
+Returns an async generator that yields PNG chunks as they are generated.
+
+```typescript
+import { concatPngsStream } from 'png-concat';
+import { createWriteStream } from 'fs';
+
+const writeStream = createWriteStream('output.png');
+
+for await (const chunk of concatPngsStream({
+  inputs: ['img1.png', 'img2.png', 'img3.png', 'img4.png'],
+  layout: { columns: 2 }
+})) {
+  writeStream.write(chunk);
+}
+
+writeStream.end();
+```
+
+### `concatPngsToStream(options: ConcatOptions): Readable`
+
+Returns a Node.js Readable stream that can be piped directly.
+
+```typescript
+import { concatPngsToStream } from 'png-concat';
+import { createWriteStream } from 'fs';
+
+const readStream = concatPngsToStream({
+  inputs: ['img1.png', 'img2.png'],
+  layout: { columns: 2 }
+});
+
+readStream.pipe(createWriteStream('output.png'));
+```
+
+**Streaming to HTTP Response:**
+
+```typescript
+import { concatPngsToStream } from 'png-concat';
+
+app.get('/concat', (req, res) => {
+  res.setHeader('Content-Type', 'image/png');
+
+  const stream = concatPngsToStream({
+    inputs: getImagePaths(),
+    layout: { columns: 3 }
+  });
+
+  stream.pipe(res);
+});
+```
+
+**Note:** The current streaming implementation yields PNG chunks (signature, IHDR, IDAT, IEND) as they are serialized. While this avoids holding the complete output file in memory as a single buffer, the pixel processing still requires loading input images and building the output image buffer before compression.
 
 ## Advanced Usage
 
