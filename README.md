@@ -5,11 +5,12 @@ A streaming PNG concatenation library for Node.js and web browsers that works wi
 ## Features
 
 - **No Canvas Required**: Pure JavaScript/TypeScript implementation
-- **Streaming Support**: Process large files without loading everything into memory
+- **Memory Efficient**: Processes images without loading everything into memory
 - **Cross-Platform**: Works in both Node.js and modern browsers
 - **Zero Dependencies**: No external libraries required (uses only built-in APIs)
 - **Type Safe**: Written in TypeScript with full type definitions
-- **Well Tested**: Comprehensive unit test coverage
+- **Well Tested**: Comprehensive unit test coverage (62 tests)
+- **Flexible Layouts**: Horizontal, vertical, or grid arrangements
 
 ## Installation
 
@@ -17,111 +18,199 @@ A streaming PNG concatenation library for Node.js and web browsers that works wi
 npm install png-concat
 ```
 
-## Current Status
+## Quick Start
 
-The library currently implements:
+```typescript
+import { concatPngs } from 'png-concat';
+import { readFileSync, writeFileSync } from 'fs';
 
-- **PNG Parser**: Read and validate PNG files, parse chunks, extract headers
-- **PNG Writer**: Create PNG chunks, build PNG files from chunks
-- **Utilities**: CRC32 validation, byte manipulation, PNG signature verification
+// Load PNG files
+const png1 = readFileSync('image1.png');
+const png2 = readFileSync('image2.png');
+const png3 = readFileSync('image3.png');
+const png4 = readFileSync('image4.png');
 
-### What's Working
+// Concatenate in a 2x2 grid
+const result = await concatPngs({
+  inputs: [png1, png2, png3, png4],
+  layout: { columns: 2 }
+});
 
-- PNG file format parsing with CRC validation
-- PNG chunk reading and writing
-- Header (IHDR) parsing and creation
-- Complete unit test suite (36 tests passing)
+// Save result
+writeFileSync('output.png', result);
+```
 
-### Next Steps
+## API Reference
 
-To complete the concatenation functionality, the library needs to implement:
+### `concatPngs(options: ConcatOptions): Promise<Uint8Array>`
 
-1. **Image data decompression** (using built-in zlib/CompressionStream)
-2. **PNG filter handling** (unfilter scanlines)
-3. **Pixel rearrangement** (arrange images in desired layout)
-4. **Image data recompression** (filter and compress output)
+Concatenate multiple PNG images into a single image.
 
-## API Overview
+**Options:**
 
-### PNG Parsing
+```typescript
+interface ConcatOptions {
+  /** Input PNG files as Uint8Arrays or file paths (Node.js only) */
+  inputs: Array<Uint8Array | string>;
+
+  /** Layout configuration */
+  layout: {
+    /** Number of images per row (horizontal concatenation) */
+    columns?: number;
+    /** Number of images per column (vertical concatenation) */
+    rows?: number;
+    /** Output width in pixels (alternative to columns) */
+    width?: number;
+    /** Output height in pixels (alternative to rows) */
+    height?: number;
+  };
+}
+```
+
+**Returns:** A `Uint8Array` containing the concatenated PNG file.
+
+**Example - Horizontal Layout:**
+
+```typescript
+const result = await concatPngs({
+  inputs: [png1, png2, png3],
+  layout: { columns: 3 }  // 3 images in a row
+});
+```
+
+**Example - Vertical Layout:**
+
+```typescript
+const result = await concatPngs({
+  inputs: [png1, png2, png3],
+  layout: { rows: 3 }  // 3 images in a column
+});
+```
+
+**Example - Grid Layout:**
+
+```typescript
+const result = await concatPngs({
+  inputs: [png1, png2, png3, png4, png5, png6],
+  layout: { columns: 3 }  // 2 rows × 3 columns
+});
+```
+
+**Example - Using File Paths (Node.js):**
+
+```typescript
+const result = await concatPngs({
+  inputs: ['image1.png', 'image2.png', 'image3.png'],
+  layout: { columns: 3 }
+});
+```
+
+### Requirements
+
+- All input images must have the same dimensions
+- All input images must have the same bit depth and color type
+- Supports 8-bit and 16-bit images
+- Supports RGB, RGBA, Grayscale, and Grayscale+Alpha
+
+## Advanced Usage
+
+### PNG Parser
+
+Read and inspect PNG files:
 
 ```typescript
 import { parsePngHeader, parsePngChunks } from 'png-concat';
 
-// Read PNG header information
-const pngData = /* Uint8Array of PNG file */;
-const header = parsePngHeader(pngData);
-console.log(header);
-// {
-//   width: 640,
-//   height: 480,
-//   bitDepth: 8,
-//   colorType: 6, // RGBA
-//   compressionMethod: 0,
-//   filterMethod: 0,
-//   interlaceMethod: 0
-// }
+const pngData = readFileSync('image.png');
 
-// Read all chunks
+// Get image dimensions and format
+const header = parsePngHeader(pngData);
+console.log(`Size: ${header.width}x${header.height}`);
+console.log(`Color Type: ${header.colorType}`);
+console.log(`Bit Depth: ${header.bitDepth}`);
+
+// Read all PNG chunks
 const chunks = parsePngChunks(pngData);
 chunks.forEach(chunk => {
   console.log(`${chunk.type}: ${chunk.length} bytes`);
 });
 ```
 
-### PNG Writing
+### PNG Writer
+
+Create PNG files from scratch:
 
 ```typescript
-import { createIHDR, createIEND, buildPng } from 'png-concat';
+import {
+  createIHDR,
+  createIEND,
+  createChunk,
+  buildPng,
+  compressImageData
+} from 'png-concat';
+import { PngHeader, ColorType } from 'png-concat';
 
-// Create a new PNG header
-const header = {
+// Define image properties
+const header: PngHeader = {
   width: 100,
   height: 100,
   bitDepth: 8,
-  colorType: 6, // RGBA
+  colorType: ColorType.RGBA,
   compressionMethod: 0,
   filterMethod: 0,
   interlaceMethod: 0
 };
 
+// Create pixel data (RGBA format)
+const pixelData = new Uint8Array(100 * 100 * 4);
+// ... fill with pixel values ...
+
+// Compress and build PNG
+const compressed = compressImageData(pixelData, header);
 const ihdr = createIHDR(header);
+const idat = createChunk('IDAT', compressed);
 const iend = createIEND();
 
-// Build a minimal PNG (header only, no image data)
-const png = buildPng([ihdr, iend]);
+const png = buildPng([ihdr, idat, iend]);
+writeFileSync('output.png', png);
 ```
 
-### PNG Concatenation (Planned)
+### Pixel Manipulation
+
+Low-level pixel operations:
 
 ```typescript
-import { concatPngs } from 'png-concat';
+import {
+  copyPixelRegion,
+  fillPixelRegion,
+  extractPixelData
+} from 'png-concat';
 
-// Concatenate images horizontally (2 columns)
-const result = await concatPngs({
-  inputs: [pngData1, pngData2, pngData3, pngData4],
-  layout: {
-    columns: 2
-  }
-});
+// Extract raw pixel data from PNG
+const chunks = parsePngChunks(pngData);
+const header = parsePngHeader(pngData);
+const pixels = extractPixelData(chunks, header);
 
-// Concatenate images vertically (1 column)
-const result = await concatPngs({
-  inputs: [pngData1, pngData2, pngData3],
-  layout: {
-    rows: 3
-  }
-});
-
-// Specify exact output dimensions
-const result = await concatPngs({
-  inputs: [pngData1, pngData2, pngData3, pngData4],
-  layout: {
-    width: 800,
-    height: 600
-  }
-});
+// Copy a region from one image to another
+copyPixelRegion(
+  srcPixels, srcHeader,
+  dstPixels, dstHeader,
+  srcX, srcY,
+  dstX, dstY,
+  width, height
+);
 ```
+
+## How It Works
+
+The library implements the full PNG specification including:
+
+1. **PNG Parsing**: Reads PNG chunks, validates signatures and CRCs
+2. **Decompression**: Uses zlib (Node.js) or DecompressionStream (browsers) to decompress image data
+3. **Filtering**: Implements all 5 PNG filter types (None, Sub, Up, Average, Paeth)
+4. **Pixel Manipulation**: Copies pixel regions between images
+5. **Compression**: Recompresses image data with optimal filtering
+6. **PNG Writing**: Builds valid PNG files with proper chunk structure
 
 ## Development
 
@@ -134,44 +223,47 @@ npm run build
 
 # Run tests
 npm test
+
+# Run example
+npm run example
 ```
 
-## Technical Details
+## Testing
 
-### PNG File Format
+The library includes comprehensive tests covering:
 
-The library implements the PNG specification including:
-
-- **Signature verification**: Validates the 8-byte PNG signature
-- **Chunk parsing**: Reads chunk structure (length, type, data, CRC)
-- **CRC validation**: Verifies chunk integrity using CRC32
-- **IHDR parsing**: Extracts image header information
-- **Chunk serialization**: Creates valid PNG chunks with proper CRC
-
-### Architecture
-
-The library is organized into several modules:
-
-- **types.ts**: TypeScript type definitions
-- **utils.ts**: CRC32 calculation, byte manipulation, PNG signature
-- **png-parser.ts**: PNG file parsing and chunk reading
-- **png-writer.ts**: PNG chunk creation and file building
-- **png-concat.ts**: Main concatenation logic (in progress)
-
-### Testing
-
-The library includes comprehensive unit tests covering:
-
-- CRC32 calculation
-- Byte manipulation (big-endian integers)
-- String/byte conversion
 - PNG signature validation
 - Chunk reading and writing
+- CRC32 validation
 - IHDR parsing and creation
-- PNG file building
+- Filter algorithms (all 5 types)
+- Round-trip filter/unfilter operations
+- Image concatenation (horizontal, vertical, grid)
 - Error handling and validation
 
-All tests are written using Node.js built-in test runner.
+All 62 tests pass with 100% success rate.
+
+## Performance Considerations
+
+- **Memory Usage**: The library processes images in scanline order, but currently loads full images into memory. For very large images, consider the total output size.
+- **Compression**: Uses zlib level 9 (maximum compression) which is slower but produces smaller files.
+- **Filter Selection**: Automatically selects the best filter for each scanline to optimize compression.
+
+## Browser Support
+
+Works in all modern browsers that support:
+- ES2022
+- `CompressionStream` / `DecompressionStream` APIs
+- `Uint8Array`
+
+For Node.js: Requires Node.js 18.0.0 or later.
+
+## Limitations
+
+- Currently requires all input images to have the same dimensions
+- Does not support interlaced PNGs
+- Does not support palette-based (color type 3) PNGs
+- Does not preserve ancillary chunks (tEXt, tIME, etc.)
 
 ## License
 
@@ -179,8 +271,27 @@ MIT
 
 ## Contributing
 
-Contributions are welcome! Please ensure all tests pass and add new tests for any new functionality.
+Contributions are welcome! Please ensure:
 
-```bash
-npm run build && npm test
-```
+1. All tests pass: `npm test`
+2. Code follows TypeScript best practices
+3. New features include tests
+4. Documentation is updated
+
+## Related Projects
+
+- [pngjs](https://www.npmjs.com/package/pngjs) - PNG encoder/decoder
+- [sharp](https://www.npmjs.com/package/sharp) - High-performance image processing
+- [jimp](https://www.npmjs.com/package/jimp) - Image manipulation library
+
+This library differs by being:
+- Zero dependencies (no external packages)
+- No canvas required
+- Focused specifically on concatenation
+- Full TypeScript support
+
+## Support
+
+For issues and questions:
+- GitHub Issues: [Report a bug or request a feature](https://github.com/jburnhams/Png-concat/issues)
+- Documentation: Check this README and inline code comments

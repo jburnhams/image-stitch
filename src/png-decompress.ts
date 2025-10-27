@@ -1,0 +1,118 @@
+import { inflateSync, deflateSync } from 'node:zlib';
+import { PngChunk, PngHeader } from './types.js';
+import { unfilterScanline, filterScanline, getBytesPerPixel, FilterType } from './png-filter.js';
+
+/**
+ * Decompress and unfilter PNG image data
+ * @param idatChunks Array of IDAT chunks containing compressed image data
+ * @param header PNG header information
+ * @returns Unfiltered raw pixel data
+ */
+export function decompressImageData(idatChunks: PngChunk[], header: PngHeader): Uint8Array {
+  // Concatenate all IDAT chunk data
+  let totalLength = 0;
+  for (const chunk of idatChunks) {
+    if (chunk.type === 'IDAT') {
+      totalLength += chunk.data.length;
+    }
+  }
+
+  const compressedData = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const chunk of idatChunks) {
+    if (chunk.type === 'IDAT') {
+      compressedData.set(chunk.data, offset);
+      offset += chunk.data.length;
+    }
+  }
+
+  // Decompress using zlib
+  const decompressed = inflateSync(compressedData);
+
+  // Unfilter scanlines
+  const bytesPerPixel = getBytesPerPixel(header.bitDepth, header.colorType);
+  const scanlineLength = Math.ceil((header.width * header.bitDepth * getSamplesPerPixel(header.colorType)) / 8);
+  const unfilteredData = new Uint8Array(header.height * scanlineLength);
+
+  let previousLine: Uint8Array | null = null;
+  let srcOffset = 0;
+  let dstOffset = 0;
+
+  for (let y = 0; y < header.height; y++) {
+    if (srcOffset >= decompressed.length) {
+      throw new Error('Unexpected end of decompressed data');
+    }
+
+    const filterType = decompressed[srcOffset++] as FilterType;
+    const scanline = decompressed.slice(srcOffset, srcOffset + scanlineLength);
+    srcOffset += scanlineLength;
+
+    const unfilteredLine = unfilterScanline(filterType, scanline, previousLine, bytesPerPixel);
+    unfilteredData.set(unfilteredLine, dstOffset);
+    dstOffset += scanlineLength;
+
+    previousLine = unfilteredLine;
+  }
+
+  return unfilteredData;
+}
+
+/**
+ * Filter and compress raw pixel data into PNG format
+ * @param pixelData Raw unfiltered pixel data
+ * @param header PNG header information
+ * @returns Compressed IDAT chunk data
+ */
+export function compressImageData(pixelData: Uint8Array, header: PngHeader): Uint8Array {
+  const bytesPerPixel = getBytesPerPixel(header.bitDepth, header.colorType);
+  const scanlineLength = Math.ceil((header.width * header.bitDepth * getSamplesPerPixel(header.colorType)) / 8);
+
+  // Add filter type bytes and filter each scanline
+  const filteredData = new Uint8Array(header.height * (scanlineLength + 1));
+  let srcOffset = 0;
+  let dstOffset = 0;
+  let previousLine: Uint8Array | null = null;
+
+  for (let y = 0; y < header.height; y++) {
+    const scanline = pixelData.slice(srcOffset, srcOffset + scanlineLength);
+    srcOffset += scanlineLength;
+
+    const { filterType, filtered } = filterScanline(scanline, previousLine, bytesPerPixel);
+
+    filteredData[dstOffset++] = filterType;
+    filteredData.set(filtered, dstOffset);
+    dstOffset += filtered.length;
+
+    previousLine = scanline;
+  }
+
+  // Compress using zlib
+  const compressed = deflateSync(filteredData, { level: 9 });
+
+  return compressed;
+}
+
+/**
+ * Get number of samples per pixel for a color type
+ */
+function getSamplesPerPixel(colorType: number): number {
+  switch (colorType) {
+    case 0: return 1; // Grayscale
+    case 2: return 3; // RGB
+    case 3: return 1; // Palette
+    case 4: return 2; // Grayscale + Alpha
+    case 6: return 4; // RGBA
+    default: throw new Error(`Unknown color type: ${colorType}`);
+  }
+}
+
+/**
+ * Extract pixel data from a PNG file
+ */
+export function extractPixelData(chunks: PngChunk[], header: PngHeader): Uint8Array {
+  const idatChunks = chunks.filter(chunk => chunk.type === 'IDAT');
+  if (idatChunks.length === 0) {
+    throw new Error('No IDAT chunks found in PNG');
+  }
+  return decompressImageData(idatChunks, header);
+}

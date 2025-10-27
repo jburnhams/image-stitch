@@ -1,15 +1,14 @@
+import { readFileSync } from 'node:fs';
 import { ConcatOptions, PngHeader } from './types.js';
-import { parsePngHeader } from './png-parser.js';
+import { parsePngHeader, parsePngChunks } from './png-parser.js';
 import { createIHDR, createIEND, createChunk, buildPng } from './png-writer.js';
+import { extractPixelData, compressImageData } from './png-decompress.js';
+import { copyPixelRegion, createBlankImage } from './pixel-ops.js';
 
 /**
  * PNG Concatenation Engine
  *
  * This class handles the concatenation of multiple PNG images.
- *
- * NOTE: Full implementation requires decompression/compression which needs:
- * - Node.js: built-in 'zlib' module
- * - Web: built-in CompressionStream/DecompressionStream APIs
  */
 export class PngConcatenator {
   private options: ConcatOptions;
@@ -31,75 +30,85 @@ export class PngConcatenator {
   }
 
   /**
-   * Calculate output dimensions based on input images and layout
+   * Calculate grid layout (columns and rows)
    */
-  private calculateDimensions(headers: PngHeader[]): { width: number; height: number } {
+  private calculateLayout(numImages: number, imageWidth: number, imageHeight: number): {
+    columns: number;
+    rows: number;
+  } {
     const { layout } = this.options;
-    const numImages = headers.length;
-
-    // For simplicity, assume all images have same dimensions
-    // In a full implementation, we'd handle different sizes
-    const firstImage = headers[0];
-    const imageWidth = firstImage.width;
-    const imageHeight = firstImage.height;
-
-    let columns = 1;
-    let rows = 1;
 
     if (layout.columns) {
-      columns = layout.columns;
-      rows = Math.ceil(numImages / columns);
-    } else if (layout.rows) {
-      rows = layout.rows;
-      columns = Math.ceil(numImages / rows);
-    } else if (layout.width && layout.height) {
-      columns = Math.floor(layout.width / imageWidth);
-      rows = Math.floor(layout.height / imageHeight);
+      return {
+        columns: layout.columns,
+        rows: Math.ceil(numImages / layout.columns)
+      };
     }
 
-    return {
-      width: columns * imageWidth,
-      height: rows * imageHeight
-    };
+    if (layout.rows) {
+      return {
+        columns: Math.ceil(numImages / layout.rows),
+        rows: layout.rows
+      };
+    }
+
+    if (layout.width && layout.height) {
+      return {
+        columns: Math.floor(layout.width / imageWidth),
+        rows: Math.floor(layout.height / imageHeight)
+      };
+    }
+
+    // Default: horizontal layout
+    return { columns: numImages, rows: 1 };
+  }
+
+  /**
+   * Load input data (handles both Uint8Array and file paths)
+   */
+  private loadInputData(): Uint8Array[] {
+    return this.options.inputs.map(input => {
+      if (typeof input === 'string') {
+        // Load from file path (Node.js only)
+        return readFileSync(input);
+      } else {
+        return input;
+      }
+    });
   }
 
   /**
    * Concatenate PNG images
-   *
-   * This is a placeholder that shows the structure.
-   * Full implementation requires zlib decompression/compression.
    */
   async concat(): Promise<Uint8Array> {
-    // Parse all input images
-    const inputData: Uint8Array[] = [];
-    for (const input of this.options.inputs) {
-      if (typeof input === 'string') {
-        // Node.js file path - would use fs.readFileSync
-        throw new Error('File path loading requires Node.js fs module');
-      } else {
-        inputData.push(input);
-      }
-    }
+    // Load all input images
+    const inputData = this.loadInputData();
 
-    // Parse headers
+    // Parse headers and validate
     const headers = inputData.map(data => parsePngHeader(data));
+    const firstHeader = headers[0];
 
     // Validate that all images have compatible formats
-    const firstHeader = headers[0];
     for (let i = 1; i < headers.length; i++) {
       if (headers[i].bitDepth !== firstHeader.bitDepth ||
           headers[i].colorType !== firstHeader.colorType) {
         throw new Error('All input images must have the same bit depth and color type');
       }
+      if (headers[i].width !== firstHeader.width ||
+          headers[i].height !== firstHeader.height) {
+        throw new Error('All input images must have the same dimensions');
+      }
     }
 
-    // Calculate output dimensions
-    const outputDims = this.calculateDimensions(headers);
+    // Calculate grid layout
+    const imageWidth = firstHeader.width;
+    const imageHeight = firstHeader.height;
+    const { columns, rows } = this.calculateLayout(inputData.length, imageWidth, imageHeight);
 
     // Create output header
     const outputHeader: PngHeader = {
-      width: outputDims.width,
-      height: outputDims.height,
+      width: columns * imageWidth,
+      height: rows * imageHeight,
       bitDepth: firstHeader.bitDepth,
       colorType: firstHeader.colorType,
       compressionMethod: 0,
@@ -107,15 +116,40 @@ export class PngConcatenator {
       interlaceMethod: 0
     };
 
-    // TODO: Decompress, rearrange pixels, and recompress
-    // This requires zlib functionality
+    // Create blank output image
+    const outputPixels = createBlankImage(outputHeader);
 
-    // For now, return a placeholder
+    // Extract and copy pixels from each input image
+    for (let i = 0; i < inputData.length; i++) {
+      const chunks = parsePngChunks(inputData[i]);
+      const inputPixels = extractPixelData(chunks, headers[i]);
+
+      // Calculate position in grid
+      const col = i % columns;
+      const row = Math.floor(i / columns);
+      const dstX = col * imageWidth;
+      const dstY = row * imageHeight;
+
+      // Copy pixels to output
+      copyPixelRegion(
+        inputPixels,
+        headers[i],
+        outputPixels,
+        outputHeader,
+        0, 0,           // source position
+        dstX, dstY,     // destination position
+        imageWidth,
+        imageHeight
+      );
+    }
+
+    // Compress output pixels
+    const compressedData = compressImageData(outputPixels, outputHeader);
+
+    // Build output PNG
     const ihdrChunk = createIHDR(outputHeader);
+    const idatChunk = createChunk('IDAT', compressedData);
     const iendChunk = createIEND();
-
-    // In full implementation, would process IDAT chunks here
-    const idatChunk = createChunk('IDAT', new Uint8Array(0));
 
     return buildPng([ihdrChunk, idatChunk, iendChunk]);
   }

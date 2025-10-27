@@ -8,6 +8,7 @@
   "scripts": {
     "build": "tsc",
     "test": "node --test dist/**/*.test.js",
+    "example": "npm run build && node examples/basic-usage.js",
     "prepublishOnly": "npm run build"
   },
   "keywords": [

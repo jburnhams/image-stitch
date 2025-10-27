@@ -14,6 +14,22 @@ export {
   serializeChunk,
   buildPng
 } from './png-writer.js';
+export {
+  decompressImageData,
+  compressImageData,
+  extractPixelData
+} from './png-decompress.js';
+export {
+  unfilterScanline,
+  filterScanline,
+  getBytesPerPixel,
+  FilterType
+} from './png-filter.js';
+export {
+  copyPixelRegion,
+  fillPixelRegion,
+  createBlankImage
+} from './pixel-ops.js';
 export * from './types.js';
 export {
   crc32,
