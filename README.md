@@ -9,8 +9,10 @@ A streaming PNG concatenation library for Node.js and web browsers that works wi
 - **Cross-Platform**: Works in both Node.js and modern browsers
 - **Zero Dependencies**: No external libraries required (uses only built-in APIs)
 - **Type Safe**: Written in TypeScript with full type definitions
-- **Well Tested**: Comprehensive unit test coverage (69 tests)
+- **Well Tested**: Comprehensive unit test coverage (107 tests)
 - **Flexible Layouts**: Horizontal, vertical, or grid arrangements
+- **Arbitrary Image Sizes**: Automatically handles images of different dimensions with transparent padding
+- **Pixel-Based Limits**: Control output size with width/height constraints that wrap or stop as needed
 
 ## Installation
 
@@ -105,10 +107,41 @@ const result = await concatPngs({
 });
 ```
 
+**Example - Arbitrary Image Sizes:**
+
+```typescript
+// Images with different dimensions are automatically padded with transparency
+const result = await concatPngs({
+  inputs: [
+    'small_100x100.png',
+    'medium_200x150.png',
+    'large_300x250.png'
+  ],
+  layout: { columns: 3 }
+  // Output: Uses max height per row and pads smaller images
+});
+```
+
+**Example - Pixel-Based Limits:**
+
+```typescript
+// Limit output to max 800px wide - images wrap to new rows
+const result = await concatPngs({
+  inputs: ['img1.png', 'img2.png', 'img3.png', 'img4.png'],
+  layout: { width: 800 }  // Automatically wraps to fit within width
+});
+
+// Limit output to max 600px tall - stops when height limit reached
+const result = await concatPngs({
+  inputs: ['img1.png', 'img2.png', 'img3.png', 'img4.png'],
+  layout: { height: 600, columns: 1 }  // Vertical stack up to 600px
+});
+```
+
 ### Requirements
 
-- All input images must have the same dimensions
 - All input images must have the same bit depth and color type
+- Supports arbitrary image dimensions (images are padded with transparent background to fit)
 - Supports 8-bit and 16-bit images
 - Supports RGB, RGBA, Grayscale, and Grayscale+Alpha
 
@@ -298,10 +331,12 @@ The library includes comprehensive tests covering:
 - Filter algorithms (all 5 types)
 - Round-trip filter/unfilter operations
 - Image concatenation (horizontal, vertical, grid)
+- **Arbitrary image sizes**: Variable dimensions with transparent padding
+- **Pixel-based limits**: Width/height constraints with row wrapping
 - Error handling and validation
 - **PngSuite integration**: Validates compatibility with the official PNG test suite created by Willem van Schaik, containing 175+ test images covering diverse PNG formats and edge cases
 
-All 90 tests pass with 100% success rate.
+All 107 tests pass with 100% success rate.
 
 ## PngSuite Integration
 
@@ -333,10 +368,10 @@ For Node.js: Requires Node.js 18.0.0 or later.
 
 ## Limitations
 
-- Currently requires all input images to have the same dimensions
 - Does not support interlaced PNGs
 - Does not support palette-based (color type 3) PNGs
 - Does not preserve ancillary chunks (tEXt, tIME, etc.)
+- All input images must have the same bit depth and color type (but can have different dimensions)
 
 ## License
 

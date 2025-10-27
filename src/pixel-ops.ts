@@ -94,3 +94,29 @@ function getSamplesPerPixel(colorType: number): number {
     default: throw new Error(`Unknown color type: ${colorType}`);
   }
 }
+
+/**
+ * Get transparent color for a given color type and bit depth
+ */
+export function getTransparentColor(colorType: number, bitDepth: number): Uint8Array {
+  const bytesPerSample = bitDepth === 16 ? 2 : 1;
+
+  switch (colorType) {
+    case 0: // Grayscale - black
+      return new Uint8Array(bytesPerSample).fill(0);
+    case 2: // RGB - black
+      return new Uint8Array(3 * bytesPerSample).fill(0);
+    case 4: // Grayscale + Alpha - transparent black
+      if (bitDepth === 16) {
+        return new Uint8Array([0, 0, 0, 0]); // 16-bit: gray=0, alpha=0
+      }
+      return new Uint8Array([0, 0]); // 8-bit: gray=0, alpha=0
+    case 6: // RGBA - transparent black
+      if (bitDepth === 16) {
+        return new Uint8Array([0, 0, 0, 0, 0, 0, 0, 0]); // R=0, G=0, B=0, A=0
+      }
+      return new Uint8Array([0, 0, 0, 0]); // R=0, G=0, B=0, A=0
+    default:
+      throw new Error(`Unsupported color type: ${colorType}`);
+  }
+}
