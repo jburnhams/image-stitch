@@ -1,0 +1,30 @@
+{
+  "name": "png-concat",
+  "version": "1.0.0",
+  "description": "A streaming PNG concatenation library for Node.js and web that works without canvas",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "test": "node --test dist/**/*.test.js",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "png",
+    "image",
+    "concatenate",
+    "merge",
+    "streaming",
+    "canvas-free"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
