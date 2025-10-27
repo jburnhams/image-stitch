@@ -11,6 +11,11 @@ export {
   concatPngsToStream,
   PngConcatenatorStream
 } from './png-concat-stream.js';
+export {
+  concatPngsTrueStreaming,
+  concatPngsTrueStreamingToStream,
+  TrueStreamingConcatenator
+} from './png-concat-true-streaming.js';
 export { parsePngHeader, parsePngChunks, PngParser } from './png-parser.js';
 export {
   createChunk,
