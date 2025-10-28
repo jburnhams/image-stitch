@@ -106,6 +106,15 @@ const requiredImages = [
   'basn0g16.png',
   'basn0g01.png',
   'basn0g04.png',
+  'basi2c08.png',
+  'f00n2c08.png',
+  'f01n2c08.png',
+  'f02n2c08.png',
+  'f03n2c08.png',
+  'f04n2c08.png',
+  'g03n2c08.png',
+  'g04n2c08.png',
+  'g05n2c08.png',
 ];
 
 for (const imageName of requiredImages) {

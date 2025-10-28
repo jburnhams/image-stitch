@@ -3,7 +3,7 @@ import { ConcatOptions, PngHeader } from './types.js';
 import { parsePngHeader, parsePngChunks } from './png-parser.js';
 import { createIHDR, createIEND, createChunk, buildPng } from './png-writer.js';
 import { extractPixelData, compressImageData } from './png-decompress.js';
-import { copyPixelRegion, createBlankImage, getTransparentColor, fillPixelRegion } from './pixel-ops.js';
+import { copyPixelRegion, createBlankImage, getTransparentColor, fillPixelRegion, determineCommonFormat, convertPixelFormat } from './pixel-ops.js';
 
 /**
  * PNG Concatenation Engine
@@ -193,27 +193,42 @@ export class PngConcatenator {
     // Load all input images
     const inputData = this.loadInputData();
 
-    // Parse headers and validate formats are compatible
-    const headers = inputData.map(data => parsePngHeader(data));
-    const firstHeader = headers[0];
+    // Parse headers
+    const originalHeaders = inputData.map(data => parsePngHeader(data));
 
-    // Validate that all images have compatible bit depth and color type
-    for (let i = 1; i < headers.length; i++) {
-      if (headers[i].bitDepth !== firstHeader.bitDepth ||
-          headers[i].colorType !== firstHeader.colorType) {
-        throw new Error('All input images must have the same bit depth and color type');
-      }
+    // Determine common format that can represent all images
+    const { bitDepth: targetBitDepth, colorType: targetColorType } = determineCommonFormat(originalHeaders);
+
+    // Convert all images to common format
+    const convertedImages: Array<{ data: Uint8Array; header: PngHeader }> = [];
+
+    for (let i = 0; i < inputData.length; i++) {
+      const chunks = parsePngChunks(inputData[i]);
+      const inputPixels = extractPixelData(chunks, originalHeaders[i]);
+
+      // Convert to common format
+      const converted = convertPixelFormat(
+        inputPixels,
+        originalHeaders[i],
+        targetBitDepth,
+        targetColorType
+      );
+
+      convertedImages.push(converted);
     }
+
+    // Use converted headers for layout calculation
+    const headers = convertedImages.map(img => img.header);
 
     // Calculate grid layout with variable image sizes
     const { grid, rowHeights, colWidths, totalWidth, totalHeight } = this.calculateLayout(headers);
 
-    // Create output header
+    // Create output header using common format
     const outputHeader: PngHeader = {
       width: totalWidth,
       height: totalHeight,
-      bitDepth: firstHeader.bitDepth,
-      colorType: firstHeader.colorType,
+      bitDepth: targetBitDepth,
+      colorType: targetColorType,
       compressionMethod: 0,
       filterMethod: 0,
       interlaceMethod: 0
@@ -223,7 +238,7 @@ export class PngConcatenator {
     const transparentColor = getTransparentColor(outputHeader.colorType, outputHeader.bitDepth);
     const outputPixels = createBlankImage(outputHeader, transparentColor);
 
-    // Extract and copy pixels from each input image
+    // Extract and copy pixels from each converted image
     for (let row = 0; row < grid.length; row++) {
       // Calculate Y position for this row
       const dstY = rowHeights.slice(0, row).reduce((sum, h) => sum + h, 0);
@@ -235,15 +250,14 @@ export class PngConcatenator {
         const colWidth = colWidths[row][col];
 
         if (imageIdx >= 0) {
-          const chunks = parsePngChunks(inputData[imageIdx]);
-          const inputPixels = extractPixelData(chunks, headers[imageIdx]);
+          const converted = convertedImages[imageIdx];
           const imageWidth = headers[imageIdx].width;
           const imageHeight = headers[imageIdx].height;
 
           // Copy pixels to output (image is placed at top-left of its cell)
           copyPixelRegion(
-            inputPixels,
-            headers[imageIdx],
+            converted.data,
+            converted.header,
             outputPixels,
             outputHeader,
             0, 0,           // source position

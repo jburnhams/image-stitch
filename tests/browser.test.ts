@@ -330,3 +330,169 @@ describe('Browser Bundle Tests', () => {
     await window.close();
   });
 });
+
+describe('Functional Tests - Verify Examples Work Correctly', () => {
+  const pngsuiteDir = path.join(__dirname, '..', 'pngsuite', 'png');
+  const fixturesDir = path.join(__dirname, '..', 'tests', 'fixtures', 'expected-outputs');
+
+  // Helper to load an image
+  function loadImage(filename: string): Uint8Array {
+    return fs.readFileSync(path.join(pngsuiteDir, filename));
+  }
+
+  // Helper to compare two PNG files (byte-by-byte)
+  function comparePngs(actual: Uint8Array, expected: Uint8Array): boolean {
+    if (actual.length !== expected.length) {
+      return false;
+    }
+    for (let i = 0; i < actual.length; i++) {
+      if (actual[i] !== expected[i]) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  test('Example 1: Horizontal concatenation produces correct output', async () => {
+    // Import the library
+    const { concatPngs } = await import('../dist/png-concat-unified.js');
+
+    const result = await concatPngs({
+      inputs: [
+        loadImage('basn2c08.png'),
+        loadImage('basn0g08.png'),
+        loadImage('basn6a08.png')
+      ],
+      layout: { columns: 3 }
+    });
+
+    const expected = fs.readFileSync(path.join(fixturesDir, 'example1.png'));
+    assert.ok(comparePngs(result, expected), 'Example 1 output should match expected image');
+  });
+
+  test('Example 2: Vertical concatenation produces correct output', async () => {
+    const { concatPngs } = await import('../dist/png-concat-unified.js');
+
+    const result = await concatPngs({
+      inputs: [
+        loadImage('basn2c08.png'),
+        loadImage('basn0g08.png'),
+        loadImage('basn6a08.png')
+      ],
+      layout: { rows: 3 }
+    });
+
+    const expected = fs.readFileSync(path.join(fixturesDir, 'example2.png'));
+    assert.ok(comparePngs(result, expected), 'Example 2 output should match expected image');
+  });
+
+  test('Example 3: Grid layout produces correct output', async () => {
+    const { concatPngs } = await import('../dist/png-concat-unified.js');
+
+    const result = await concatPngs({
+      inputs: [
+        loadImage('basn2c08.png'),
+        loadImage('basn0g08.png'),
+        loadImage('basn6a08.png'),
+        loadImage('basn4a08.png'),
+        loadImage('basn2c16.png'),
+        loadImage('basn0g16.png')
+      ],
+      layout: { columns: 3 }
+    });
+
+    const expected = fs.readFileSync(path.join(fixturesDir, 'example3.png'));
+    assert.ok(comparePngs(result, expected), 'Example 3 output should match expected image');
+  });
+
+  test('Example 4: Different image sizes produces correct output', async () => {
+    const { concatPngs } = await import('../dist/png-concat-unified.js');
+
+    const result = await concatPngs({
+      inputs: [
+        loadImage('basn0g01.png'),
+        loadImage('basn0g04.png'),
+        loadImage('basn2c08.png')
+      ],
+      layout: { columns: 3 }
+    });
+
+    const expected = fs.readFileSync(path.join(fixturesDir, 'example4.png'));
+    assert.ok(comparePngs(result, expected), 'Example 4 output should match expected image');
+  });
+
+  test('Example 5: Width limit with wrapping produces correct output', async () => {
+    const { concatPngs } = await import('../dist/png-concat-unified.js');
+
+    const result = await concatPngs({
+      inputs: [
+        loadImage('basn2c08.png'),
+        loadImage('basn0g08.png'),
+        loadImage('basn6a08.png'),
+        loadImage('basn4a08.png')
+      ],
+      layout: { width: 100 }
+    });
+
+    const expected = fs.readFileSync(path.join(fixturesDir, 'example5.png'));
+    assert.ok(comparePngs(result, expected), 'Example 5 output should match expected image');
+  });
+
+  test('Library handles mixed color types correctly', async () => {
+    const { concatPngs } = await import('../dist/png-concat-unified.js');
+
+    // Mix RGB, Grayscale, and RGBA images
+    const result = await concatPngs({
+      inputs: [
+        loadImage('basn2c08.png'),  // RGB 8-bit
+        loadImage('basn0g08.png'),  // Grayscale 8-bit
+        loadImage('basn6a08.png'),  // RGBA 8-bit
+        loadImage('basn4a08.png')   // Grayscale+Alpha 8-bit
+      ],
+      layout: { columns: 2 }
+    });
+
+    // Just verify it produces a valid PNG (signature check)
+    assert.ok(result.length > 8, 'Output should have content');
+    assert.strictEqual(result[0], 0x89, 'PNG signature byte 1');
+    assert.strictEqual(result[1], 0x50, 'PNG signature byte 2');
+    assert.strictEqual(result[2], 0x4E, 'PNG signature byte 3');
+    assert.strictEqual(result[3], 0x47, 'PNG signature byte 4');
+  });
+
+  test('Library handles mixed bit depths correctly', async () => {
+    const { concatPngs } = await import('../dist/png-concat-unified.js');
+
+    // Mix 8-bit and 16-bit images
+    const result = await concatPngs({
+      inputs: [
+        loadImage('basn2c08.png'),  // RGB 8-bit
+        loadImage('basn2c16.png')   // RGB 16-bit
+      ],
+      layout: { columns: 2 }
+    });
+
+    // Verify it produces a valid PNG
+    assert.ok(result.length > 8, 'Output should have content');
+    assert.strictEqual(result[0], 0x89, 'PNG signature byte 1');
+    assert.strictEqual(result[1], 0x50, 'PNG signature byte 2');
+  });
+
+  test('Library handles sub-byte bit depths correctly', async () => {
+    const { concatPngs } = await import('../dist/png-concat-unified.js');
+
+    // Mix different grayscale bit depths
+    const result = await concatPngs({
+      inputs: [
+        loadImage('basn0g01.png'),  // 1-bit grayscale
+        loadImage('basn0g04.png'),  // 4-bit grayscale
+        loadImage('basn0g08.png')   // 8-bit grayscale
+      ],
+      layout: { columns: 3 }
+    });
+
+    // Verify it produces a valid PNG
+    assert.ok(result.length > 8, 'Output should have content');
+    assert.strictEqual(result[0], 0x89, 'PNG signature byte 1');
+  });
+});

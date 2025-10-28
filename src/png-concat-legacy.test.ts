@@ -115,7 +115,7 @@ test('concatPngs concatenates four images in 2x2 grid', async () => {
   assert.strictEqual(header.height, 20);
 });
 
-test('concatPngs validates incompatible bit depths', async () => {
+test('concatPngs handles mixed bit depths', async () => {
   const png1 = createTestPng(10, 10, new Uint8Array([255, 0, 0, 255]));
 
   // Create a PNG with different bit depth
@@ -136,15 +136,18 @@ test('concatPngs validates incompatible bit depths', async () => {
     createIEND()
   ]);
 
-  await assert.rejects(
-    async () => {
-      await concatPngs({
-        inputs: [png1, png2],
-        layout: { columns: 2 }
-      });
-    },
-    /must have the same bit depth and color type/
-  );
+  // Should now work and convert to common format
+  const result = await concatPngs({
+    inputs: [png1, png2],
+    layout: { columns: 2 }
+  });
+
+  const header = parsePngHeader(result);
+  assert.strictEqual(header.width, 20);
+  assert.strictEqual(header.height, 10);
+  // Should use 16-bit since one input is 16-bit
+  assert.strictEqual(header.bitDepth, 16);
+  assert.strictEqual(header.colorType, ColorType.RGBA);
 });
 
 test('concatPngs supports arbitrary dimensions with padding', async () => {
@@ -253,7 +256,8 @@ test('concatPngs with RGB images', async () => {
   const header_result = parsePngHeader(result);
   assert.strictEqual(header_result.width, 10);
   assert.strictEqual(header_result.height, 5);
-  assert.strictEqual(header_result.colorType, ColorType.RGB);
+  // Now converts to RGBA for consistency
+  assert.strictEqual(header_result.colorType, ColorType.RGBA);
 });
 
 // ===== NEW TESTS FOR ARBITRARY IMAGE SIZES =====

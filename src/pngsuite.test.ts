@@ -229,7 +229,8 @@ test('PngSuite: Concatenate two identical grayscale images', async () => {
   const header = parsePngHeader(result);
   assert.strictEqual(header.width, 64); // 32 * 2
   assert.strictEqual(header.height, 32);
-  assert.strictEqual(header.colorType, ColorType.GRAYSCALE);
+  // Now converts to RGBA for consistency
+  assert.strictEqual(header.colorType, ColorType.RGBA);
   assert.strictEqual(header.bitDepth, 8);
 });
 
@@ -245,7 +246,8 @@ test('PngSuite: Concatenate two identical RGB images', async () => {
   const header = parsePngHeader(result);
   assert.strictEqual(header.width, 64); // 32 * 2
   assert.strictEqual(header.height, 32);
-  assert.strictEqual(header.colorType, ColorType.RGB);
+  // Now converts to RGBA for consistency
+  assert.strictEqual(header.colorType, ColorType.RGBA);
   assert.strictEqual(header.bitDepth, 8);
 });
 
@@ -292,7 +294,8 @@ test('PngSuite: Concatenate 16-bit RGB images', async () => {
   const header = parsePngHeader(result);
   assert.strictEqual(header.width, 64); // 32 * 2
   assert.strictEqual(header.height, 32);
-  assert.strictEqual(header.colorType, ColorType.RGB);
+  // Now converts to RGBA for consistency
+  assert.strictEqual(header.colorType, ColorType.RGBA);
   assert.strictEqual(header.bitDepth, 16);
 });
 
