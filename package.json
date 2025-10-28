@@ -8,7 +8,9 @@
   "scripts": {
     "build": "tsc",
     "build:docs": "npm run build && node scripts/build-browser-bundle.js",
-    "test": "node --test dist/*.test.js",
+    "test": "npm run build && node --test dist/*.test.js",
+    "test:browser": "npm run build:docs && tsc tests/browser.test.ts --outDir dist --module ES2022 --target ES2022 --moduleResolution node --esModuleInterop --allowSyntheticDefaultImports --skipLibCheck && node --test dist/browser.test.js",
+    "test:all": "npm run test && npm run test:browser",
     "coverage": "npm run build && c8 --reporter=lcov --reporter=text node --test dist/*.test.js",
     "example": "npm run build && node examples/basic-usage.js",
     "example:stream": "npm run build && node examples/streaming-usage.js",
@@ -26,8 +28,9 @@
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^20.0.0",
-    "typescript": "^5.0.0",
-    "c8": "^7.13.0"
+    "c8": "^7.13.0",
+    "happy-dom": "^20.0.8",
+    "typescript": "^5.0.0"
   },
   "engines": {
     "node": ">=18.0.0"

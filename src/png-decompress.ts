@@ -1,6 +1,7 @@
 import { inflateSync, deflateSync } from 'node:zlib';
 import { PngChunk, PngHeader } from './types.js';
 import { unfilterScanline, filterScanline, getBytesPerPixel, FilterType } from './png-filter.js';
+import { getSamplesPerPixel } from './utils.js';
 
 /**
  * Decompress and unfilter PNG image data
@@ -90,20 +91,6 @@ export function compressImageData(pixelData: Uint8Array, header: PngHeader): Uin
   const compressed = deflateSync(filteredData, { level: 9 });
 
   return compressed;
-}
-
-/**
- * Get number of samples per pixel for a color type
- */
-function getSamplesPerPixel(colorType: number): number {
-  switch (colorType) {
-    case 0: return 1; // Grayscale
-    case 2: return 3; // RGB
-    case 3: return 1; // Palette
-    case 4: return 2; // Grayscale + Alpha
-    case 6: return 4; // RGBA
-    default: throw new Error(`Unknown color type: ${colorType}`);
-  }
 }
 
 /**

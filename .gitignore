@@ -141,3 +141,7 @@ vite.config.ts.timestamp-*
 # Example output files
 examples/*.png
 examples/*.js
+
+# Generated documentation site (built by GitHub Pages action)
+docs-dist/
+docs/images/

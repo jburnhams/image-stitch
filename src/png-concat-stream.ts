@@ -4,7 +4,7 @@ import { ConcatOptions, PngHeader } from './types.js';
 import { parsePngHeader, parsePngChunks } from './png-parser.js';
 import { createIHDR, createIEND, serializeChunk } from './png-writer.js';
 import { extractPixelData, compressImageData } from './png-decompress.js';
-import { copyPixelRegion, createBlankImage } from './pixel-ops.js';
+import { copyPixelRegion, createBlankImage, determineCommonFormat, convertPixelFormat } from './pixel-ops.js';
 import { PNG_SIGNATURE } from './utils.js';
 
 /**
@@ -90,20 +90,37 @@ export class PngConcatenatorStream {
     // Load all input images (NOTE: inputs still need to be in memory)
     const inputData = this.loadInputData();
 
-    // Parse headers and validate
-    const headers = inputData.map(data => parsePngHeader(data));
-    const firstHeader = headers[0];
+    // Parse headers
+    const originalHeaders = inputData.map(data => parsePngHeader(data));
+    const firstHeader = originalHeaders[0];
 
-    // Validate that all images have compatible formats
-    for (let i = 1; i < headers.length; i++) {
-      if (headers[i].bitDepth !== firstHeader.bitDepth ||
-          headers[i].colorType !== firstHeader.colorType) {
-        throw new Error('All input images must have the same bit depth and color type');
-      }
-      if (headers[i].width !== firstHeader.width ||
-          headers[i].height !== firstHeader.height) {
+    // Validate that all images have the same dimensions
+    for (let i = 1; i < originalHeaders.length; i++) {
+      if (originalHeaders[i].width !== firstHeader.width ||
+          originalHeaders[i].height !== firstHeader.height) {
         throw new Error('All input images must have the same dimensions');
       }
+    }
+
+    // Determine common format that can represent all images
+    const { bitDepth: targetBitDepth, colorType: targetColorType } = determineCommonFormat(originalHeaders);
+
+    // Convert all images to common format
+    const convertedImages: Array<{ data: Uint8Array; header: PngHeader }> = [];
+
+    for (let i = 0; i < inputData.length; i++) {
+      const chunks = parsePngChunks(inputData[i]);
+      const inputPixels = extractPixelData(chunks, originalHeaders[i]);
+
+      // Convert to common format
+      const converted = convertPixelFormat(
+        inputPixels,
+        originalHeaders[i],
+        targetBitDepth,
+        targetColorType
+      );
+
+      convertedImages.push(converted);
     }
 
     // Calculate grid layout
@@ -111,12 +128,12 @@ export class PngConcatenatorStream {
     const imageHeight = firstHeader.height;
     const { columns, rows } = this.calculateLayout(inputData.length, imageWidth, imageHeight);
 
-    // Create output header
+    // Create output header using common format
     const outputHeader: PngHeader = {
       width: columns * imageWidth,
       height: rows * imageHeight,
-      bitDepth: firstHeader.bitDepth,
-      colorType: firstHeader.colorType,
+      bitDepth: targetBitDepth,
+      colorType: targetColorType,
       compressionMethod: 0,
       filterMethod: 0,
       interlaceMethod: 0
@@ -135,10 +152,9 @@ export class PngConcatenatorStream {
     // one at a time with streaming compression.
     const outputPixels = createBlankImage(outputHeader);
 
-    // Extract and copy pixels from each input image
-    for (let i = 0; i < inputData.length; i++) {
-      const chunks = parsePngChunks(inputData[i]);
-      const inputPixels = extractPixelData(chunks, headers[i]);
+    // Extract and copy pixels from each converted image
+    for (let i = 0; i < convertedImages.length; i++) {
+      const converted = convertedImages[i];
 
       // Calculate position in grid
       const col = i % columns;
@@ -148,8 +164,8 @@ export class PngConcatenatorStream {
 
       // Copy pixels to output
       copyPixelRegion(
-        inputPixels,
-        headers[i],
+        converted.data,
+        converted.header,
         outputPixels,
         outputHeader,
         0, 0,           // source position
