@@ -1,6 +1,6 @@
 /**
  * png-concat browser bundle
- * Generated on 2025-10-27T18:09:47.528Z
+ * Generated on 2025-10-28T06:25:20.656Z
  */
 
 
@@ -94,6 +94,19 @@ function isPngSignature(data) {
             return false;
     }
     return true;
+}
+/**
+ * Get number of samples per pixel for a color type
+ */
+function getSamplesPerPixel(colorType) {
+    switch (colorType) {
+        case 0: return 1; // Grayscale
+        case 2: return 3; // RGB
+        case 3: return 1; // Palette
+        case 4: return 2; // Grayscale + Alpha
+        case 6: return 4; // RGBA
+        default: throw new Error(`Unknown color type: ${colorType}`);
+    }
 }
 //# sourceMappingURL=utils.js.map
 
@@ -477,6 +490,7 @@ function getBytesPerPixel(bitDepth, colorType) {
 // ===== png-decompress.js =====
 
 
+
 /**
  * Decompress and unfilter PNG image data
  * @param idatChunks Array of IDAT chunks containing compressed image data
@@ -550,19 +564,6 @@ function compressImageData(pixelData, header) {
     return compressed;
 }
 /**
- * Get number of samples per pixel for a color type
- */
-function getSamplesPerPixel(colorType) {
-    switch (colorType) {
-        case 0: return 1; // Grayscale
-        case 2: return 3; // RGB
-        case 3: return 1; // Palette
-        case 4: return 2; // Grayscale + Alpha
-        case 6: return 4; // RGBA
-        default: throw new Error(`Unknown color type: ${colorType}`);
-    }
-}
-/**
  * Extract pixel data from a PNG file
  */
 function extractPixelData(chunks, header) {
@@ -575,6 +576,7 @@ function extractPixelData(chunks, header) {
 //# sourceMappingURL=png-decompress.js.map
 
 // ===== pixel-ops.js =====
+
 
 /**
  * Copy a rectangular region from one image to another
@@ -623,19 +625,6 @@ function createBlankImage(header, backgroundColor = new Uint8Array([0, 0, 0, 0])
         data.set(backgroundColor, i);
     }
     return data;
-}
-/**
- * Get number of samples per pixel for a color type
- */
-function getSamplesPerPixel(colorType) {
-    switch (colorType) {
-        case 0: return 1; // Grayscale
-        case 2: return 3; // RGB
-        case 3: return 1; // Palette
-        case 4: return 2; // Grayscale + Alpha
-        case 6: return 4; // RGBA
-        default: throw new Error(`Unknown color type: ${colorType}`);
-    }
 }
 /**
  * Get transparent color for a given color type and bit depth

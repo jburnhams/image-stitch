@@ -82,3 +82,17 @@ export function isPngSignature(data: Uint8Array): boolean {
   }
   return true;
 }
+
+/**
+ * Get number of samples per pixel for a color type
+ */
+export function getSamplesPerPixel(colorType: number): number {
+  switch (colorType) {
+    case 0: return 1; // Grayscale
+    case 2: return 3; // RGB
+    case 3: return 1; // Palette
+    case 4: return 2; // Grayscale + Alpha
+    case 6: return 4; // RGBA
+    default: throw new Error(`Unknown color type: ${colorType}`);
+  }
+}
