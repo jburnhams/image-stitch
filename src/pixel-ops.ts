@@ -310,3 +310,146 @@ export function convertPixelFormat(
 
   return { data: targetData, header: targetHeader };
 }
+
+/**
+ * Convert a single scanline from one format to another
+ * This is optimized for streaming - converts one row at a time
+ */
+export function convertScanline(
+  srcScanline: Uint8Array,
+  width: number,
+  srcBitDepth: number,
+  srcColorType: number,
+  targetBitDepth: number,
+  targetColorType: number
+): Uint8Array {
+  // If already in target format, return as-is
+  if (srcBitDepth === targetBitDepth && srcColorType === targetColorType) {
+    return srcScanline;
+  }
+
+  // Only support converting to RGBA
+  if (targetColorType !== 6) {
+    throw new Error('Only conversion to RGBA (color type 6) is supported');
+  }
+
+  const targetBytesPerPixel = targetBitDepth === 16 ? 8 : 4; // RGBA
+  const targetScanline = new Uint8Array(width * targetBytesPerPixel);
+
+  // Process each pixel in the scanline
+  for (let x = 0; x < width; x++) {
+    let r = 0, g = 0, b = 0, a = 255; // Default to opaque
+
+    // Read source pixel based on format
+    if (srcColorType === 0) {
+      // Grayscale
+      if (srcBitDepth === 16) {
+        const offset = x * 2;
+        const gray = (srcScanline[offset] << 8) | srcScanline[offset + 1];
+        r = g = b = scaleSample(gray, 16, targetBitDepth);
+      } else if (srcBitDepth === 8) {
+        const gray = srcScanline[x];
+        r = g = b = scaleSample(gray, 8, targetBitDepth);
+      } else {
+        // Sub-byte bit depths (1, 2, 4)
+        const byteOffset = Math.floor((x * srcBitDepth) / 8);
+        const bitOffset = (x * srcBitDepth) % 8;
+        const mask = (1 << srcBitDepth) - 1;
+        const gray = (srcScanline[byteOffset] >> (8 - bitOffset - srcBitDepth)) & mask;
+        r = g = b = scaleSample(gray, srcBitDepth, targetBitDepth);
+      }
+      a = (targetBitDepth === 16) ? 0xFFFF : 0xFF; // Fully opaque
+    } else if (srcColorType === 2) {
+      // RGB
+      const srcBytesPerPixel = (srcBitDepth === 16) ? 6 : 3;
+      const offset = x * srcBytesPerPixel;
+
+      if (srcBitDepth === 16) {
+        r = ((srcScanline[offset] << 8) | srcScanline[offset + 1]);
+        g = ((srcScanline[offset + 2] << 8) | srcScanline[offset + 3]);
+        b = ((srcScanline[offset + 4] << 8) | srcScanline[offset + 5]);
+        if (targetBitDepth === 8) {
+          r = scaleSample(r, 16, 8);
+          g = scaleSample(g, 16, 8);
+          b = scaleSample(b, 16, 8);
+        }
+      } else {
+        r = srcScanline[offset];
+        g = srcScanline[offset + 1];
+        b = srcScanline[offset + 2];
+        if (targetBitDepth === 16) {
+          r = scaleSample(r, 8, 16);
+          g = scaleSample(g, 8, 16);
+          b = scaleSample(b, 8, 16);
+        }
+      }
+      a = (targetBitDepth === 16) ? 0xFFFF : 0xFF; // Fully opaque
+    } else if (srcColorType === 4) {
+      // Grayscale + Alpha
+      const srcBytesPerPixel = (srcBitDepth === 16) ? 4 : 2;
+      const offset = x * srcBytesPerPixel;
+
+      if (srcBitDepth === 16) {
+        const gray = (srcScanline[offset] << 8) | srcScanline[offset + 1];
+        r = g = b = (targetBitDepth === 16) ? gray : scaleSample(gray, 16, 8);
+        a = (srcScanline[offset + 2] << 8) | srcScanline[offset + 3];
+        if (targetBitDepth === 8) {
+          a = scaleSample(a, 16, 8);
+        }
+      } else {
+        r = g = b = (targetBitDepth === 16) ? scaleSample(srcScanline[offset], 8, 16) : srcScanline[offset];
+        a = (targetBitDepth === 16) ? scaleSample(srcScanline[offset + 1], 8, 16) : srcScanline[offset + 1];
+      }
+    } else if (srcColorType === 6) {
+      // RGBA
+      const srcBytesPerPixel = (srcBitDepth === 16) ? 8 : 4;
+      const offset = x * srcBytesPerPixel;
+
+      if (srcBitDepth === 16) {
+        r = (srcScanline[offset] << 8) | srcScanline[offset + 1];
+        g = (srcScanline[offset + 2] << 8) | srcScanline[offset + 3];
+        b = (srcScanline[offset + 4] << 8) | srcScanline[offset + 5];
+        a = (srcScanline[offset + 6] << 8) | srcScanline[offset + 7];
+        if (targetBitDepth === 8) {
+          r = scaleSample(r, 16, 8);
+          g = scaleSample(g, 16, 8);
+          b = scaleSample(b, 16, 8);
+          a = scaleSample(a, 16, 8);
+        }
+      } else {
+        r = srcScanline[offset];
+        g = srcScanline[offset + 1];
+        b = srcScanline[offset + 2];
+        a = srcScanline[offset + 3];
+        if (targetBitDepth === 16) {
+          r = scaleSample(r, 8, 16);
+          g = scaleSample(g, 8, 16);
+          b = scaleSample(b, 8, 16);
+          a = scaleSample(a, 8, 16);
+        }
+      }
+    } else {
+      throw new Error(`Unsupported source color type: ${srcColorType}`);
+    }
+
+    // Write target pixel (RGBA)
+    const targetOffset = x * targetBytesPerPixel;
+    if (targetBitDepth === 16) {
+      targetScanline[targetOffset] = (r >> 8) & 0xFF;
+      targetScanline[targetOffset + 1] = r & 0xFF;
+      targetScanline[targetOffset + 2] = (g >> 8) & 0xFF;
+      targetScanline[targetOffset + 3] = g & 0xFF;
+      targetScanline[targetOffset + 4] = (b >> 8) & 0xFF;
+      targetScanline[targetOffset + 5] = b & 0xFF;
+      targetScanline[targetOffset + 6] = (a >> 8) & 0xFF;
+      targetScanline[targetOffset + 7] = a & 0xFF;
+    } else {
+      targetScanline[targetOffset] = r;
+      targetScanline[targetOffset + 1] = g;
+      targetScanline[targetOffset + 2] = b;
+      targetScanline[targetOffset + 3] = a;
+    }
+  }
+
+  return targetScanline;
+}

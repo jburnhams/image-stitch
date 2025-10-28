@@ -21,10 +21,6 @@ export {
 // Streaming implementation (used by unified API)
 export { TrueStreamingConcatenator } from './png-concat-true-streaming.js';
 
-// Legacy/alternate APIs (kept for backwards compatibility)
-export { PngConcatenator } from './png-concat-legacy.js';
-export { PngConcatenatorStream } from './png-concat-stream.js';
-
 // Low-level APIs for advanced use
 export { parsePngHeader, parsePngChunks, PngParser } from './png-parser.js';
 export {
