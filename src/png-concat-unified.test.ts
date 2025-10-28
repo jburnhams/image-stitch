@@ -67,15 +67,13 @@ test('concatPngs returns stream when requested', async () => {
   assert.ok(result instanceof Readable);
 });
 
-test('concatPngs with small images uses fast path', async () => {
+test('concatPngs with small images', async () => {
   const png1 = createTestPng(50, 50, new Uint8Array([255, 0, 0, 255]));
   const png2 = createTestPng(50, 50, new Uint8Array([0, 255, 0, 255]));
 
-  // Small images should use regular (fast) implementation
   const result = await concatPngs({
     inputs: [png1, png2],
-    layout: { columns: 2 },
-    optimize: 'auto'
+    layout: { columns: 2 }
   });
 
   assert.ok(result instanceof Uint8Array);
@@ -85,7 +83,7 @@ test('concatPngs with small images uses fast path', async () => {
   assert.strictEqual(header.height, 50);
 });
 
-test('concatPngs can force memory optimization', async () => {
+test('concatPngs with file paths', async () => {
   const png1 = createTestPng(10, 10, new Uint8Array([255, 0, 0, 255]));
   const png2 = createTestPng(10, 10, new Uint8Array([0, 255, 0, 255]));
 
@@ -98,8 +96,7 @@ test('concatPngs can force memory optimization', async () => {
   try {
     const result = await concatPngs({
       inputs: [tempFile1, tempFile2],
-      layout: { columns: 2 },
-      optimize: 'memory' // Force true streaming
+      layout: { columns: 2 }
     });
 
     assert.ok(result instanceof Uint8Array);
@@ -113,14 +110,13 @@ test('concatPngs can force memory optimization', async () => {
   }
 });
 
-test('concatPngs can force speed optimization', async () => {
+test('concatPngs with Uint8Array inputs', async () => {
   const png1 = createTestPng(10, 10, new Uint8Array([255, 0, 0, 255]));
   const png2 = createTestPng(10, 10, new Uint8Array([0, 255, 0, 255]));
 
   const result = await concatPngs({
     inputs: [png1, png2],
-    layout: { columns: 2 },
-    optimize: 'speed' // Force regular implementation
+    layout: { columns: 2 }
   });
 
   assert.ok(result instanceof Uint8Array);
@@ -142,7 +138,7 @@ test('concatPngsToFile returns a stream', async () => {
   assert.ok(result instanceof Readable);
 });
 
-test('concatPngs auto-selects true streaming for large images with file paths', async () => {
+test('concatPngs handles large images efficiently', async () => {
   // Create larger test images
   const largePng1 = createTestPng(500, 500, new Uint8Array([255, 0, 0, 255]));
   const largePng2 = createTestPng(500, 500, new Uint8Array([0, 255, 0, 255]));
@@ -154,12 +150,9 @@ test('concatPngs auto-selects true streaming for large images with file paths', 
   writeFileSync(tempFile2, largePng2);
 
   try {
-    // With auto and file paths, should use true streaming for 500x500 images
     const result = await concatPngs({
       inputs: [tempFile1, tempFile2],
-      layout: { columns: 2 },
-      optimize: 'auto',
-      maxMemoryMB: 1 // Low memory budget forces true streaming
+      layout: { columns: 2 }
     });
 
     assert.ok(result instanceof Uint8Array);

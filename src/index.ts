@@ -9,10 +9,21 @@
 export { concatPngs, concatPngsToFile } from './png-concat-unified.js';
 export type { UnifiedConcatOptions } from './png-concat-unified.js';
 
-// Legacy/advanced APIs (kept for backwards compatibility)
+// Input adapter system for custom input types
+export type { PngInputAdapter, PngInput } from './png-input-adapter.js';
+export {
+  FileInputAdapter,
+  Uint8ArrayInputAdapter,
+  createInputAdapter,
+  createInputAdapters
+} from './png-input-adapter.js';
+
+// Streaming implementation (used by unified API)
+export { TrueStreamingConcatenator } from './png-concat-true-streaming.js';
+
+// Legacy/alternate APIs (kept for backwards compatibility)
 export { PngConcatenator } from './png-concat-legacy.js';
 export { PngConcatenatorStream } from './png-concat-stream.js';
-export { TrueStreamingConcatenator } from './png-concat-true-streaming.js';
 
 // Low-level APIs for advanced use
 export { parsePngHeader, parsePngChunks, PngParser } from './png-parser.js';
