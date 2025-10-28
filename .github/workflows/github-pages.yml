@@ -40,25 +40,13 @@ jobs:
       - name: Build browser bundle
         run: node scripts/build-browser-bundle.js
 
-      - name: Copy sample images to docs
-        run: |
-          mkdir -p docs/images
-          cp pngsuite/png/basn2c08.png docs/images/
-          cp pngsuite/png/basn0g08.png docs/images/
-          cp pngsuite/png/basn6a08.png docs/images/
-          cp pngsuite/png/basn4a08.png docs/images/
-          cp pngsuite/png/basn2c16.png docs/images/
-          cp pngsuite/png/basn0g16.png docs/images/
-          cp pngsuite/png/basn0g01.png docs/images/
-          cp pngsuite/png/basn0g04.png docs/images/
-
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: 'docs'
+          path: 'docs-dist'
 
   deploy:
     environment:

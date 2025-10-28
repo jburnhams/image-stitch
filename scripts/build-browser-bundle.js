@@ -13,8 +13,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const distDir = path.join(__dirname, '..', 'dist');
-const docsDir = path.join(__dirname, '..', 'docs');
-const outputFile = path.join(docsDir, 'png-concat.bundle.js');
+const docsSourceDir = path.join(__dirname, '..', 'docs');
+const docsDistDir = path.join(__dirname, '..', 'docs-dist');
+const outputFile = path.join(docsDistDir, 'png-concat.bundle.js');
 
 // Read all the source files
 const modules = {
@@ -72,8 +73,25 @@ for (const [moduleName, code] of Object.entries(modules)) {
 bundle += '\n// ===== Main API =====\n';
 bundle += processModule(modules['png-concat-unified.js'], 'png-concat-unified.js');
 
+// Create docs-dist directory
+fs.mkdirSync(docsDistDir, { recursive: true });
+
+// Copy all files from docs source to docs-dist
+function copyRecursive(src, dest) {
+  if (fs.statSync(src).isDirectory()) {
+    fs.mkdirSync(dest, { recursive: true });
+    for (const item of fs.readdirSync(src)) {
+      copyRecursive(path.join(src, item), path.join(dest, item));
+    }
+  } else {
+    fs.copyFileSync(src, dest);
+  }
+}
+
+console.log('Copying docs source files...');
+copyRecursive(docsSourceDir, docsDistDir);
+
 // Write the bundle
-fs.mkdirSync(docsDir, { recursive: true });
 fs.writeFileSync(outputFile, bundle);
 
 console.log(`Bundle created: ${outputFile}`);
