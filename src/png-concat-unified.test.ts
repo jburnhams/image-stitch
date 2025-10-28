@@ -11,7 +11,7 @@ import { writeFileSync, unlinkSync } from 'node:fs';
 /**
  * Create a simple test PNG with solid color
  */
-function createTestPng(width: number, height: number, color: Uint8Array): Uint8Array {
+async function createTestPng(width: number, height: number, color: Uint8Array): Promise<Uint8Array> {
   const header: PngHeader = {
     width,
     height,
@@ -30,7 +30,7 @@ function createTestPng(width: number, height: number, color: Uint8Array): Uint8A
     pixelData[i * 4 + 3] = color[3];
   }
 
-  const compressed = compressImageData(pixelData, header);
+  const compressed = await compressImageData(pixelData, header);
   const ihdr = createIHDR(header);
   const idat = createChunk('IDAT', compressed);
   const iend = createIEND();
@@ -39,8 +39,8 @@ function createTestPng(width: number, height: number, color: Uint8Array): Uint8A
 }
 
 test('concatPngs returns Uint8Array by default', async () => {
-  const png1 = createTestPng(10, 10, new Uint8Array([255, 0, 0, 255]));
-  const png2 = createTestPng(10, 10, new Uint8Array([0, 255, 0, 255]));
+  const png1 = await createTestPng(10, 10, new Uint8Array([255, 0, 0, 255]));
+  const png2 = await createTestPng(10, 10, new Uint8Array([0, 255, 0, 255]));
 
   const result = await concatPngs({
     inputs: [png1, png2],
@@ -55,8 +55,8 @@ test('concatPngs returns Uint8Array by default', async () => {
 });
 
 test('concatPngs returns stream when requested', async () => {
-  const png1 = createTestPng(10, 10, new Uint8Array([255, 0, 0, 255]));
-  const png2 = createTestPng(10, 10, new Uint8Array([0, 255, 0, 255]));
+  const png1 = await createTestPng(10, 10, new Uint8Array([255, 0, 0, 255]));
+  const png2 = await createTestPng(10, 10, new Uint8Array([0, 255, 0, 255]));
 
   const result = await concatPngs({
     inputs: [png1, png2],
@@ -68,8 +68,8 @@ test('concatPngs returns stream when requested', async () => {
 });
 
 test('concatPngs with small images', async () => {
-  const png1 = createTestPng(50, 50, new Uint8Array([255, 0, 0, 255]));
-  const png2 = createTestPng(50, 50, new Uint8Array([0, 255, 0, 255]));
+  const png1 = await createTestPng(50, 50, new Uint8Array([255, 0, 0, 255]));
+  const png2 = await createTestPng(50, 50, new Uint8Array([0, 255, 0, 255]));
 
   const result = await concatPngs({
     inputs: [png1, png2],
@@ -84,8 +84,8 @@ test('concatPngs with small images', async () => {
 });
 
 test('concatPngs with file paths', async () => {
-  const png1 = createTestPng(10, 10, new Uint8Array([255, 0, 0, 255]));
-  const png2 = createTestPng(10, 10, new Uint8Array([0, 255, 0, 255]));
+  const png1 = await createTestPng(10, 10, new Uint8Array([255, 0, 0, 255]));
+  const png2 = await createTestPng(10, 10, new Uint8Array([0, 255, 0, 255]));
 
   // Save to temp files for file path testing
   const tempFile1 = '/tmp/test-png1.png';
@@ -111,8 +111,8 @@ test('concatPngs with file paths', async () => {
 });
 
 test('concatPngs with Uint8Array inputs', async () => {
-  const png1 = createTestPng(10, 10, new Uint8Array([255, 0, 0, 255]));
-  const png2 = createTestPng(10, 10, new Uint8Array([0, 255, 0, 255]));
+  const png1 = await createTestPng(10, 10, new Uint8Array([255, 0, 0, 255]));
+  const png2 = await createTestPng(10, 10, new Uint8Array([0, 255, 0, 255]));
 
   const result = await concatPngs({
     inputs: [png1, png2],
@@ -127,8 +127,8 @@ test('concatPngs with Uint8Array inputs', async () => {
 });
 
 test('concatPngsToFile returns a stream', async () => {
-  const png1 = createTestPng(10, 10, new Uint8Array([255, 0, 0, 255]));
-  const png2 = createTestPng(10, 10, new Uint8Array([0, 255, 0, 255]));
+  const png1 = await createTestPng(10, 10, new Uint8Array([255, 0, 0, 255]));
+  const png2 = await createTestPng(10, 10, new Uint8Array([0, 255, 0, 255]));
 
   const result = await concatPngsToFile({
     inputs: [png1, png2],
@@ -140,8 +140,8 @@ test('concatPngsToFile returns a stream', async () => {
 
 test('concatPngs handles large images efficiently', async () => {
   // Create larger test images
-  const largePng1 = createTestPng(500, 500, new Uint8Array([255, 0, 0, 255]));
-  const largePng2 = createTestPng(500, 500, new Uint8Array([0, 255, 0, 255]));
+  const largePng1 = await createTestPng(500, 500, new Uint8Array([255, 0, 0, 255]));
+  const largePng2 = await createTestPng(500, 500, new Uint8Array([0, 255, 0, 255]));
 
   // Save to temp files
   const tempFile1 = '/tmp/test-large-png1.png';
@@ -167,8 +167,8 @@ test('concatPngs handles large images efficiently', async () => {
 });
 
 test('concatPngs handles vertical layout', async () => {
-  const png1 = createTestPng(10, 10, new Uint8Array([255, 0, 0, 255]));
-  const png2 = createTestPng(10, 10, new Uint8Array([0, 255, 0, 255]));
+  const png1 = await createTestPng(10, 10, new Uint8Array([255, 0, 0, 255]));
+  const png2 = await createTestPng(10, 10, new Uint8Array([0, 255, 0, 255]));
 
   const result = await concatPngs({
     inputs: [png1, png2],
@@ -181,12 +181,12 @@ test('concatPngs handles vertical layout', async () => {
 });
 
 test('concatPngs handles grid layout', async () => {
-  const pngs = [
+  const pngs = await Promise.all([
     createTestPng(10, 10, new Uint8Array([255, 0, 0, 255])),
     createTestPng(10, 10, new Uint8Array([0, 255, 0, 255])),
     createTestPng(10, 10, new Uint8Array([0, 0, 255, 255])),
     createTestPng(10, 10, new Uint8Array([255, 255, 0, 255]))
-  ];
+  ]);
 
   const result = await concatPngs({
     inputs: pngs,

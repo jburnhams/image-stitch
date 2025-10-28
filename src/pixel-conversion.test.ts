@@ -291,13 +291,13 @@ describe('PngSuite Tests: Verify pixel values at expected coordinates', () => {
     // Read pixel from top-left of first image
     const header1 = parsePngHeader(png1);
     const chunks1 = parsePngChunks(png1);
-    const pixels1 = extractPixelData(chunks1, header1);
+    const pixels1 = await extractPixelData(chunks1, header1);
     const pixel1 = getPixelAt(pixels1, header1, 0, 0);
 
     // Read pixel from top-left of second image
     const header2 = parsePngHeader(png2);
     const chunks2 = parsePngChunks(png2);
-    const pixels2 = extractPixelData(chunks2, header2);
+    const pixels2 = await extractPixelData(chunks2, header2);
     const pixel2 = getPixelAt(pixels2, header2, 0, 0);
 
     // Concatenate horizontally
@@ -309,7 +309,7 @@ describe('PngSuite Tests: Verify pixel values at expected coordinates', () => {
     // Extract pixels from result
     const resultHeader = parsePngHeader(result);
     const resultChunks = parsePngChunks(result);
-    const resultPixels = extractPixelData(resultChunks, resultHeader);
+    const resultPixels = await extractPixelData(resultChunks, resultHeader);
 
     // Pixel from first image should be at (0, 0) in output
     const outputPixel1 = getPixelAt(resultPixels, resultHeader, 0, 0);
@@ -337,12 +337,12 @@ describe('PngSuite Tests: Verify pixel values at expected coordinates', () => {
 
     // Read corner pixels from source images
     const headerRGB = parsePngHeader(pngRGB);
-    const pixelsRGB = extractPixelData(parsePngChunks(pngRGB), headerRGB);
+    const pixelsRGB = await extractPixelData(parsePngChunks(pngRGB), headerRGB);
     const rgbTopLeft = getPixelAt(pixelsRGB, headerRGB, 0, 0);
     const rgbBottomRight = getPixelAt(pixelsRGB, headerRGB, headerRGB.width - 1, headerRGB.height - 1);
 
     const headerGray = parsePngHeader(pngGray);
-    const pixelsGray = extractPixelData(parsePngChunks(pngGray), headerGray);
+    const pixelsGray = await extractPixelData(parsePngChunks(pngGray), headerGray);
     const grayTopLeft = getPixelAt(pixelsGray, headerGray, 0, 0);
     const grayBottomRight = getPixelAt(pixelsGray, headerGray, headerGray.width - 1, headerGray.height - 1);
 
@@ -353,7 +353,7 @@ describe('PngSuite Tests: Verify pixel values at expected coordinates', () => {
     });
 
     const resultHeader = parsePngHeader(result);
-    const resultPixels = extractPixelData(parsePngChunks(result), resultHeader);
+    const resultPixels = await extractPixelData(parsePngChunks(result), resultHeader);
 
     // Verify RGB image pixels at (0, 0) and (width-1, height-1)
     const outRgbTopLeft = getPixelAt(resultPixels, resultHeader, 0, 0);
@@ -390,11 +390,11 @@ describe('PngSuite Tests: Verify pixel values at expected coordinates', () => {
 
     // Read pixels with alpha
     const headerRGBA = parsePngHeader(pngRGBA);
-    const pixelsRGBA = extractPixelData(parsePngChunks(pngRGBA), headerRGBA);
+    const pixelsRGBA = await extractPixelData(parsePngChunks(pngRGBA), headerRGBA);
     const rgbaPixel = getPixelAt(pixelsRGBA, headerRGBA, 5, 5);
 
     const headerGA = parsePngHeader(pngGA);
-    const pixelsGA = extractPixelData(parsePngChunks(pngGA), headerGA);
+    const pixelsGA = await extractPixelData(parsePngChunks(pngGA), headerGA);
     const gaPixel = getPixelAt(pixelsGA, headerGA, 5, 5);
 
     // Concatenate vertically
@@ -404,7 +404,7 @@ describe('PngSuite Tests: Verify pixel values at expected coordinates', () => {
     });
 
     const resultHeader = parsePngHeader(result);
-    const resultPixels = extractPixelData(parsePngChunks(result), resultHeader);
+    const resultPixels = await extractPixelData(parsePngChunks(result), resultHeader);
 
     // Verify RGBA pixel at (5, 5)
     const outRGBA = getPixelAt(resultPixels, resultHeader, 5, 5);
@@ -426,12 +426,12 @@ describe('PngSuite Tests: Verify pixel values at expected coordinates', () => {
 
     // Read a bright pixel from 8-bit image
     const header8 = parsePngHeader(png8);
-    const pixels8 = extractPixelData(parsePngChunks(png8), header8);
+    const pixels8 = await extractPixelData(parsePngChunks(png8), header8);
     const pixel8 = getPixelAt(pixels8, header8, 10, 10);
 
     // Read a pixel from 16-bit image
     const header16 = parsePngHeader(png16);
-    const pixels16 = extractPixelData(parsePngChunks(png16), header16);
+    const pixels16 = await extractPixelData(parsePngChunks(png16), header16);
     const pixel16 = getPixelAt(pixels16, header16, 10, 10);
 
     // Concatenate
@@ -441,7 +441,7 @@ describe('PngSuite Tests: Verify pixel values at expected coordinates', () => {
     });
 
     const resultHeader = parsePngHeader(result);
-    const resultPixels = extractPixelData(parsePngChunks(result), resultHeader);
+    const resultPixels = await extractPixelData(parsePngChunks(result), resultHeader);
 
     // Output should be 16-bit
     assert.strictEqual(resultHeader.bitDepth, 16);
@@ -520,19 +520,19 @@ describe('PngSuite Tests: Verify pixel values at expected coordinates', () => {
 
     // Read corner pixels from each source
     const header1 = parsePngHeader(png1);
-    const pixels1 = extractPixelData(parsePngChunks(png1), header1);
+    const pixels1 = await extractPixelData(parsePngChunks(png1), header1);
     const pixel1 = getPixelAt(pixels1, header1, 0, 0);
 
     const header2 = parsePngHeader(png2);
-    const pixels2 = extractPixelData(parsePngChunks(png2), header2);
+    const pixels2 = await extractPixelData(parsePngChunks(png2), header2);
     const pixel2 = getPixelAt(pixels2, header2, 0, 0);
 
     const header3 = parsePngHeader(png3);
-    const pixels3 = extractPixelData(parsePngChunks(png3), header3);
+    const pixels3 = await extractPixelData(parsePngChunks(png3), header3);
     const pixel3 = getPixelAt(pixels3, header3, 0, 0);
 
     const header4 = parsePngHeader(png4);
-    const pixels4 = extractPixelData(parsePngChunks(png4), header4);
+    const pixels4 = await extractPixelData(parsePngChunks(png4), header4);
     const pixel4 = getPixelAt(pixels4, header4, 0, 0);
 
     // Concatenate in 2x2 grid
@@ -542,7 +542,7 @@ describe('PngSuite Tests: Verify pixel values at expected coordinates', () => {
     });
 
     const resultHeader = parsePngHeader(result);
-    const resultPixels = extractPixelData(parsePngChunks(result), resultHeader);
+    const resultPixels = await extractPixelData(parsePngChunks(result), resultHeader);
 
     // Verify top-left (0, 0) - from png1
     const out1 = getPixelAt(resultPixels, resultHeader, 0, 0);
