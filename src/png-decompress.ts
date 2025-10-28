@@ -7,7 +7,7 @@ import { getSamplesPerPixel } from './utils.js';
  * Works in both Node.js (18+) and modern browsers
  */
 async function decompressData(data: Uint8Array): Promise<Uint8Array> {
-  const stream = new Blob([data]).stream();
+  const stream = new Blob([data as BlobPart]).stream();
   const decompressedStream = stream.pipeThrough(new DecompressionStream('deflate'));
   const chunks: Uint8Array[] = [];
   const reader = decompressedStream.getReader();
@@ -33,7 +33,7 @@ async function decompressData(data: Uint8Array): Promise<Uint8Array> {
  * Works in both Node.js (18+) and modern browsers
  */
 async function compressData(data: Uint8Array): Promise<Uint8Array> {
-  const stream = new Blob([data]).stream();
+  const stream = new Blob([data as BlobPart]).stream();
   const compressedStream = stream.pipeThrough(new CompressionStream('deflate'));
   const chunks: Uint8Array[] = [];
   const reader = compressedStream.getReader();

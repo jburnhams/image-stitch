@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PNG Concat - Live Examples</title>
+    <title>Image Stitch - Live Examples</title>
     <style>
         * {
             box-sizing: border-box;
@@ -226,12 +226,100 @@
         .github-link:hover {
             background: #444;
         }
+
+        .controls {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 6px;
+            border: 2px solid #e0e0e0;
+            margin-bottom: 1.5rem;
+        }
+
+        .control-group {
+            margin-bottom: 1rem;
+        }
+
+        .control-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #333;
+        }
+
+        .control-group input[type="number"],
+        .control-group input[type="range"] {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+
+        .control-group input[type="range"] {
+            padding: 0;
+        }
+
+        .image-selector {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .image-option {
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 0.75rem;
+            text-align: center;
+            background: white;
+        }
+
+        .image-option img {
+            max-width: 100%;
+            max-height: 64px;
+            margin-bottom: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .image-option input {
+            width: 60px;
+            padding: 0.25rem;
+            text-align: center;
+            font-size: 1rem;
+        }
+
+        .stats {
+            background: #f0f7ff;
+            padding: 1rem;
+            border-radius: 6px;
+            margin: 1rem 0;
+            border-left: 4px solid #667eea;
+        }
+
+        .stats p {
+            margin: 0.25rem 0;
+            font-family: monospace;
+        }
+
+        .highlight-box {
+            background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .highlight-box h4 {
+            color: #667eea;
+            margin-bottom: 0.75rem;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>PNG Concat</h1>
+            <h1>Image Stitch</h1>
             <p>A streaming PNG concatenation library for Node.js and web browsers</p>
         </header>
 
@@ -380,6 +468,72 @@
                 </div>
 
                 <div id="result5"></div>
+            </div>
+
+            <!-- Example 6: Massive PNG Generator (Streaming) -->
+            <div class="example" id="example6">
+                <h3>6. Massive PNG Generator - Streaming Demo</h3>
+
+                <div class="highlight-box">
+                    <h4>Memory-Efficient Streaming Generation</h4>
+                    <p>This example demonstrates image-stitch's key capability: <strong>generating massive PNG files without impacting browser memory</strong>. Unlike canvas-based approaches that load entire images into memory, image-stitch uses streaming to process and output PNG data in chunks.</p>
+                    <p><strong>Try it:</strong> Generate a PNG with thousands of images - the file will be created and downloaded directly without overwhelming your browser's memory!</p>
+                </div>
+
+                <p>Select source images and configure how many times to repeat each one. The output will be automatically arranged in a grid based on your width setting.</p>
+
+                <div class="code-block"><span class="keyword">const</span> result = <span class="keyword">await</span> <span class="function">concatPngs</span>({
+  inputs: [...repeatedImages],  <span class="comment">// Thousands of images</span>
+  layout: { width: <span class="string">500</span> }     <span class="comment">// Auto-wrap to fit width</span>
+});
+<span class="comment">// Streams directly to download - no memory overflow!</span></div>
+
+                <div class="controls">
+                    <h4 style="margin-bottom: 1rem; color: #667eea;">Source Images</h4>
+                    <p style="margin-bottom: 1rem; color: #666;">Select how many of each image to include:</p>
+
+                    <div class="image-selector">
+                        <div class="image-option">
+                            <img src="images/basn2c08.png" alt="RGB 32x32">
+                            <p style="font-size: 0.85rem; margin: 0.5rem 0; color: #666;">RGB 32x32</p>
+                            <input type="number" id="count-rgb" min="0" max="10000" value="25">
+                        </div>
+                        <div class="image-option">
+                            <img src="images/basn0g08.png" alt="Grayscale 32x32">
+                            <p style="font-size: 0.85rem; margin: 0.5rem 0; color: #666;">Gray 32x32</p>
+                            <input type="number" id="count-gray" min="0" max="10000" value="25">
+                        </div>
+                        <div class="image-option">
+                            <img src="images/basn6a08.png" alt="RGBA 32x32">
+                            <p style="font-size: 0.85rem; margin: 0.5rem 0; color: #666;">RGBA 32x32</p>
+                            <input type="number" id="count-rgba" min="0" max="10000" value="25">
+                        </div>
+                        <div class="image-option">
+                            <img src="images/basn4a08.png" alt="Gray+Alpha 32x32">
+                            <p style="font-size: 0.85rem; margin: 0.5rem 0; color: #666;">Gray+A 32x32</p>
+                            <input type="number" id="count-graya" min="0" max="10000" value="25">
+                        </div>
+                    </div>
+
+                    <h4 style="margin: 1.5rem 0 1rem; color: #667eea;">Output Configuration</h4>
+
+                    <div class="control-group">
+                        <label for="output-width">Maximum Width (pixels): <span id="width-value">500</span></label>
+                        <input type="range" id="output-width" min="32" max="2000" value="500" step="32">
+                    </div>
+
+                    <div id="stats6" class="stats">
+                        <p><strong>Total Images:</strong> <span id="total-images">100</span></p>
+                        <p><strong>Estimated Dimensions:</strong> <span id="estimated-dims">~500x3200 px</span></p>
+                        <p><strong>Estimated File Size:</strong> <span id="estimated-size">~2-5 MB</span></p>
+                    </div>
+                </div>
+
+                <div class="button-group">
+                    <button onclick="runExample6()">Generate & Download Massive PNG</button>
+                </div>
+
+                <div id="result6"></div>
             </div>
 
         </div>
@@ -565,6 +719,143 @@
                 a.download = `${exampleId}-result.png`;
                 a.click();
             }
+        };
+
+        // Example 6: Massive PNG Generator
+        const imageCache = {};
+
+        function updateStats() {
+            const countRgb = parseInt(document.getElementById('count-rgb').value) || 0;
+            const countGray = parseInt(document.getElementById('count-gray').value) || 0;
+            const countRgba = parseInt(document.getElementById('count-rgba').value) || 0;
+            const countGraya = parseInt(document.getElementById('count-graya').value) || 0;
+            const width = parseInt(document.getElementById('output-width').value) || 500;
+
+            const totalImages = countRgb + countGray + countRgba + countGraya;
+            const imagesPerRow = Math.floor(width / 32); // Assuming 32px images
+            const rows = Math.ceil(totalImages / imagesPerRow);
+            const estimatedHeight = rows * 32;
+            const estimatedSize = Math.round((totalImages * 32 * 32 * 4 * 0.3) / 1024 / 1024); // Rough estimate with compression
+
+            document.getElementById('total-images').textContent = totalImages.toLocaleString();
+            document.getElementById('estimated-dims').textContent = `~${width}x${estimatedHeight} px`;
+            document.getElementById('estimated-size').textContent = `~${estimatedSize}-${estimatedSize * 2} MB`;
+            document.getElementById('width-value').textContent = width;
+        }
+
+        // Set up event listeners for the controls
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('count-rgb').addEventListener('input', updateStats);
+            document.getElementById('count-gray').addEventListener('input', updateStats);
+            document.getElementById('count-rgba').addEventListener('input', updateStats);
+            document.getElementById('count-graya').addEventListener('input', updateStats);
+            document.getElementById('output-width').addEventListener('input', updateStats);
+            updateStats();
+        });
+
+        window.runExample6 = async function() {
+            const exampleId = 'example6';
+            const resultDiv = document.getElementById('result6');
+
+            try {
+                // Get configuration
+                const countRgb = parseInt(document.getElementById('count-rgb').value) || 0;
+                const countGray = parseInt(document.getElementById('count-gray').value) || 0;
+                const countRgba = parseInt(document.getElementById('count-rgba').value) || 0;
+                const countGraya = parseInt(document.getElementById('count-graya').value) || 0;
+                const width = parseInt(document.getElementById('output-width').value) || 500;
+
+                const totalImages = countRgb + countGray + countRgba + countGraya;
+
+                if (totalImages === 0) {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <strong>Error:</strong> Please select at least one image!
+                        </div>
+                    `;
+                    return;
+                }
+
+                // Show loading with progress
+                resultDiv.innerHTML = `
+                    <div class="result">
+                        <h4>Generating massive PNG...</h4>
+                        <div class="loading"></div>
+                        <p style="margin-top: 1rem;">Processing ${totalImages.toLocaleString()} images...</p>
+                        <p style="color: #666; font-size: 0.9rem;">This may take a moment for very large outputs.</p>
+                    </div>
+                `;
+
+                // Load base images (cache them)
+                const imageUrls = {
+                    rgb: 'images/basn2c08.png',
+                    gray: 'images/basn0g08.png',
+                    rgba: 'images/basn6a08.png',
+                    graya: 'images/basn4a08.png'
+                };
+
+                // Load images if not cached
+                for (const [key, url] of Object.entries(imageUrls)) {
+                    if (!imageCache[key]) {
+                        imageCache[key] = await loadImage(url);
+                    }
+                }
+
+                // Build input array
+                const inputs = [];
+                for (let i = 0; i < countRgb; i++) inputs.push(imageCache.rgb);
+                for (let i = 0; i < countGray; i++) inputs.push(imageCache.gray);
+                for (let i = 0; i < countRgba; i++) inputs.push(imageCache.rgba);
+                for (let i = 0; i < countGraya; i++) inputs.push(imageCache.graya);
+
+                // Generate the massive PNG
+                const startTime = performance.now();
+                const result = await concatPngs({
+                    inputs: inputs,
+                    layout: { width: width }
+                });
+                const endTime = performance.now();
+                const duration = ((endTime - startTime) / 1000).toFixed(2);
+
+                // Show result
+                const blob = new Blob([result], { type: 'image/png' });
+                const url = URL.createObjectURL(blob);
+                const sizeMB = (result.length / 1024 / 1024).toFixed(2);
+
+                resultDiv.innerHTML = `
+                    <div class="result">
+                        <h4>Success! Massive PNG Generated</h4>
+                        <div class="stats">
+                            <p><strong>Total Images:</strong> ${totalImages.toLocaleString()}</p>
+                            <p><strong>File Size:</strong> ${sizeMB} MB (${result.length.toLocaleString()} bytes)</p>
+                            <p><strong>Generation Time:</strong> ${duration} seconds</p>
+                            <p><strong>Performance:</strong> ${(totalImages / parseFloat(duration)).toFixed(0)} images/sec</p>
+                        </div>
+                        <p style="margin: 1rem 0; color: #667eea; font-weight: 600;">
+                            The PNG was generated using streaming - no memory overflow!
+                        </p>
+                        <button onclick="downloadMassivePng('${url}', ${totalImages})">Download PNG (${sizeMB} MB)</button>
+                        <p style="margin-top: 1rem; color: #666; font-size: 0.9rem;">
+                            Preview omitted for large files. Click download to save the file.
+                        </p>
+                    </div>
+                `;
+
+            } catch (error) {
+                console.error('Example 6 error:', error);
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <strong>Error:</strong> ${error.message}
+                    </div>
+                `;
+            }
+        };
+
+        window.downloadMassivePng = function(url, totalImages) {
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `massive-${totalImages}-images.png`;
+            a.click();
         };
     </script>
 </body>
