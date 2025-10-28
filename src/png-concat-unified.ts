@@ -1,6 +1,6 @@
 import { Readable } from 'node:stream';
 import { ConcatOptions } from './types.js';
-import { concatPngs as concatPngsStreaming, concatPngsToStream as concatPngsToStreamImpl } from './png-concat-true-streaming.js';
+import { concatPngsStreaming, concatPngsToStream as concatPngsToStreamImpl } from './png-concat-true-streaming.js';
 
 /**
  * Extended options with output format hint

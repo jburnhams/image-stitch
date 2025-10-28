@@ -1,7 +1,58 @@
-import { inflateSync, deflateSync } from 'node:zlib';
 import { PngChunk, PngHeader } from './types.js';
 import { unfilterScanline, filterScanline, getBytesPerPixel, FilterType } from './png-filter.js';
 import { getSamplesPerPixel } from './utils.js';
+
+/**
+ * Decompress data using Web Compression Streams API
+ * Works in both Node.js (18+) and modern browsers
+ */
+async function decompressData(data: Uint8Array): Promise<Uint8Array> {
+  const stream = new Blob([data]).stream();
+  const decompressedStream = stream.pipeThrough(new DecompressionStream('deflate'));
+  const chunks: Uint8Array[] = [];
+  const reader = decompressedStream.getReader();
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+  }
+
+  const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+  const result = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const chunk of chunks) {
+    result.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return result;
+}
+
+/**
+ * Compress data using Web Compression Streams API
+ * Works in both Node.js (18+) and modern browsers
+ */
+async function compressData(data: Uint8Array): Promise<Uint8Array> {
+  const stream = new Blob([data]).stream();
+  const compressedStream = stream.pipeThrough(new CompressionStream('deflate'));
+  const chunks: Uint8Array[] = [];
+  const reader = compressedStream.getReader();
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+  }
+
+  const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+  const result = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const chunk of chunks) {
+    result.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return result;
+}
 
 /**
  * Decompress and unfilter PNG image data
@@ -9,7 +60,7 @@ import { getSamplesPerPixel } from './utils.js';
  * @param header PNG header information
  * @returns Unfiltered raw pixel data
  */
-export function decompressImageData(idatChunks: PngChunk[], header: PngHeader): Uint8Array {
+export async function decompressImageData(idatChunks: PngChunk[], header: PngHeader): Promise<Uint8Array> {
   // Concatenate all IDAT chunk data
   let totalLength = 0;
   for (const chunk of idatChunks) {
@@ -27,8 +78,8 @@ export function decompressImageData(idatChunks: PngChunk[], header: PngHeader): 
     }
   }
 
-  // Decompress using zlib
-  const decompressed = inflateSync(compressedData);
+  // Decompress using Web Compression Streams API
+  const decompressed = await decompressData(compressedData);
 
   // Unfilter scanlines
   const bytesPerPixel = getBytesPerPixel(header.bitDepth, header.colorType);
@@ -64,7 +115,7 @@ export function decompressImageData(idatChunks: PngChunk[], header: PngHeader): 
  * @param header PNG header information
  * @returns Compressed IDAT chunk data
  */
-export function compressImageData(pixelData: Uint8Array, header: PngHeader): Uint8Array {
+export async function compressImageData(pixelData: Uint8Array, header: PngHeader): Promise<Uint8Array> {
   const bytesPerPixel = getBytesPerPixel(header.bitDepth, header.colorType);
   const scanlineLength = Math.ceil((header.width * header.bitDepth * getSamplesPerPixel(header.colorType)) / 8);
 
@@ -87,8 +138,8 @@ export function compressImageData(pixelData: Uint8Array, header: PngHeader): Uin
     previousLine = scanline;
   }
 
-  // Compress using zlib
-  const compressed = deflateSync(filteredData, { level: 9 });
+  // Compress using Web Compression Streams API
+  const compressed = await compressData(filteredData);
 
   return compressed;
 }
@@ -96,10 +147,10 @@ export function compressImageData(pixelData: Uint8Array, header: PngHeader): Uin
 /**
  * Extract pixel data from a PNG file
  */
-export function extractPixelData(chunks: PngChunk[], header: PngHeader): Uint8Array {
+export async function extractPixelData(chunks: PngChunk[], header: PngHeader): Promise<Uint8Array> {
   const idatChunks = chunks.filter(chunk => chunk.type === 'IDAT');
   if (idatChunks.length === 0) {
     throw new Error('No IDAT chunks found in PNG');
   }
-  return decompressImageData(idatChunks, header);
+  return await decompressImageData(idatChunks, header);
 }

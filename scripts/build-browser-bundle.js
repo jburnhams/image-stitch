@@ -17,7 +17,7 @@ const docsSourceDir = path.join(__dirname, '..', 'docs');
 const docsDistDir = path.join(__dirname, '..', 'docs-dist');
 const outputFile = path.join(docsDistDir, 'png-concat.bundle.js');
 
-// Read all the source files
+// Read all the source files (order matters - dependencies first)
 const modules = {
   'types.js': fs.readFileSync(path.join(distDir, 'types.js'), 'utf8'),
   'utils.js': fs.readFileSync(path.join(distDir, 'utils.js'), 'utf8'),
@@ -26,6 +26,8 @@ const modules = {
   'png-filter.js': fs.readFileSync(path.join(distDir, 'png-filter.js'), 'utf8'),
   'png-decompress.js': fs.readFileSync(path.join(distDir, 'png-decompress.js'), 'utf8'),
   'pixel-ops.js': fs.readFileSync(path.join(distDir, 'pixel-ops.js'), 'utf8'),
+  'png-input-adapter.js': fs.readFileSync(path.join(distDir, 'png-input-adapter.js'), 'utf8'),
+  'png-concat-true-streaming.js': fs.readFileSync(path.join(distDir, 'png-concat-true-streaming.js'), 'utf8'),
   'png-concat-unified.js': fs.readFileSync(path.join(distDir, 'png-concat-unified.js'), 'utf8'),
 };
 
@@ -34,7 +36,7 @@ function processModule(code, moduleName) {
   // Remove export declarations but keep the code
   code = code.replace(/^export \{[^}]+\};?\s*$/gm, '');
 
-  // Remove import statements - we'll inline everything
+  // Remove ALL import statements - we're inlining everything
   code = code.replace(/^import .+ from ['"][^'"]+['"];?\s*$/gm, '');
 
   // Keep export declarations for the final API
@@ -56,6 +58,7 @@ console.log('Building browser bundle...');
 let bundle = `/**
  * png-concat browser bundle
  * Generated on ${new Date().toISOString()}
+ * Uses Web Compression Streams API (works in Node.js 18+ and modern browsers)
  */
 
 `;

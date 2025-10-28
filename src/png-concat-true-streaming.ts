@@ -5,14 +5,13 @@
  * Processes one output row at a time using the adapter architecture.
  */
 
-import { createDeflate } from 'node:zlib';
 import { Readable } from 'node:stream';
 import { ConcatOptions, PngHeader } from './types.js';
 import { PNG_SIGNATURE } from './utils.js';
 import { filterScanline, getBytesPerPixel } from './png-filter.js';
 import { createIHDR, createIEND, serializeChunk, createChunk } from './png-writer.js';
 import { PngInput, createInputAdapters } from './png-input-adapter.js';
-import { determineCommonFormat, convertScanline } from './pixel-ops.js';
+import { determineCommonFormat, convertScanline, getTransparentColor } from './pixel-ops.js';
 
 /**
  * Combines multiple scanlines horizontally into one output scanline with variable widths
@@ -32,24 +31,6 @@ function combineScanlines(
   }
 
   return output;
-}
-
-/**
- * Get transparent color for padding
- */
-function getTransparentColor(colorType: number, bitDepth: number): Uint8Array {
-  const bytesPerSample = bitDepth === 16 ? 2 : 1;
-
-  switch (colorType) {
-    case 0: return new Uint8Array(bytesPerSample).fill(0);
-    case 2: return new Uint8Array(3 * bytesPerSample).fill(0);
-    case 4:
-      return bitDepth === 16 ? new Uint8Array([0, 0, 0, 0]) : new Uint8Array([0, 0]);
-    case 6:
-      return bitDepth === 16 ? new Uint8Array([0, 0, 0, 0, 0, 0, 0, 0]) : new Uint8Array([0, 0, 0, 0]);
-    default:
-      throw new Error(`Unsupported color type: ${colorType}`);
-  }
 }
 
 /**
@@ -300,14 +281,8 @@ export class TrueStreamingConcatenator {
       const bytesPerPixel = getBytesPerPixel(outputHeader.bitDepth, outputHeader.colorType);
       const transparentColor = getTransparentColor(outputHeader.colorType, outputHeader.bitDepth);
 
-      // Set up streaming compression
-      const compressedChunks: Buffer[] = [];
-      const deflate = createDeflate({ level: 9 });
-
-      deflate.on('data', (chunk: Buffer) => {
-        compressedChunks.push(chunk);
-      });
-
+      // Collect all filtered scanlines for compression
+      const filteredScanlines: Uint8Array[] = [];
       let previousOutputScanline: Uint8Array | null = null;
 
       // Process each output scanline
@@ -376,35 +351,35 @@ export class TrueStreamingConcatenator {
             bytesPerPixel
           );
 
-          // Write filter type + filtered data to compressor
+          // Collect filter type + filtered data for compression
           const scanlineWithFilter = new Uint8Array(1 + filtered.length);
           scanlineWithFilter[0] = filterType;
           scanlineWithFilter.set(filtered, 1);
 
-          deflate.write(Buffer.from(scanlineWithFilter));
-
+          filteredScanlines.push(scanlineWithFilter);
           previousOutputScanline = outputScanline;
-
-          // Yield any compressed chunks that are ready
-          while (compressedChunks.length > 0) {
-            const chunk = compressedChunks.shift()!;
-            yield serializeChunk(createChunk('IDAT', new Uint8Array(chunk)));
-          }
         }
       }
 
-      // Finish compression
-      deflate.end();
+      // Compress all filtered data using Web Compression Streams API
+      const totalFilteredLength = filteredScanlines.reduce((sum, s) => sum + s.length, 0);
+      const allFilteredData = new Uint8Array(totalFilteredLength);
+      let offset = 0;
+      for (const scanline of filteredScanlines) {
+        allFilteredData.set(scanline, offset);
+        offset += scanline.length;
+      }
 
-      // Wait for final compressed data
-      await new Promise<void>((resolve) => {
-        deflate.on('end', () => resolve());
-      });
+      // Compress using Web Compression Streams API
+      const stream = new Blob([allFilteredData]).stream();
+      const compressedStream = stream.pipeThrough(new CompressionStream('deflate'));
+      const reader = compressedStream.getReader();
 
-      // Yield any remaining compressed chunks
-      while (compressedChunks.length > 0) {
-        const chunk = compressedChunks.shift()!;
-        yield serializeChunk(createChunk('IDAT', new Uint8Array(chunk)));
+      // Read compressed data and yield as IDAT chunks
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        yield serializeChunk(createChunk('IDAT', value));
       }
 
       // Yield IEND
@@ -453,7 +428,7 @@ export class TrueStreamingConcatenator {
  * - Variable image dimensions with automatic padding
  * - All layout options (columns, rows, width, height)
  */
-export async function* concatPngs(
+export async function* concatPngsStreaming(
   options: ConcatOptions
 ): AsyncGenerator<Uint8Array> {
   const concatenator = new TrueStreamingConcatenator(options);

@@ -335,6 +335,25 @@ describe('Functional Tests - Verify Examples Work Correctly', () => {
   const pngsuiteDir = path.join(__dirname, '..', 'pngsuite', 'png');
   const fixturesDir = path.join(__dirname, '..', 'tests', 'fixtures', 'expected-outputs');
 
+  // Helper to load the bundle and get its exports
+  async function loadBundleModule() {
+    // Read the actual bundle that gets deployed
+    const bundleCode = fs.readFileSync(bundlePath, 'utf8');
+
+    // Create a temporary .mjs file to import from
+    const tempBundlePath = path.join(__dirname, '..', 'dist', 'bundle-test-temp.mjs');
+    fs.writeFileSync(tempBundlePath, bundleCode);
+
+    // Import from the temporary file (use timestamp to avoid caching)
+    const moduleUrl = `${tempBundlePath}?t=${Date.now()}`;
+    const module = await import(moduleUrl);
+
+    // Clean up
+    fs.unlinkSync(tempBundlePath);
+
+    return module;
+  }
+
   // Helper to load an image
   function loadImage(filename: string): Uint8Array {
     return fs.readFileSync(path.join(pngsuiteDir, filename));
@@ -354,8 +373,8 @@ describe('Functional Tests - Verify Examples Work Correctly', () => {
   }
 
   test('Example 1: Horizontal concatenation produces correct output', async () => {
-    // Import the library
-    const { concatPngs } = await import('../dist/png-concat-unified.js');
+    // Import from the actual bundle
+    const { concatPngs } = await loadBundleModule();
 
     const result = await concatPngs({
       inputs: [
@@ -371,7 +390,7 @@ describe('Functional Tests - Verify Examples Work Correctly', () => {
   });
 
   test('Example 2: Vertical concatenation produces correct output', async () => {
-    const { concatPngs } = await import('../dist/png-concat-unified.js');
+    const { concatPngs } = await loadBundleModule();
 
     const result = await concatPngs({
       inputs: [
@@ -387,7 +406,7 @@ describe('Functional Tests - Verify Examples Work Correctly', () => {
   });
 
   test('Example 3: Grid layout produces correct output', async () => {
-    const { concatPngs } = await import('../dist/png-concat-unified.js');
+    const { concatPngs } = await loadBundleModule();
 
     const result = await concatPngs({
       inputs: [
@@ -406,7 +425,7 @@ describe('Functional Tests - Verify Examples Work Correctly', () => {
   });
 
   test('Example 4: Different image sizes produces correct output', async () => {
-    const { concatPngs } = await import('../dist/png-concat-unified.js');
+    const { concatPngs } = await loadBundleModule();
 
     const result = await concatPngs({
       inputs: [
@@ -422,7 +441,7 @@ describe('Functional Tests - Verify Examples Work Correctly', () => {
   });
 
   test('Example 5: Width limit with wrapping produces correct output', async () => {
-    const { concatPngs } = await import('../dist/png-concat-unified.js');
+    const { concatPngs } = await loadBundleModule();
 
     const result = await concatPngs({
       inputs: [
@@ -439,7 +458,7 @@ describe('Functional Tests - Verify Examples Work Correctly', () => {
   });
 
   test('Library handles mixed color types correctly', async () => {
-    const { concatPngs } = await import('../dist/png-concat-unified.js');
+    const { concatPngs } = await loadBundleModule();
 
     // Mix RGB, Grayscale, and RGBA images
     const result = await concatPngs({
@@ -461,7 +480,7 @@ describe('Functional Tests - Verify Examples Work Correctly', () => {
   });
 
   test('Library handles mixed bit depths correctly', async () => {
-    const { concatPngs } = await import('../dist/png-concat-unified.js');
+    const { concatPngs } = await loadBundleModule();
 
     // Mix 8-bit and 16-bit images
     const result = await concatPngs({
@@ -479,7 +498,7 @@ describe('Functional Tests - Verify Examples Work Correctly', () => {
   });
 
   test('Library handles sub-byte bit depths correctly', async () => {
-    const { concatPngs } = await import('../dist/png-concat-unified.js');
+    const { concatPngs } = await loadBundleModule();
 
     // Mix different grayscale bit depths
     const result = await concatPngs({
