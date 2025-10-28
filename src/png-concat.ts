@@ -342,7 +342,20 @@ export class StreamingConcatenator {
           }
 
           // Combine scanlines horizontally
-          const outputScanline = combineScanlines(scanlines, rowColWidths, bytesPerPixel);
+          let outputScanline = combineScanlines(scanlines, rowColWidths, bytesPerPixel);
+
+          // Pad scanline to totalWidth if this row is narrower
+          // This is needed when rows have different widths (e.g., with width limits)
+          const rowWidth = rowColWidths.reduce((sum, w) => sum + w, 0);
+          if (rowWidth < totalWidth) {
+            const paddedScanline = new Uint8Array(totalWidth * bytesPerPixel);
+            paddedScanline.set(outputScanline, 0);
+            // Fill the rest with transparent pixels
+            for (let x = rowWidth; x < totalWidth; x++) {
+              paddedScanline.set(transparentColor, x * bytesPerPixel);
+            }
+            outputScanline = paddedScanline;
+          }
 
           // Filter the scanline
           const { filterType, filtered } = filterScanline(

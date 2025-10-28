@@ -655,3 +655,159 @@ test('concatPngs (unified API) handles vertical layout', async () => {
   assert.strictEqual(header.width, 10);
   assert.strictEqual(header.height, 20);
 });
+
+test('concatPngs with width limit wrapping produces valid PNG', async () => {
+  // Create images that will wrap to multiple rows
+  const png1 = await createTestPng(40, 30, new Uint8Array([255, 0, 0, 255]));   // Red
+  const png2 = await createTestPng(40, 30, new Uint8Array([0, 255, 0, 255]));   // Green
+  const png3 = await createTestPng(40, 30, new Uint8Array([0, 0, 255, 255]));   // Blue
+  const png4 = await createTestPng(40, 30, new Uint8Array([255, 255, 0, 255])); // Yellow
+
+  // Width limit of 100 should create:
+  // Row 1: png1 (40) + png2 (40) = 80 pixels
+  // Row 2: png3 (40) + png4 (40) = 80 pixels
+  // But if the next image would exceed 100, it wraps
+  const result = await concatPngs({
+    inputs: [png1, png2, png3, png4],
+    layout: { width: 100 }
+  });
+
+  // Verify it's a valid PNG by parsing the header
+  const header = parsePngHeader(result);
+  assert.ok(header.width > 0, 'Width should be greater than 0');
+  assert.ok(header.height > 0, 'Height should be greater than 0');
+
+  // Verify we can decompress the image data without errors
+  const chunks = parsePngChunks(result);
+  const pixelData = await extractPixelData(chunks, header);
+
+  // Verify pixel data size matches header dimensions
+  const expectedSize = header.width * header.height * 4; // RGBA
+  assert.strictEqual(pixelData.length, expectedSize, 'Pixel data size should match header dimensions');
+});
+
+test('concatPngs with width limit - different row widths', async () => {
+  // Create a scenario where rows have different widths
+  const png1 = await createTestPng(50, 20, new Uint8Array([255, 0, 0, 255]));   // Red - 50px
+  const png2 = await createTestPng(50, 20, new Uint8Array([0, 255, 0, 255]));   // Green - 50px
+  const png3 = await createTestPng(30, 20, new Uint8Array([0, 0, 255, 255]));   // Blue - 30px
+
+  // Width limit of 80 should create:
+  // Row 1: png1 (50) + png2 (50) = 100 > 80, so only png1 fits
+  // Row 2: png2 (50)
+  // Row 3: png3 (30)
+  // This creates rows with widths: 50, 50, 30
+  // totalWidth should be 50 (the max)
+  const result = await concatPngs({
+    inputs: [png1, png2, png3],
+    layout: { width: 80 }
+  });
+
+  const header = parsePngHeader(result);
+  const chunks = parsePngChunks(result);
+
+  // This should not throw "Unexpected end of decompressed data"
+  const pixelData = await extractPixelData(chunks, header);
+
+  // Verify pixel data size matches header dimensions
+  const expectedSize = header.width * header.height * 4; // RGBA
+  assert.strictEqual(pixelData.length, expectedSize, 'Pixel data size should match header dimensions');
+});
+
+test('concatPngs with width limit - single image per row', async () => {
+  // Edge case: width limit forces each image to its own row
+  const png1 = await createTestPng(60, 15, new Uint8Array([255, 0, 0, 255]));
+  const png2 = await createTestPng(70, 15, new Uint8Array([0, 255, 0, 255]));
+  const png3 = await createTestPng(50, 15, new Uint8Array([0, 0, 255, 255]));
+
+  // Width limit of 65 means:
+  // Row 1: png1 (60)
+  // Row 2: png2 (70) > 65, but it's the first in the row so it still fits
+  // Row 3: png3 (50)
+  // totalWidth should be 70 (the max)
+  const result = await concatPngs({
+    inputs: [png1, png2, png3],
+    layout: { width: 65 }
+  });
+
+  const header = parsePngHeader(result);
+  const chunks = parsePngChunks(result);
+  const pixelData = await extractPixelData(chunks, header);
+
+  assert.strictEqual(header.width, 70, 'Width should be the max row width');
+  assert.strictEqual(header.height, 45, 'Height should be sum of all row heights');
+  assert.strictEqual(pixelData.length, 70 * 45 * 4, 'Pixel data size should match header');
+});
+
+test('concatPngs with width limit - extreme size differences', async () => {
+  // Edge case: very different image sizes
+  const png1 = await createTestPng(100, 50, new Uint8Array([255, 0, 0, 255]));  // Large
+  const png2 = await createTestPng(10, 10, new Uint8Array([0, 255, 0, 255]));   // Small
+  const png3 = await createTestPng(10, 10, new Uint8Array([0, 0, 255, 255]));   // Small
+
+  // Width limit of 150 should create:
+  // Row 1: png1 (100) + png2 (10) + png3 (10) = 120
+  // totalWidth = 120
+  const result = await concatPngs({
+    inputs: [png1, png2, png3],
+    layout: { width: 150 }
+  });
+
+  const header = parsePngHeader(result);
+  const chunks = parsePngChunks(result);
+  const pixelData = await extractPixelData(chunks, header);
+
+  assert.strictEqual(header.width, 120);
+  assert.strictEqual(header.height, 50); // Max height in row
+  assert.strictEqual(pixelData.length, 120 * 50 * 4);
+});
+
+test('concatPngs with width limit - last row much narrower', async () => {
+  // Specific edge case: last row is significantly narrower than others
+  const png1 = await createTestPng(80, 25, new Uint8Array([255, 0, 0, 255]));
+  const png2 = await createTestPng(80, 25, new Uint8Array([0, 255, 0, 255]));
+  const png3 = await createTestPng(5, 25, new Uint8Array([0, 0, 255, 255]));
+
+  // Width limit of 100 should create:
+  // Row 1: png1 (80), then try adding png2 (80): 80 + 80 = 160 > 100, so no
+  // Row 2: png2 (80), then try adding png3 (5): 80 + 5 = 85 <= 100, so yes
+  // Final layout: Row 1 = [png1] (80px), Row 2 = [png2, png3] (85px)
+  // totalWidth = 85 (max of 80 and 85)
+  const result = await concatPngs({
+    inputs: [png1, png2, png3],
+    layout: { width: 100 }
+  });
+
+  const header = parsePngHeader(result);
+  const chunks = parsePngChunks(result);
+  const pixelData = await extractPixelData(chunks, header);
+
+  assert.strictEqual(header.width, 85); // Max of row widths
+  assert.strictEqual(header.height, 50); // 25 + 25 (two rows)
+  assert.strictEqual(pixelData.length, 85 * 50 * 4);
+});
+
+test('concatPngs with width and height limits', async () => {
+  // Test both width and height limits together
+  const png1 = await createTestPng(40, 30, new Uint8Array([255, 0, 0, 255]));
+  const png2 = await createTestPng(40, 30, new Uint8Array([0, 255, 0, 255]));
+  const png3 = await createTestPng(40, 30, new Uint8Array([0, 0, 255, 255]));
+  const png4 = await createTestPng(40, 30, new Uint8Array([255, 255, 0, 255]));
+
+  // Width limit 70, height limit 50 should create:
+  // Row 1: png1 (40) + png2 (40) = 80 > 70, so only png1, height = 30
+  // Row 2: png2 (40), height = 30, total = 60 > 50
+  // So only row 1 fits
+  const result = await concatPngs({
+    inputs: [png1, png2, png3, png4],
+    layout: { width: 70, height: 50 }
+  });
+
+  const header = parsePngHeader(result);
+  const chunks = parsePngChunks(result);
+  const pixelData = await extractPixelData(chunks, header);
+
+  assert.ok(header.width <= 70, 'Width should respect limit');
+  assert.ok(header.height <= 50, 'Height should respect limit');
+  assert.strictEqual(pixelData.length, header.width * header.height * 4);
+});
