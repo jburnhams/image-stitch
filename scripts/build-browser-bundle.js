@@ -15,7 +15,7 @@ const __dirname = path.dirname(__filename);
 const distDir = path.join(__dirname, '..', 'dist');
 const docsSourceDir = path.join(__dirname, '..', 'docs');
 const docsDistDir = path.join(__dirname, '..', 'docs-dist');
-const outputFile = path.join(docsDistDir, 'png-concat.bundle.js');
+const outputFile = path.join(docsDistDir, 'image-stitch.bundle.js');
 
 // Read all the source files (order matters - dependencies first)
 const modules = {
@@ -27,8 +27,7 @@ const modules = {
   'png-decompress.js': fs.readFileSync(path.join(distDir, 'png-decompress.js'), 'utf8'),
   'pixel-ops.js': fs.readFileSync(path.join(distDir, 'pixel-ops.js'), 'utf8'),
   'png-input-adapter.js': fs.readFileSync(path.join(distDir, 'png-input-adapter.js'), 'utf8'),
-  'png-concat-true-streaming.js': fs.readFileSync(path.join(distDir, 'png-concat-true-streaming.js'), 'utf8'),
-  'png-concat-unified.js': fs.readFileSync(path.join(distDir, 'png-concat-unified.js'), 'utf8'),
+  'png-concat.js': fs.readFileSync(path.join(distDir, 'png-concat.js'), 'utf8'),
 };
 
 // Process each module to inline imports
@@ -40,7 +39,7 @@ function processModule(code, moduleName) {
   code = code.replace(/^import .+ from ['"][^'"]+['"];?\s*$/gm, '');
 
   // Keep export declarations for the final API
-  if (moduleName === 'png-concat-unified.js') {
+  if (moduleName === 'png-concat.js') {
     // This is our main export module
     return code;
   } else {
@@ -56,16 +55,16 @@ function processModule(code, moduleName) {
 console.log('Building browser bundle...');
 
 let bundle = `/**
- * png-concat browser bundle
+ * image-stitch browser bundle
  * Generated on ${new Date().toISOString()}
- * Uses Web Compression Streams API (works in Node.js 18+ and modern browsers)
+ * Uses Web Compression Streams API (works in Node.js 20+ and modern browsers)
  */
 
 `;
 
 // Add all modules except the main one
 for (const [moduleName, code] of Object.entries(modules)) {
-  if (moduleName !== 'png-concat-unified.js') {
+  if (moduleName !== 'png-concat.js') {
     bundle += `\n// ===== ${moduleName} =====\n`;
     bundle += processModule(code, moduleName);
     bundle += '\n';
@@ -74,7 +73,7 @@ for (const [moduleName, code] of Object.entries(modules)) {
 
 // Add the main export module last
 bundle += '\n// ===== Main API =====\n';
-bundle += processModule(modules['png-concat-unified.js'], 'png-concat-unified.js');
+bundle += processModule(modules['png-concat.js'], 'png-concat.js');
 
 // Create docs-dist directory
 fs.mkdirSync(docsDistDir, { recursive: true });
