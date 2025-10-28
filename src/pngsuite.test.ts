@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parsePngHeader, parsePngChunks } from './png-parser.js';
-import { concatPngs } from './png-concat-unified.js';
+import { concatPngs } from './png-concat.js';
 import { ColorType } from './types.js';
 
 /**

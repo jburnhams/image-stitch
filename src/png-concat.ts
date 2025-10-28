@@ -1,5 +1,5 @@
 /**
- * True Streaming PNG Concatenation
+ * PNG Concatenation
  *
  * Scanline-by-scanline streaming approach that minimizes memory usage.
  * Processes one output row at a time using the adapter architecture.
@@ -204,7 +204,7 @@ function calculatePixelBasedLayout(
 }
 
 /**
- * True streaming PNG concatenation with minimal memory usage
+ * Streaming PNG concatenation with minimal memory usage
  *
  * This implementation:
  * 1. Pass 1: Reads only headers to validate and plan
@@ -218,7 +218,7 @@ function calculatePixelBasedLayout(
  * - Custom PngInputAdapter implementations
  * - Mixed input types in the same operation
  */
-export class TrueStreamingConcatenator {
+export class StreamingConcatenator {
   private options: ConcatOptions;
 
   constructor(options: ConcatOptions) {
@@ -416,7 +416,7 @@ export class TrueStreamingConcatenator {
 }
 
 /**
- * Concatenate PNGs with true streaming (minimal memory usage)
+ * Concatenate PNGs with streaming (minimal memory usage)
  *
  * This processes images scanline-by-scanline, keeping only a few rows
  * in memory at a time. Ideal for large images.
@@ -431,14 +431,102 @@ export class TrueStreamingConcatenator {
 export async function* concatPngsStreaming(
   options: ConcatOptions
 ): AsyncGenerator<Uint8Array> {
-  const concatenator = new TrueStreamingConcatenator(options);
+  const concatenator = new StreamingConcatenator(options);
   yield* concatenator.stream();
 }
 
 /**
- * Get a Readable stream for true streaming concatenation
+ * Get a Readable stream for streaming concatenation
  */
 export function concatPngsToStream(options: ConcatOptions): Readable {
-  const concatenator = new TrueStreamingConcatenator(options);
+  const concatenator = new StreamingConcatenator(options);
   return concatenator.toReadableStream();
+}
+
+/**
+ * Extended options with output format hint
+ */
+export interface UnifiedConcatOptions extends ConcatOptions {
+  /**
+   * Return a stream instead of Uint8Array
+   * Useful for HTTP responses or piping to files
+   */
+  stream?: boolean;
+}
+
+/**
+ * Unified PNG concatenation function using streaming
+ *
+ * This function uses a streaming implementation which:
+ * - Processes images scanline-by-scanline
+ * - Minimizes memory usage
+ * - Supports both file paths and Uint8Array inputs
+ * - Handles variable image dimensions with automatic padding
+ *
+ * @example
+ * // Simple usage - returns Uint8Array
+ * const result = await concatPngs({
+ *   inputs: ['img1.png', 'img2.png'],
+ *   layout: { columns: 2 }
+ * });
+ *
+ * @example
+ * // Stream output for HTTP responses or large files
+ * const stream = await concatPngs({
+ *   inputs: ['img1.png', 'img2.png'],
+ *   layout: { columns: 2 },
+ *   stream: true
+ * });
+ * stream.pipe(res);
+ *
+ * @example
+ * // Mix file paths and Uint8Arrays
+ * const result = await concatPngs({
+ *   inputs: ['img1.png', pngBuffer],
+ *   layout: { rows: 2 }
+ * });
+ */
+export function concatPngs(options: UnifiedConcatOptions & { stream: true }): Promise<Readable>;
+export function concatPngs(options: UnifiedConcatOptions): Promise<Uint8Array>;
+export function concatPngs(options: UnifiedConcatOptions): Promise<Uint8Array | Readable> {
+  return (async () => {
+    if (options.stream) {
+      // User wants streaming output
+      return concatPngsToStream(options);
+    } else {
+      // User wants Uint8Array result - collect chunks from stream
+      const chunks: Uint8Array[] = [];
+
+      for await (const chunk of concatPngsStreaming(options)) {
+        chunks.push(chunk);
+      }
+
+      // Combine chunks
+      const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+      const result = new Uint8Array(totalLength);
+      let offset = 0;
+      for (const chunk of chunks) {
+        result.set(chunk, offset);
+        offset += chunk.length;
+      }
+
+      return result;
+    }
+  })();
+}
+
+/**
+ * Convenience function: concatenate and write to stream
+ *
+ * @example
+ * import { createWriteStream } from 'fs';
+ *
+ * const stream = await concatPngsToFile({
+ *   inputs: ['img1.png', 'img2.png'],
+ *   layout: { columns: 2 }
+ * });
+ * stream.pipe(createWriteStream('output.png'));
+ */
+export async function concatPngsToFile(options: ConcatOptions): Promise<Readable> {
+  return concatPngs({ ...options, stream: true }) as Promise<Readable>;
 }

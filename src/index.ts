@@ -5,9 +5,9 @@
  * that works without canvas and can handle large files efficiently.
  */
 
-// Main unified API - use this!
-export { concatPngs, concatPngsToFile } from './png-concat-unified.js';
-export type { UnifiedConcatOptions } from './png-concat-unified.js';
+// Main API - use this!
+export { concatPngs, concatPngsToFile } from './png-concat.js';
+export type { UnifiedConcatOptions } from './png-concat.js';
 
 // Input adapter system for custom input types
 export type { PngInputAdapter, PngInput } from './png-input-adapter.js';
@@ -18,8 +18,8 @@ export {
   createInputAdapters
 } from './png-input-adapter.js';
 
-// Streaming implementation (used by unified API)
-export { TrueStreamingConcatenator } from './png-concat-true-streaming.js';
+// Streaming implementation
+export { StreamingConcatenator } from './png-concat.js';
 
 // Low-level APIs for advanced use
 export { parsePngHeader, parsePngChunks, PngParser } from './png-parser.js';

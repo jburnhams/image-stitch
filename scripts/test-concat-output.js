@@ -3,7 +3,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { concatPngs } from '../dist/png-concat-unified.js';
+import { concatPngs } from '../dist/png-concat.js';
 import { parsePngHeader } from '../dist/png-parser.js';
 
 const __filename = fileURLToPath(import.meta.url);
