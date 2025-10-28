@@ -161,7 +161,7 @@ test('concatPngs concatenates four images in 2x2 grid', async () => {
 
 // ===== VALIDATION TESTS =====
 
-test('concatPngs validates incompatible bit depths', async () => {
+test('concatPngs automatically converts mixed bit depths', async () => {
   const png1 = createTestPng(10, 10, new Uint8Array([255, 0, 0, 255]));
 
   // Create a PNG with different bit depth
@@ -182,16 +182,17 @@ test('concatPngs validates incompatible bit depths', async () => {
     createIEND()
   ]);
 
-  await assert.rejects(
-    async () => {
-      const gen = concatPngs({
-        inputs: [png1, png2],
-        layout: { columns: 2 }
-      });
-      await collectChunks(gen);
-    },
-    /must have same bit depth and color type/
-  );
+  // Should successfully concatenate and use the highest bit depth (16-bit)
+  const result = await collectChunks(concatPngs({
+    inputs: [png1, png2],
+    layout: { columns: 2 }
+  }));
+
+  const header = parsePngHeader(result);
+  assert.strictEqual(header.bitDepth, 16, 'Should use highest bit depth');
+  assert.strictEqual(header.colorType, ColorType.RGBA);
+  assert.strictEqual(header.width, 20);
+  assert.strictEqual(header.height, 10);
 });
 
 // ===== VARIABLE IMAGE SIZE TESTS =====
@@ -253,7 +254,7 @@ test('TrueStreamingConcatenator validates options', () => {
   );
 });
 
-test('concatPngs with RGB images', async () => {
+test('concatPngs with RGB images converts to RGBA', async () => {
   // Create RGB (not RGBA) test images
   const header: PngHeader = {
     width: 5,
@@ -299,7 +300,8 @@ test('concatPngs with RGB images', async () => {
   const header_result = parsePngHeader(result);
   assert.strictEqual(header_result.width, 10);
   assert.strictEqual(header_result.height, 5);
-  assert.strictEqual(header_result.colorType, ColorType.RGB);
+  // RGB images are converted to RGBA for maximum compatibility
+  assert.strictEqual(header_result.colorType, ColorType.RGBA);
 });
 
 test('concatPngs with different heights in same row', async () => {

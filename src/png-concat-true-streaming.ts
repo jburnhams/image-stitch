@@ -12,6 +12,7 @@ import { PNG_SIGNATURE } from './utils.js';
 import { filterScanline, getBytesPerPixel } from './png-filter.js';
 import { createIHDR, createIEND, serializeChunk, createChunk } from './png-writer.js';
 import { PngInput, createInputAdapters } from './png-input-adapter.js';
+import { determineCommonFormat, convertScanline } from './pixel-ops.js';
 
 /**
  * Combines multiple scanlines horizontally into one output scanline with variable widths
@@ -269,25 +270,19 @@ export class TrueStreamingConcatenator {
         headers.push(header);
       }
 
-      // Validate all images have compatible format
-      const firstHeader = headers[0];
-      for (let i = 1; i < headers.length; i++) {
-        if (headers[i].bitDepth !== firstHeader.bitDepth ||
-            headers[i].colorType !== firstHeader.colorType) {
-          throw new Error('All images must have same bit depth and color type');
-        }
-      }
+      // Determine common format that can represent all images
+      const { bitDepth: targetBitDepth, colorType: targetColorType } = determineCommonFormat(headers);
 
       // Calculate layout with variable image sizes
       const layout = calculateLayout(headers, this.options);
       const { grid, rowHeights, colWidths, totalWidth, totalHeight } = layout;
 
-      // Create output header
+      // Create output header using common format
       const outputHeader: PngHeader = {
         width: totalWidth,
         height: totalHeight,
-        bitDepth: firstHeader.bitDepth,
-        colorType: firstHeader.colorType,
+        bitDepth: targetBitDepth,
+        colorType: targetColorType,
         compressionMethod: 0,
         filterMethod: 0,
         interlaceMethod: 0
@@ -302,8 +297,8 @@ export class TrueStreamingConcatenator {
       // PASS 2: Stream scanlines
       // Create iterators for each input
       const iterators = adapters.map(adapter => adapter.scanlines());
-      const bytesPerPixel = getBytesPerPixel(firstHeader.bitDepth, firstHeader.colorType);
-      const transparentColor = getTransparentColor(firstHeader.colorType, firstHeader.bitDepth);
+      const bytesPerPixel = getBytesPerPixel(outputHeader.bitDepth, outputHeader.colorType);
+      const transparentColor = getTransparentColor(outputHeader.colorType, outputHeader.bitDepth);
 
       // Set up streaming compression
       const compressedChunks: Buffer[] = [];
@@ -338,9 +333,19 @@ export class TrueStreamingConcatenator {
                 // Read scanline from this image
                 const { value, done } = await iterators[imageIdx].next();
                 if (!done) {
+                  // Convert scanline to target format if needed
+                  const convertedScanline = convertScanline(
+                    value,
+                    imageWidth,
+                    imageHeader.bitDepth,
+                    imageHeader.colorType,
+                    outputHeader.bitDepth,
+                    outputHeader.colorType
+                  );
+
                   // Pad scanline if image is narrower than column
                   const paddedScanline = padScanline(
-                    value,
+                    convertedScanline,
                     imageWidth,
                     colWidth,
                     bytesPerPixel,
