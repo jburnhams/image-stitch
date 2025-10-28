@@ -91,6 +91,31 @@ function copyRecursive(src, dest) {
 console.log('Copying docs source files...');
 copyRecursive(docsSourceDir, docsDistDir);
 
+// Copy sample images from pngsuite to docs-dist/images
+console.log('Copying sample images from pngsuite...');
+const pngsuiteDir = path.join(__dirname, '..', 'pngsuite', 'png');
+const imagesDistDir = path.join(docsDistDir, 'images');
+fs.mkdirSync(imagesDistDir, { recursive: true });
+
+const requiredImages = [
+  'basn2c08.png',
+  'basn0g08.png',
+  'basn6a08.png',
+  'basn4a08.png',
+  'basn2c16.png',
+  'basn0g16.png',
+  'basn0g01.png',
+  'basn0g04.png',
+];
+
+for (const imageName of requiredImages) {
+  const srcPath = path.join(pngsuiteDir, imageName);
+  const destPath = path.join(imagesDistDir, imageName);
+  fs.copyFileSync(srcPath, destPath);
+}
+
+console.log(`Copied ${requiredImages.length} images`);
+
 // Write the bundle
 fs.writeFileSync(outputFile, bundle);
 
