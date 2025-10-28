@@ -4,7 +4,7 @@ import { convertPixelFormat, determineCommonFormat } from './pixel-ops.js';
 import { PngHeader, ColorType } from './types.js';
 import { parsePngHeader, parsePngChunks } from './png-parser.js';
 import { extractPixelData } from './png-decompress.js';
-import { concatPngs } from './png-concat-unified.js';
+import { concatPngs } from './png-concat.js';
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 

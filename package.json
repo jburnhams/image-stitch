@@ -27,7 +27,7 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "@types/node": "^20.0.0",
+    "@types/node": "^20.19.23",
     "c8": "^7.13.0",
     "happy-dom": "^20.0.8",
     "typescript": "^5.0.0"

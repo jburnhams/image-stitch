@@ -1,5 +1,5 @@
 /**
- * True Streaming Demo - Demonstrating scanline-by-scanline processing
+ * Streaming Demo - Demonstrating scanline-by-scanline processing
  *
  * This example shows the memory usage difference between:
  * 1. Regular concatenation (loads everything)
@@ -8,9 +8,6 @@
  */
 
 import { writeFileSync, createWriteStream } from 'node:fs';
-import { concatPngs } from '../dist/index.js';
-import { concatPngsStream } from '../dist/index.js';
-import { concatPngsTrueStreaming } from '../dist/png-concat-true-streaming.js';
 import { createIHDR, createIEND, createChunk, buildPng } from '../dist/index.js';
 import { compressImageData } from '../dist/index.js';
 import { PngHeader, ColorType } from '../dist/index.js';
@@ -156,7 +153,6 @@ async function main() {
   const streamOutput = createWriteStream('examples/output-stream.png');
 
   let streamBytes = 0;
-  for await (const chunk of concatPngsStream({ inputs, layout })) {
     streamOutput.write(chunk);
     streamBytes += chunk.length;
   }
@@ -174,7 +170,7 @@ async function main() {
   // Method 3: True streaming (scanline-by-scanline)
   // =========================================================================
   console.log('\n' + '='.repeat(80));
-  console.log('METHOD 3: True Streaming (scanline-by-scanline)');
+  console.log('METHOD 3: Streaming (scanline-by-scanline)');
   console.log('='.repeat(80));
 
   const startTrueStream = Date.now();
@@ -183,7 +179,6 @@ async function main() {
   let trueStreamBytes = 0;
   let chunksYielded = 0;
 
-  for await (const chunk of concatPngsTrueStreaming({ inputs, layout })) {
     trueStreamOutput.write(chunk);
     trueStreamBytes += chunk.length;
     chunksYielded++;
@@ -201,7 +196,7 @@ async function main() {
   console.log(`Output size: ${(trueStreamBytes / 1024).toFixed(1)} KB`);
   console.log(`Chunks yielded: ${chunksYielded}`);
 
-  const memTrueStream = await measureMemory('After True Streaming');
+  const memTrueStream = await measureMemory('After Streaming');
 
   // =========================================================================
   // Summary
@@ -213,12 +208,12 @@ async function main() {
   console.log('\nPerformance:');
   console.log(`  Regular:        ${timeRegular}ms`);
   console.log(`  Streaming:      ${timeStream}ms`);
-  console.log(`  True Streaming: ${timeTrueStream}ms`);
+  console.log(`  Streaming: ${timeTrueStream}ms`);
 
   console.log('\nPeak Memory (Heap Used):');
   console.log(`  Regular:        ${(memRegular.heapUsed / 1024 / 1024).toFixed(1)} MB`);
   console.log(`  Streaming:      ${(memStream.heapUsed / 1024 / 1024).toFixed(1)} MB`);
-  console.log(`  True Streaming: ${(memTrueStream.heapUsed / 1024 / 1024).toFixed(1)} MB`);
+  console.log(`  Streaming: ${(memTrueStream.heapUsed / 1024 / 1024).toFixed(1)} MB`);
 
   console.log('\nOutput Files:');
   console.log('  examples/output-regular.png');
@@ -226,7 +221,7 @@ async function main() {
   console.log('  examples/output-true-stream.png');
 
   console.log('\nNote: Run with --expose-gc for accurate memory measurements:');
-  console.log('  node --expose-gc examples/true-streaming-demo.js');
+  console.log('  node --expose-gc examples/streaming-demo.js');
 
   console.log('\n' + '='.repeat(80));
 }
