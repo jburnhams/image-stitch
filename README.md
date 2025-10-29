@@ -1,4 +1,4 @@
-# png-concat
+# image-stitch
 
 [![CI](https://github.com/jburnhams/Png-concat/actions/workflows/ci.yml/badge.svg)](https://github.com/jburnhams/Png-concat/actions/workflows/ci.yml)
 
@@ -20,13 +20,13 @@ A streaming PNG concatenation library for Node.js and web browsers that works wi
 ## Installation
 
 ```bash
-npm install png-concat
+npm install image-stitch
 ```
 
 ## Quick Start
 
 ```typescript
-import { concatPngs } from 'png-concat';
+import { concatPngs } from 'image-stitch';
 import { readFileSync, writeFileSync } from 'fs';
 
 // Load PNG files
@@ -157,7 +157,7 @@ For applications that need to stream the output (e.g., HTTP responses, large fil
 Returns an async generator that yields PNG chunks as they are generated.
 
 ```typescript
-import { concatPngsStream } from 'png-concat';
+import { concatPngsStream } from 'image-stitch';
 import { createWriteStream } from 'fs';
 
 const writeStream = createWriteStream('output.png');
@@ -177,7 +177,7 @@ writeStream.end();
 Returns a Node.js Readable stream that can be piped directly.
 
 ```typescript
-import { concatPngsToStream } from 'png-concat';
+import { concatPngsToStream } from 'image-stitch';
 import { createWriteStream } from 'fs';
 
 const readStream = concatPngsToStream({
@@ -191,7 +191,7 @@ readStream.pipe(createWriteStream('output.png'));
 **Streaming to HTTP Response:**
 
 ```typescript
-import { concatPngsToStream } from 'png-concat';
+import { concatPngsToStream } from 'image-stitch';
 
 app.get('/concat', (req, res) => {
   res.setHeader('Content-Type', 'image/png');
@@ -214,7 +214,7 @@ app.get('/concat', (req, res) => {
 Read and inspect PNG files:
 
 ```typescript
-import { parsePngHeader, parsePngChunks } from 'png-concat';
+import { parsePngHeader, parsePngChunks } from 'image-stitch';
 
 const pngData = readFileSync('image.png');
 
@@ -242,8 +242,8 @@ import {
   createChunk,
   buildPng,
   compressImageData
-} from 'png-concat';
-import { PngHeader, ColorType } from 'png-concat';
+} from 'image-stitch';
+import { PngHeader, ColorType } from 'image-stitch';
 
 // Define image properties
 const header: PngHeader = {
@@ -279,7 +279,7 @@ import {
   copyPixelRegion,
   fillPixelRegion,
   extractPixelData
-} from 'png-concat';
+} from 'image-stitch';
 
 // Extract raw pixel data from PNG
 const chunks = parsePngChunks(pngData);
