@@ -53,8 +53,8 @@ jobs:
       - name: 'Install dependencies'
         run: npm ci
 
-      - name: 'Build project'
-        run: npm run build
+      - name: 'Build browser bundle'
+        run: npm run build:docs
 
       - name: 'Create GitHub Release'
         if: ${{ steps.version-bump.outputs.newTag }}
@@ -64,6 +64,6 @@ jobs:
           name: Release ${{ steps.version-bump.outputs.newTag }}
           generate_release_notes: true
           files: |
-            dist/**/*
+            docs-dist/image-stitch.bundle.js
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
