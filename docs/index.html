@@ -480,57 +480,81 @@
                     <p><strong>Try it:</strong> Generate a PNG with thousands of images - the file will be created and downloaded directly without overwhelming your browser's memory!</p>
                 </div>
 
-                <p>Select source images and configure how many times to repeat each one. The output will be automatically arranged in a grid based on your width setting.</p>
+                <p>Select which source images to use and set the output dimensions. The generator will randomly combine the selected images to fill the entire output area, creating unique patterns each time.</p>
 
-                <div class="code-block"><span class="keyword">const</span> result = <span class="keyword">await</span> <span class="function">concatPngs</span>({
-  inputs: [...repeatedImages],  <span class="comment">// Thousands of images</span>
-  layout: { width: <span class="string">500</span> }     <span class="comment">// Auto-wrap to fit width</span>
+                <div class="code-block"><span class="comment">// Generate random array of selected images to fill dimensions</span>
+<span class="keyword">const</span> inputs = [];
+<span class="keyword">for</span> (<span class="keyword">let</span> i = <span class="string">0</span>; i &lt; totalImages; i++) {
+  inputs.push(availableImages[<span class="function">randomIndex</span>()]);
+}
+
+<span class="keyword">const</span> result = <span class="keyword">await</span> <span class="function">concatPngs</span>({
+  inputs: inputs,           <span class="comment">// Random mix of selected images</span>
+  layout: { width: width }  <span class="comment">// Auto-wrap to fit specified dimensions</span>
 });
-<span class="comment">// Streams directly to download - no memory overflow!</span></div>
+<span class="comment">// Can generate images up to 50000x50000 pixels!</span></div>
 
                 <div class="controls">
                     <h4 style="margin-bottom: 1rem; color: #667eea;">Source Images</h4>
-                    <p style="margin-bottom: 1rem; color: #666;">Select how many of each image to include:</p>
+                    <p style="margin-bottom: 1rem; color: #666;">Select which images to use for random filling:</p>
 
                     <div class="image-selector">
                         <div class="image-option">
                             <img src="images/basn2c08.png" alt="RGB 32x32">
                             <p style="font-size: 0.85rem; margin: 0.5rem 0; color: #666;">RGB 32x32</p>
-                            <input type="number" id="count-rgb" min="0" max="10000" value="25">
+                            <label style="display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                                <input type="checkbox" id="use-rgb" checked>
+                                <span>Use this image</span>
+                            </label>
                         </div>
                         <div class="image-option">
                             <img src="images/basn0g08.png" alt="Grayscale 32x32">
                             <p style="font-size: 0.85rem; margin: 0.5rem 0; color: #666;">Gray 32x32</p>
-                            <input type="number" id="count-gray" min="0" max="10000" value="25">
+                            <label style="display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                                <input type="checkbox" id="use-gray" checked>
+                                <span>Use this image</span>
+                            </label>
                         </div>
                         <div class="image-option">
                             <img src="images/basn6a08.png" alt="RGBA 32x32">
                             <p style="font-size: 0.85rem; margin: 0.5rem 0; color: #666;">RGBA 32x32</p>
-                            <input type="number" id="count-rgba" min="0" max="10000" value="25">
+                            <label style="display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                                <input type="checkbox" id="use-rgba" checked>
+                                <span>Use this image</span>
+                            </label>
                         </div>
                         <div class="image-option">
                             <img src="images/basn4a08.png" alt="Gray+Alpha 32x32">
                             <p style="font-size: 0.85rem; margin: 0.5rem 0; color: #666;">Gray+A 32x32</p>
-                            <input type="number" id="count-graya" min="0" max="10000" value="25">
+                            <label style="display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                                <input type="checkbox" id="use-graya" checked>
+                                <span>Use this image</span>
+                            </label>
                         </div>
                     </div>
 
                     <h4 style="margin: 1.5rem 0 1rem; color: #667eea;">Output Configuration</h4>
 
                     <div class="control-group">
-                        <label for="output-width">Maximum Width (pixels): <span id="width-value">500</span></label>
-                        <input type="range" id="output-width" min="32" max="2000" value="500" step="32">
+                        <label for="output-width">Width (pixels): <span id="width-value">1000</span></label>
+                        <input type="range" id="output-width" min="32" max="50000" value="1000" step="32">
+                    </div>
+
+                    <div class="control-group">
+                        <label for="output-height">Height (pixels): <span id="height-value">1000</span></label>
+                        <input type="range" id="output-height" min="32" max="50000" value="1000" step="32">
                     </div>
 
                     <div id="stats6" class="stats">
-                        <p><strong>Total Images:</strong> <span id="total-images">100</span></p>
-                        <p><strong>Estimated Dimensions:</strong> <span id="estimated-dims">~500x3200 px</span></p>
-                        <p><strong>Estimated File Size:</strong> <span id="estimated-size">~2-5 MB</span></p>
+                        <p><strong>Output Dimensions:</strong> <span id="output-dimensions">1000x1000 px</span></p>
+                        <p><strong>Estimated Input Images:</strong> <span id="estimated-images">~976</span></p>
+                        <p><strong>Estimated File Size:</strong> <span id="estimated-size">~1-3 MB</span></p>
                     </div>
                 </div>
 
                 <div class="button-group">
-                    <button onclick="runExample6()">Generate & Download Massive PNG</button>
+                    <button onclick="previewExample6()">Preview Image</button>
+                    <button onclick="downloadExample6()">Download Image</button>
                 </div>
 
                 <div id="result6"></div>
@@ -725,90 +749,110 @@
         const imageCache = {};
 
         function updateStats() {
-            const countRgb = parseInt(document.getElementById('count-rgb').value) || 0;
-            const countGray = parseInt(document.getElementById('count-gray').value) || 0;
-            const countRgba = parseInt(document.getElementById('count-rgba').value) || 0;
-            const countGraya = parseInt(document.getElementById('count-graya').value) || 0;
-            const width = parseInt(document.getElementById('output-width').value) || 500;
+            const width = parseInt(document.getElementById('output-width').value) || 1000;
+            const height = parseInt(document.getElementById('output-height').value) || 1000;
 
-            const totalImages = countRgb + countGray + countRgba + countGraya;
-            const imagesPerRow = Math.floor(width / 32); // Assuming 32px images
-            const rows = Math.ceil(totalImages / imagesPerRow);
-            const estimatedHeight = rows * 32;
-            const estimatedSize = Math.round((totalImages * 32 * 32 * 4 * 0.3) / 1024 / 1024); // Rough estimate with compression
+            // Calculate how many 32x32 images fit in the output dimensions
+            const imagesPerRow = Math.floor(width / 32);
+            const imagesPerCol = Math.floor(height / 32);
+            const totalImages = imagesPerRow * imagesPerCol;
 
-            document.getElementById('total-images').textContent = totalImages.toLocaleString();
-            document.getElementById('estimated-dims').textContent = `~${width}x${estimatedHeight} px`;
-            document.getElementById('estimated-size').textContent = `~${estimatedSize}-${estimatedSize * 2} MB`;
+            // Estimate file size (rough calculation based on PNG compression)
+            const estimatedSize = Math.round((totalImages * 32 * 32 * 4 * 0.3) / 1024 / 1024);
+            const estimatedSizeMin = Math.max(1, Math.round(estimatedSize * 0.5));
+            const estimatedSizeMax = Math.round(estimatedSize * 1.5);
+
+            document.getElementById('output-dimensions').textContent = `${width}x${height} px`;
+            document.getElementById('estimated-images').textContent = `~${totalImages.toLocaleString()}`;
+            document.getElementById('estimated-size').textContent = `~${estimatedSizeMin}-${estimatedSizeMax} MB`;
             document.getElementById('width-value').textContent = width;
+            document.getElementById('height-value').textContent = height;
         }
 
         // Set up event listeners for the controls
         document.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('count-rgb').addEventListener('input', updateStats);
-            document.getElementById('count-gray').addEventListener('input', updateStats);
-            document.getElementById('count-rgba').addEventListener('input', updateStats);
-            document.getElementById('count-graya').addEventListener('input', updateStats);
+            document.getElementById('use-rgb').addEventListener('change', updateStats);
+            document.getElementById('use-gray').addEventListener('change', updateStats);
+            document.getElementById('use-rgba').addEventListener('change', updateStats);
+            document.getElementById('use-graya').addEventListener('change', updateStats);
             document.getElementById('output-width').addEventListener('input', updateStats);
+            document.getElementById('output-height').addEventListener('input', updateStats);
             updateStats();
         });
 
-        window.runExample6 = async function() {
-            const exampleId = 'example6';
+        // Helper function to get selected images and create random input array
+        async function prepareRandomImages() {
+            const width = parseInt(document.getElementById('output-width').value) || 1000;
+            const height = parseInt(document.getElementById('output-height').value) || 1000;
+
+            // Get selected image types
+            const useRgb = document.getElementById('use-rgb').checked;
+            const useGray = document.getElementById('use-gray').checked;
+            const useRgba = document.getElementById('use-rgba').checked;
+            const useGraya = document.getElementById('use-graya').checked;
+
+            // Build list of available images
+            const availableImages = [];
+            const imageUrls = {
+                rgb: 'images/basn2c08.png',
+                gray: 'images/basn0g08.png',
+                rgba: 'images/basn6a08.png',
+                graya: 'images/basn4a08.png'
+            };
+
+            // Load selected images if not cached
+            if (useRgb) {
+                if (!imageCache.rgb) imageCache.rgb = await loadImage(imageUrls.rgb);
+                availableImages.push(imageCache.rgb);
+            }
+            if (useGray) {
+                if (!imageCache.gray) imageCache.gray = await loadImage(imageUrls.gray);
+                availableImages.push(imageCache.gray);
+            }
+            if (useRgba) {
+                if (!imageCache.rgba) imageCache.rgba = await loadImage(imageUrls.rgba);
+                availableImages.push(imageCache.rgba);
+            }
+            if (useGraya) {
+                if (!imageCache.graya) imageCache.graya = await loadImage(imageUrls.graya);
+                availableImages.push(imageCache.graya);
+            }
+
+            if (availableImages.length === 0) {
+                throw new Error('Please select at least one image type!');
+            }
+
+            // Calculate number of images needed
+            const imagesPerRow = Math.floor(width / 32);
+            const imagesPerCol = Math.floor(height / 32);
+            const totalImages = imagesPerRow * imagesPerCol;
+
+            // Create random array of images
+            const inputs = [];
+            for (let i = 0; i < totalImages; i++) {
+                const randomIndex = Math.floor(Math.random() * availableImages.length);
+                inputs.push(availableImages[randomIndex]);
+            }
+
+            return { inputs, width, height, totalImages };
+        }
+
+        // Preview function - generates and displays on page
+        window.previewExample6 = async function() {
             const resultDiv = document.getElementById('result6');
 
             try {
-                // Get configuration
-                const countRgb = parseInt(document.getElementById('count-rgb').value) || 0;
-                const countGray = parseInt(document.getElementById('count-gray').value) || 0;
-                const countRgba = parseInt(document.getElementById('count-rgba').value) || 0;
-                const countGraya = parseInt(document.getElementById('count-graya').value) || 0;
-                const width = parseInt(document.getElementById('output-width').value) || 500;
-
-                const totalImages = countRgb + countGray + countRgba + countGraya;
-
-                if (totalImages === 0) {
-                    resultDiv.innerHTML = `
-                        <div class="error">
-                            <strong>Error:</strong> Please select at least one image!
-                        </div>
-                    `;
-                    return;
-                }
-
-                // Show loading with progress
                 resultDiv.innerHTML = `
                     <div class="result">
-                        <h4>Generating massive PNG...</h4>
+                        <h4>Generating preview...</h4>
                         <div class="loading"></div>
-                        <p style="margin-top: 1rem;">Processing ${totalImages.toLocaleString()} images...</p>
-                        <p style="color: #666; font-size: 0.9rem;">This may take a moment for very large outputs.</p>
+                        <p style="margin-top: 1rem;">Processing images...</p>
                     </div>
                 `;
 
-                // Load base images (cache them)
-                const imageUrls = {
-                    rgb: 'images/basn2c08.png',
-                    gray: 'images/basn0g08.png',
-                    rgba: 'images/basn6a08.png',
-                    graya: 'images/basn4a08.png'
-                };
+                const { inputs, width, height, totalImages } = await prepareRandomImages();
 
-                // Load images if not cached
-                for (const [key, url] of Object.entries(imageUrls)) {
-                    if (!imageCache[key]) {
-                        imageCache[key] = await loadImage(url);
-                    }
-                }
-
-                // Build input array
-                const inputs = [];
-                for (let i = 0; i < countRgb; i++) inputs.push(imageCache.rgb);
-                for (let i = 0; i < countGray; i++) inputs.push(imageCache.gray);
-                for (let i = 0; i < countRgba; i++) inputs.push(imageCache.rgba);
-                for (let i = 0; i < countGraya; i++) inputs.push(imageCache.graya);
-
-                // Generate the massive PNG
+                // Generate the PNG
                 const startTime = performance.now();
                 const result = await concatPngs({
                     inputs: inputs,
@@ -817,32 +861,27 @@
                 const endTime = performance.now();
                 const duration = ((endTime - startTime) / 1000).toFixed(2);
 
-                // Show result
+                // Show result with preview
                 const blob = new Blob([result], { type: 'image/png' });
                 const url = URL.createObjectURL(blob);
                 const sizeMB = (result.length / 1024 / 1024).toFixed(2);
 
                 resultDiv.innerHTML = `
                     <div class="result">
-                        <h4>Success! Massive PNG Generated</h4>
+                        <h4>Preview Generated!</h4>
                         <div class="stats">
+                            <p><strong>Dimensions:</strong> ${width}x${height} px</p>
                             <p><strong>Total Images:</strong> ${totalImages.toLocaleString()}</p>
-                            <p><strong>File Size:</strong> ${sizeMB} MB (${result.length.toLocaleString()} bytes)</p>
+                            <p><strong>File Size:</strong> ${sizeMB} MB</p>
                             <p><strong>Generation Time:</strong> ${duration} seconds</p>
-                            <p><strong>Performance:</strong> ${(totalImages / parseFloat(duration)).toFixed(0)} images/sec</p>
                         </div>
-                        <p style="margin: 1rem 0; color: #667eea; font-weight: 600;">
-                            The PNG was generated using streaming - no memory overflow!
-                        </p>
-                        <button onclick="downloadMassivePng('${url}', ${totalImages})">Download PNG (${sizeMB} MB)</button>
-                        <p style="margin-top: 1rem; color: #666; font-size: 0.9rem;">
-                            Preview omitted for large files. Click download to save the file.
-                        </p>
+                        <img src="${url}" alt="Preview" style="max-width: 100%; margin: 1rem 0; border: 1px solid #ddd;">
+                        <button onclick="downloadFromUrl('${url}', 'large-image-${width}x${height}.png')">Download This Image</button>
                     </div>
                 `;
 
             } catch (error) {
-                console.error('Example 6 error:', error);
+                console.error('Preview error:', error);
                 resultDiv.innerHTML = `
                     <div class="error">
                         <strong>Error:</strong> ${error.message}
@@ -851,10 +890,75 @@
             }
         };
 
-        window.downloadMassivePng = function(url, totalImages) {
+        // Download function - streams directly to download
+        window.downloadExample6 = async function() {
+            const resultDiv = document.getElementById('result6');
+
+            try {
+                resultDiv.innerHTML = `
+                    <div class="result">
+                        <h4>Generating download...</h4>
+                        <div class="loading"></div>
+                        <p style="margin-top: 1rem;">Creating file for download...</p>
+                        <p style="color: #666; font-size: 0.9rem;">Large files may take a moment to generate.</p>
+                    </div>
+                `;
+
+                const { inputs, width, height, totalImages } = await prepareRandomImages();
+
+                // Generate the PNG
+                const startTime = performance.now();
+                const result = await concatPngs({
+                    inputs: inputs,
+                    layout: { width: width }
+                });
+                const endTime = performance.now();
+                const duration = ((endTime - startTime) / 1000).toFixed(2);
+
+                // Create download
+                const blob = new Blob([result], { type: 'image/png' });
+                const url = URL.createObjectURL(blob);
+                const sizeMB = (result.length / 1024 / 1024).toFixed(2);
+
+                // Trigger download
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `large-image-${width}x${height}.png`;
+                a.click();
+
+                // Show success message
+                resultDiv.innerHTML = `
+                    <div class="result">
+                        <h4>Download Started!</h4>
+                        <div class="stats">
+                            <p><strong>Dimensions:</strong> ${width}x${height} px</p>
+                            <p><strong>Total Images:</strong> ${totalImages.toLocaleString()}</p>
+                            <p><strong>File Size:</strong> ${sizeMB} MB</p>
+                            <p><strong>Generation Time:</strong> ${duration} seconds</p>
+                        </div>
+                        <p style="margin: 1rem 0; color: #667eea; font-weight: 600;">
+                            File generated using streaming - no memory overflow!
+                        </p>
+                        <p style="color: #666;">Check your downloads folder for the PNG file.</p>
+                        <button onclick="downloadFromUrl('${url}', 'large-image-${width}x${height}.png')">Download Again</button>
+                    </div>
+                `;
+
+            } catch (error) {
+                console.error('Download error:', error);
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <strong>Error:</strong> ${error.message}
+                    </div>
+                `;
+            }
+        };
+
+        // Helper to download from URL
+        window.downloadFromUrl = function(url, filename) {
             const a = document.createElement('a');
             a.href = url;
-            a.download = `massive-${totalImages}-images.png`;
+            a.download = filename;
             a.click();
         };
     </script>
