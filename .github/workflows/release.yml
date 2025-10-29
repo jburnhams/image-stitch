@@ -1,4 +1,4 @@
-name: 'Bump Version'
+name: 'Bump Version and Release'
 
 on:
   push:
@@ -12,11 +12,18 @@ jobs:
 
     steps:
       - name: 'Checkout source code'
-        uses: 'actions/checkout@v2'
+        uses: 'actions/checkout@v4'
         with:
           ref: ${{ github.ref }}
+
+      - name: 'Setup Node.js'
+        uses: 'actions/setup-node@v4'
+        with:
+          node-version: '20'
+
       - name: 'cat package.json'
         run: cat ./package.json
+
       - name: 'Automated Version Bump'
         id: version-bump
         uses: 'phips28/gh-action-bump-version@v11.0.7'
@@ -30,9 +37,29 @@ jobs:
           push: true  # Pushes the commit/tag back to main
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: 'cat package.json'
         run: cat ./package.json
+
       - name: 'Output Step'
         env:
           NEW_TAG: ${{ steps.version-bump.outputs.newTag }}
         run: echo "new tag $NEW_TAG"
+
+      - name: 'Install dependencies'
+        run: npm ci
+
+      - name: 'Build project'
+        run: npm run build
+
+      - name: 'Create GitHub Release'
+        if: ${{ steps.version-bump.outputs.newTag }}
+        uses: 'softprops/action-gh-release@v2'
+        with:
+          tag_name: ${{ steps.version-bump.outputs.newTag }}
+          name: Release ${{ steps.version-bump.outputs.newTag }}
+          generate_release_notes: true
+          files: |
+            dist/**/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
