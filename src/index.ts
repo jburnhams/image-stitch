@@ -33,7 +33,8 @@ export {
 export {
   decompressImageData,
   compressImageData,
-  extractPixelData
+  extractPixelData,
+  decompressData
 } from './png-decompress.js';
 export {
   unfilterScanline,

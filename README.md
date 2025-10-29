@@ -301,7 +301,7 @@ copyPixelRegion(
 The library implements the full PNG specification including:
 
 1. **PNG Parsing**: Reads PNG chunks, validates signatures and CRCs
-2. **Decompression**: Uses zlib (Node.js) or DecompressionStream (browsers) to decompress image data
+2. **Decompression**: Uses Web Compression Streams API (DecompressionStream) which works in both Node.js 18+ and modern browsers
 3. **Filtering**: Implements all 5 PNG filter types (None, Sub, Up, Average, Paeth)
 4. **Pixel Manipulation**: Copies pixel regions between images
 5. **Compression**: Recompresses image data with optimal filtering
@@ -368,7 +368,7 @@ PngSuite test images are included in the `pngsuite/` directory and are automatic
 ## Performance Considerations
 
 - **Memory Usage**: The library processes images in scanline order, but currently loads full images into memory. For very large images, consider the total output size.
-- **Compression**: Uses zlib level 9 (maximum compression) which is slower but produces smaller files.
+- **Compression**: Uses Web Compression Streams API with 'deflate' compression which produces optimized PNG files.
 - **Filter Selection**: Automatically selects the best filter for each scanline to optimize compression.
 
 ## Browser Support
