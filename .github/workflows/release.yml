@@ -22,6 +22,12 @@ jobs:
         uses: 'phips28/gh-action-bump-version@latest'
         with:
           tag-prefix: 'v'
+          major-wording: 'major,Major,breaking,Breaking'
+          minor-wording: 'minor,Minor,feat,Feat,feature,Feature'
+          patch-wording: 'patch,Patch,fix,Fix,fixes,Fixes'
+          rc-wording: 'rc,pre,beta,alpha'  # For pre-releases
+          commit-message: 'ci: bump version to {{version}} [skip ci]'  # Skips re-triggering
+          push: true  # Pushes the commit/tag back to main
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: 'cat package.json'
