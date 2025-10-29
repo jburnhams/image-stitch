@@ -238,6 +238,170 @@ export class StreamingConcatenator {
   }
 
   /**
+   * Stream compressed scanline data with TRUE streaming - no pre-accumulation
+   *
+   * This uses concurrent producers/consumers to minimize memory:
+   * 1. Producer: generates filtered scanlines one at a time
+   * 2. Compressor: compresses data as it arrives (with internal buffering)
+   * 3. Consumer: yields IDAT chunks as they become available
+   */
+  private async *streamCompressedData(
+    grid: number[][],
+    rowHeights: number[],
+    colWidths: number[][],
+    totalWidth: number,
+    headers: PngHeader[],
+    iterators: AsyncGenerator<Uint8Array>[],
+    outputHeader: PngHeader,
+    bytesPerPixel: number,
+    transparentColor: Uint8Array
+  ): AsyncGenerator<Uint8Array> {
+    // Create a generator that produces filtered scanlines
+    const scanlineGenerator = this.generateFilteredScanlines(
+      grid,
+      rowHeights,
+      colWidths,
+      totalWidth,
+      headers,
+      iterators,
+      outputHeader,
+      bytesPerPixel,
+      transparentColor
+    );
+
+    // Create ReadableStream that pulls from the generator
+    const inputStream = new ReadableStream<Uint8Array>({
+      async pull(controller) {
+        const { value, done } = await scanlineGenerator.next();
+        if (done) {
+          controller.close();
+        } else {
+          controller.enqueue(value);
+        }
+      }
+    });
+
+    // Pipe through compression
+    const compressor = new CompressionStream('deflate');
+    const compressedStream = inputStream.pipeThrough(compressor as any);
+    const reader = compressedStream.getReader();
+
+    // Yield compressed chunks as IDAT
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      yield serializeChunk(createChunk('IDAT', value as Uint8Array));
+    }
+  }
+
+  /**
+   * Generate filtered scanlines one at a time
+   */
+  private async *generateFilteredScanlines(
+    grid: number[][],
+    rowHeights: number[],
+    colWidths: number[][],
+    totalWidth: number,
+    headers: PngHeader[],
+    iterators: AsyncGenerator<Uint8Array>[],
+    outputHeader: PngHeader,
+    bytesPerPixel: number,
+    transparentColor: Uint8Array
+  ): AsyncGenerator<Uint8Array> {
+    let previousOutputScanline: Uint8Array | null = null;
+
+    // Process each output scanline
+    for (let row = 0; row < grid.length; row++) {
+      const rowHeight = rowHeights[row];
+      const rowColWidths = colWidths[row];
+
+      // Process each scanline in this row
+      for (let localY = 0; localY < rowHeight; localY++) {
+        const scanlines: Uint8Array[] = [];
+
+        // Collect scanlines from all images in this row
+        for (let col = 0; col < grid[row].length; col++) {
+          const imageIdx = grid[row][col];
+          const colWidth = rowColWidths[col];
+
+          if (imageIdx >= 0) {
+            const imageHeader = headers[imageIdx];
+            const imageHeight = imageHeader.height;
+            const imageWidth = imageHeader.width;
+
+            if (localY < imageHeight) {
+              // Read scanline from this image
+              const { value, done } = await iterators[imageIdx].next();
+              if (!done) {
+                // Convert scanline to target format if needed
+                const convertedScanline = convertScanline(
+                  value,
+                  imageWidth,
+                  imageHeader.bitDepth,
+                  imageHeader.colorType,
+                  outputHeader.bitDepth,
+                  outputHeader.colorType
+                );
+
+                // Pad scanline if image is narrower than column
+                const paddedScanline = padScanline(
+                  convertedScanline,
+                  imageWidth,
+                  colWidth,
+                  bytesPerPixel,
+                  transparentColor
+                );
+                scanlines.push(paddedScanline);
+              } else {
+                // Shouldn't happen, but handle gracefully
+                scanlines.push(createTransparentScanline(colWidth, bytesPerPixel, transparentColor));
+              }
+            } else {
+              // Below image - use transparent scanline
+              scanlines.push(createTransparentScanline(colWidth, bytesPerPixel, transparentColor));
+            }
+          } else {
+            // Empty cell - use transparent scanline
+            scanlines.push(createTransparentScanline(colWidth, bytesPerPixel, transparentColor));
+          }
+        }
+
+        // Combine scanlines horizontally
+        let outputScanline = combineScanlines(scanlines, rowColWidths, bytesPerPixel);
+
+        // Pad scanline to totalWidth if this row is narrower
+        const rowWidth = rowColWidths.reduce((sum, w) => sum + w, 0);
+        if (rowWidth < totalWidth) {
+          const paddedScanline = new Uint8Array(totalWidth * bytesPerPixel);
+          paddedScanline.set(outputScanline, 0);
+          // Fill the rest with transparent pixels
+          for (let x = rowWidth; x < totalWidth; x++) {
+            paddedScanline.set(transparentColor, x * bytesPerPixel);
+          }
+          outputScanline = paddedScanline;
+        }
+
+        // Filter the scanline
+        const { filterType, filtered } = filterScanline(
+          outputScanline,
+          previousOutputScanline,
+          bytesPerPixel
+        );
+
+        // Create scanline with filter byte
+        const scanlineWithFilter = new Uint8Array(1 + filtered.length);
+        scanlineWithFilter[0] = filterType;
+        scanlineWithFilter.set(filtered, 1);
+
+        // Yield this scanline - only one at a time!
+        yield scanlineWithFilter;
+
+        previousOutputScanline = outputScanline;
+      }
+    }
+  }
+
+  /**
    * Stream concatenated PNG output scanline-by-scanline
    */
   async *stream(): AsyncGenerator<Uint8Array> {
@@ -275,125 +439,24 @@ export class StreamingConcatenator {
       // Yield IHDR
       yield serializeChunk(createIHDR(outputHeader));
 
-      // PASS 2: Stream scanlines
+      // PASS 2: Stream scanlines with true streaming compression
       // Create iterators for each input
       const iterators = adapters.map(adapter => adapter.scanlines());
       const bytesPerPixel = getBytesPerPixel(outputHeader.bitDepth, outputHeader.colorType);
       const transparentColor = getTransparentColor(outputHeader.colorType, outputHeader.bitDepth);
 
-      // Collect all filtered scanlines for compression
-      const filteredScanlines: Uint8Array[] = [];
-      let previousOutputScanline: Uint8Array | null = null;
-
-      // Process each output scanline
-      for (let row = 0; row < grid.length; row++) {
-        const rowHeight = rowHeights[row];
-        const rowColWidths = colWidths[row];
-
-        // Process each scanline in this row
-        for (let localY = 0; localY < rowHeight; localY++) {
-          const scanlines: Uint8Array[] = [];
-
-          // Collect scanlines from all images in this row
-          for (let col = 0; col < grid[row].length; col++) {
-            const imageIdx = grid[row][col];
-            const colWidth = rowColWidths[col];
-
-            if (imageIdx >= 0) {
-              const imageHeader = headers[imageIdx];
-              const imageHeight = imageHeader.height;
-              const imageWidth = imageHeader.width;
-
-              if (localY < imageHeight) {
-                // Read scanline from this image
-                const { value, done } = await iterators[imageIdx].next();
-                if (!done) {
-                  // Convert scanline to target format if needed
-                  const convertedScanline = convertScanline(
-                    value,
-                    imageWidth,
-                    imageHeader.bitDepth,
-                    imageHeader.colorType,
-                    outputHeader.bitDepth,
-                    outputHeader.colorType
-                  );
-
-                  // Pad scanline if image is narrower than column
-                  const paddedScanline = padScanline(
-                    convertedScanline,
-                    imageWidth,
-                    colWidth,
-                    bytesPerPixel,
-                    transparentColor
-                  );
-                  scanlines.push(paddedScanline);
-                } else {
-                  // Shouldn't happen, but handle gracefully
-                  scanlines.push(createTransparentScanline(colWidth, bytesPerPixel, transparentColor));
-                }
-              } else {
-                // Below image - use transparent scanline
-                scanlines.push(createTransparentScanline(colWidth, bytesPerPixel, transparentColor));
-              }
-            } else {
-              // Empty cell - use transparent scanline
-              scanlines.push(createTransparentScanline(colWidth, bytesPerPixel, transparentColor));
-            }
-          }
-
-          // Combine scanlines horizontally
-          let outputScanline = combineScanlines(scanlines, rowColWidths, bytesPerPixel);
-
-          // Pad scanline to totalWidth if this row is narrower
-          // This is needed when rows have different widths (e.g., with width limits)
-          const rowWidth = rowColWidths.reduce((sum, w) => sum + w, 0);
-          if (rowWidth < totalWidth) {
-            const paddedScanline = new Uint8Array(totalWidth * bytesPerPixel);
-            paddedScanline.set(outputScanline, 0);
-            // Fill the rest with transparent pixels
-            for (let x = rowWidth; x < totalWidth; x++) {
-              paddedScanline.set(transparentColor, x * bytesPerPixel);
-            }
-            outputScanline = paddedScanline;
-          }
-
-          // Filter the scanline
-          const { filterType, filtered } = filterScanline(
-            outputScanline,
-            previousOutputScanline,
-            bytesPerPixel
-          );
-
-          // Collect filter type + filtered data for compression
-          const scanlineWithFilter = new Uint8Array(1 + filtered.length);
-          scanlineWithFilter[0] = filterType;
-          scanlineWithFilter.set(filtered, 1);
-
-          filteredScanlines.push(scanlineWithFilter);
-          previousOutputScanline = outputScanline;
-        }
-      }
-
-      // Compress all filtered data using Web Compression Streams API
-      const totalFilteredLength = filteredScanlines.reduce((sum, s) => sum + s.length, 0);
-      const allFilteredData = new Uint8Array(totalFilteredLength);
-      let offset = 0;
-      for (const scanline of filteredScanlines) {
-        allFilteredData.set(scanline, offset);
-        offset += scanline.length;
-      }
-
-      // Compress using Web Compression Streams API
-      const stream = new Blob([allFilteredData]).stream();
-      const compressedStream = stream.pipeThrough(new CompressionStream('deflate'));
-      const reader = compressedStream.getReader();
-
-      // Read compressed data and yield as IDAT chunks
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        yield serializeChunk(createChunk('IDAT', value));
-      }
+      // Use streaming compression - process scanlines one at a time
+      yield* this.streamCompressedData(
+        grid,
+        rowHeights,
+        colWidths,
+        totalWidth,
+        headers,
+        iterators,
+        outputHeader,
+        bytesPerPixel,
+        transparentColor
+      );
 
       // Yield IEND
       yield serializeChunk(createIEND());
