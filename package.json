@@ -1,6 +1,6 @@
 {
   "name": "image-stitch",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A streaming PNG concatenation library for Node.js and web that works without canvas",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
