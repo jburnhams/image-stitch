@@ -40,5 +40,9 @@
   },
   "engines": {
     "node": ">=20.0.0"
+  },
+  "publishConfig": {
+    "@jburnhams:registry": "https://npm.pkg.github.com"
   }
+}
 }
