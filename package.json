@@ -2,7 +2,7 @@
   "name": "image-stitch",
   "version": "1.1.8",
   "description": "Stitch images together efficiently, support streaming, for node.js and web",
-  "repository.url": "https://github.com/jburnhams/image-stitch",
+  "repository": "github:jburnhams/image-stitch",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
