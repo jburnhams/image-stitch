@@ -1,6 +1,6 @@
 {
   "name": "image-stitch",
-  "version": "1.1.11",
+  "version": "1.1.12",
   "description": "Stitch images together efficiently, support streaming, for node.js and web",
   "repository": {
     "type": "git",
