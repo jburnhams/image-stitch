@@ -40,7 +40,7 @@ jobs:
           commit-message: 'ci: bump version to {{version}} [skip ci]'  # Skips re-triggering
           push: true  # Pushes the commit/tag back to main
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
 
       - name: 'cat package.json'
         run: cat ./package.json
@@ -66,4 +66,4 @@ jobs:
           files: |
             docs-dist/image-stitch.bundle.js
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
