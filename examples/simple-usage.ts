@@ -13,13 +13,13 @@ import { PngHeader, ColorType } from '../dist/index.js';
 /**
  * Helper to create test images
  */
-function createColoredPng(
+async function createColoredPng(
   width: number,
   height: number,
   r: number,
   g: number,
   b: number
-): Uint8Array {
+): Promise<Uint8Array> {
   const header: PngHeader = {
     width,
     height,
@@ -38,7 +38,7 @@ function createColoredPng(
     pixelData[i * 4 + 3] = 255;
   }
 
-  const compressed = compressImageData(pixelData, header);
+  const compressed = await compressImageData(pixelData, header);
   return buildPng([createIHDR(header), createChunk('IDAT', compressed), createIEND()]);
 }
 
@@ -46,10 +46,10 @@ async function main() {
   console.log('PNG Concatenation - Simple Unified API\n');
 
   // Create test images
-  const red = createColoredPng(100, 100, 255, 0, 0);
-  const green = createColoredPng(100, 100, 0, 255, 0);
-  const blue = createColoredPng(100, 100, 0, 0, 255);
-  const yellow = createColoredPng(100, 100, 255, 255, 0);
+  const red = await createColoredPng(100, 100, 255, 0, 0);
+  const green = await createColoredPng(100, 100, 0, 255, 0);
+  const blue = await createColoredPng(100, 100, 0, 0, 255);
+  const yellow = await createColoredPng(100, 100, 255, 255, 0);
 
   // ===================================================================
   // Example 1: Simple - Just get the result

@@ -12,6 +12,7 @@ import { PngHeader } from './types.js';
 import { parsePngHeader, parsePngChunks } from './png-parser.js';
 import { unfilterScanline, getBytesPerPixel, FilterType } from './png-filter.js';
 import { readUInt32BE, bytesToString } from './utils.js';
+import { decompressData } from './png-decompress.js';
 
 /**
  * Abstract interface for PNG input sources
@@ -87,9 +88,8 @@ export class FileInputAdapter implements PngInputAdapter {
       // Find and read IDAT chunks
       const idatData = await this.extractIdatData();
 
-      // Decompress IDAT data
-      const { inflateSync } = await import('node:zlib');
-      const decompressedData = inflateSync(idatData);
+      // Decompress IDAT data using Web Compression Streams API
+      const decompressedData = await decompressData(idatData);
 
       // Stream scanlines
       const bytesPerPixel = getBytesPerPixel(header.bitDepth, header.colorType);
@@ -233,9 +233,8 @@ export class Uint8ArrayInputAdapter implements PngInputAdapter {
       offset += chunk.data.length;
     }
 
-    // Decompress IDAT data
-    const { inflateSync } = await import('node:zlib');
-    const decompressedData = inflateSync(compressedData);
+    // Decompress IDAT data using Web Compression Streams API
+    const decompressedData = await decompressData(compressedData);
 
     const bytesPerPixel = getBytesPerPixel(header.bitDepth, header.colorType);
     const scanlineLength = Math.ceil(

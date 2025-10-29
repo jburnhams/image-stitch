@@ -13,14 +13,14 @@ import { PngHeader, ColorType } from '../dist/index.js';
 /**
  * Helper function to create a test PNG with a solid color
  */
-function createColoredPng(
+async function createColoredPng(
   width: number,
   height: number,
   r: number,
   g: number,
   b: number,
   a: number = 255
-): Uint8Array {
+): Promise<Uint8Array> {
   const header: PngHeader = {
     width,
     height,
@@ -41,7 +41,7 @@ function createColoredPng(
   }
 
   // Compress and build PNG
-  const compressed = compressImageData(pixelData, header);
+  const compressed = await compressImageData(pixelData, header);
   const ihdr = createIHDR(header);
   const idat = createChunk('IDAT', compressed);
   const iend = createIEND();
@@ -53,10 +53,10 @@ async function main() {
   console.log('Creating test images...');
 
   // Create 4 colored PNG images (100x100 each)
-  const redPng = createColoredPng(100, 100, 255, 0, 0);
-  const greenPng = createColoredPng(100, 100, 0, 255, 0);
-  const bluePng = createColoredPng(100, 100, 0, 0, 255);
-  const yellowPng = createColoredPng(100, 100, 255, 255, 0);
+  const redPng = await createColoredPng(100, 100, 255, 0, 0);
+  const greenPng = await createColoredPng(100, 100, 0, 255, 0);
+  const bluePng = await createColoredPng(100, 100, 0, 0, 255);
+  const yellowPng = await createColoredPng(100, 100, 255, 255, 0);
 
   console.log('Concatenating images in a 2x2 grid...');
 

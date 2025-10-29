@@ -6,7 +6,7 @@ import { getSamplesPerPixel } from './utils.js';
  * Decompress data using Web Compression Streams API
  * Works in both Node.js (18+) and modern browsers
  */
-async function decompressData(data: Uint8Array): Promise<Uint8Array> {
+export async function decompressData(data: Uint8Array): Promise<Uint8Array> {
   const stream = new Blob([data as BlobPart]).stream();
   const decompressedStream = stream.pipeThrough(new DecompressionStream('deflate'));
   const chunks: Uint8Array[] = [];
