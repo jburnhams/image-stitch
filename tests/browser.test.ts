@@ -13,6 +13,24 @@ const __dirname = path.dirname(__filename);
 const docsDistDir = path.join(__dirname, '..', 'docs-dist');
 const bundlePath = path.join(docsDistDir, 'image-stitch.bundle.js');
 const indexPath = path.join(docsDistDir, 'index.html');
+const guidesPath = path.join(docsDistDir, 'guides.html');
+const examplesPath = path.join(docsDistDir, 'examples.html');
+const sampleImagesDir = path.join(docsDistDir, 'images');
+
+async function loadDocument(htmlPath: string) {
+  const window = new Window({
+    settings: {
+      disableJavaScriptEvaluation: true,
+      disableJavaScriptFileLoading: true,
+    },
+  });
+
+  const { document } = window;
+  const html = fs.readFileSync(htmlPath, 'utf8');
+  document.write(html);
+
+  return { window, document };
+}
 
 describe('Browser Bundle Tests', () => {
   test('bundle loads without syntax errors', async () => {
@@ -123,57 +141,100 @@ describe('Browser Bundle Tests', () => {
     }
   });
 
-  test('HTML page loads without errors', async () => {
-    const indexExists = fs.existsSync(indexPath);
-    assert.ok(indexExists, 'index.html should exist');
+  test('landing page renders feature overview and navigation', async () => {
+    assert.ok(fs.existsSync(indexPath), 'index.html should exist');
 
-    const window = new Window();
-    const document = window.document;
+    const { window, document } = await loadDocument(indexPath);
 
-    const html = fs.readFileSync(indexPath, 'utf8');
-    document.write(html);
+    assert.strictEqual(
+      document.querySelector('header h1')?.textContent?.trim(),
+      'image-stitch',
+      'Hero title should display library name'
+    );
 
-    // Verify key elements exist
-    assert.ok(document.querySelector('header'), 'Should have header');
-    assert.ok(document.querySelector('.example'), 'Should have example sections');
+    const navLinks = Array.from(document.querySelectorAll('nav a')).map((link) => link.getAttribute('href'));
+    assert.deepStrictEqual(
+      navLinks,
+      ['examples.html', 'guides.html', 'https://github.com/jburnhams/Png-concat'],
+      'Navigation should link to examples, guides, and GitHub'
+    );
 
-    // Verify all 5 examples are present
-    for (let i = 1; i <= 5; i++) {
-      const example = document.querySelector(`#example${i}`);
-      assert.ok(example, `Should have example${i}`);
-    }
+    assert.ok(document.querySelector('.feature-grid'), 'Feature grid should be present');
+    assert.ok(document.querySelectorAll('.card').length >= 2, 'Landing page should include feature cards');
 
     await window.close();
   });
 
-  test('all example sections have run buttons', async () => {
-    const window = new Window();
-    const document = window.document;
+  test('guides page surfaces installation and API docs', async () => {
+    assert.ok(fs.existsSync(guidesPath), 'guides.html should exist');
 
-    const html = fs.readFileSync(indexPath, 'utf8');
-    document.write(html);
+    const { window, document } = await loadDocument(guidesPath);
 
-    // Check each example has a "Run Example" button
-    for (let i = 1; i <= 5; i++) {
-      const example = document.querySelector(`#example${i}`);
-      assert.ok(example, `Should have example${i}`);
+    const sections = Array.from(document.querySelectorAll('main section'));
+    assert.ok(sections.length >= 5, 'Guides page should include multiple sections');
 
-      const button = example.querySelector('button');
-      assert.ok(button, `Example ${i} should have a button`);
-      assert.ok(
-        button.textContent?.includes('Run Example'),
-        `Example ${i} button should say "Run Example"`
-      );
-    }
+    const navLinks = Array.from(document.querySelectorAll('nav a')).map((link) => link.getAttribute('href'));
+    assert.deepStrictEqual(
+      navLinks,
+      ['index.html', 'examples.html', 'https://github.com/jburnhams/Png-concat'],
+      'Guides nav should link back to overview and GitHub'
+    );
+
+    const codeSamples = document.querySelectorAll('pre code');
+    assert.ok(codeSamples.length >= 3, 'Guides page should highlight code samples');
+
+    const apiHeading = Array.from(document.querySelectorAll('h3')).some((heading) =>
+      heading.textContent?.includes('concatPngs')
+    );
+    assert.ok(apiHeading, 'API reference section should document concatPngs');
+
+    await window.close();
+  });
+
+  test('examples page exposes interactive demos and assets', async () => {
+    assert.ok(fs.existsSync(examplesPath), 'examples.html should exist');
+
+    const { window, document } = await loadDocument(examplesPath);
+
+    const exampleSections = Array.from(document.querySelectorAll('section.example'));
+    assert.strictEqual(exampleSections.length, 4, 'Examples page should render four demos');
+
+    const runTargets = exampleSections
+      .flatMap((section) => Array.from(section.querySelectorAll('button[data-run]')))
+      .map((button) => button.getAttribute('data-run'))
+      .filter(Boolean)
+      .sort();
+    assert.deepStrictEqual(runTargets, ['custom', 'grid', 'horizontal', 'vertical'], 'Each demo should expose a run button');
+
+    const customInput = document.getElementById('custom-files');
+    assert.ok(customInput, 'Custom demo should expose file input');
+
+    const resultContainers = document.querySelectorAll('[data-result]');
+    assert.strictEqual(resultContainers.length, 4, 'Each example should render a result container');
+    resultContainers.forEach((container) => {
+      const img = container.querySelector('img');
+      assert.ok(img, 'Result containers should include an image element');
+    });
+
+    const moduleScript = document.querySelector('script[type="module"]');
+    assert.ok(moduleScript, 'Examples page should include module script');
+    assert.ok(
+      moduleScript?.textContent?.includes('cdn.jsdelivr.net/npm/image-stitch/dist/index.esm.js'),
+      'Module script should load the CDN build'
+    );
+    assert.ok(
+      moduleScript?.textContent?.includes('SAMPLE_MAP'),
+      'Module script should reference bundled sample assets'
+    );
 
     await window.close();
   });
 
   test('all required images exist', () => {
-    const imagesDir = path.join(docsDistDir, 'images');
-    assert.ok(fs.existsSync(imagesDir), 'Images directory should exist');
+    assert.ok(fs.existsSync(sampleImagesDir), 'Images directory should exist');
 
     const requiredImages = [
+      'basi0g08.png',
       'basn2c08.png',
       'basn0g08.png',
       'basn6a08.png',
@@ -182,10 +243,20 @@ describe('Browser Bundle Tests', () => {
       'basn0g16.png',
       'basn0g01.png',
       'basn0g04.png',
+      'basi2c08.png',
+      'basi4a16.png',
+      'f00n2c08.png',
+      'f01n2c08.png',
+      'f02n2c08.png',
+      'f03n2c08.png',
+      'f04n2c08.png',
+      'g03n2c08.png',
+      'g04n2c08.png',
+      'g05n2c08.png',
     ];
 
     for (const imageName of requiredImages) {
-      const imagePath = path.join(imagesDir, imageName);
+      const imagePath = path.join(sampleImagesDir, imageName);
       assert.ok(fs.existsSync(imagePath), `Image ${imageName} should exist`);
 
       // Verify it's a valid PNG (starts with PNG signature)
@@ -198,77 +269,20 @@ describe('Browser Bundle Tests', () => {
     }
   });
 
-  test('all image references in HTML are valid', async () => {
-    const window = new Window();
-    const document = window.document;
-
-    const html = fs.readFileSync(indexPath, 'utf8');
-    document.write(html);
-
-    // Find all img elements
-    const images = document.querySelectorAll('img');
-    assert.ok(images.length > 0, 'Should have image elements');
-
-    for (const img of Array.from(images)) {
-      const src = img.getAttribute('src');
-      assert.ok(src, 'Image should have src attribute');
-
-      if (src && src.startsWith('images/')) {
-        const imagePath = path.join(docsDistDir, src);
-        assert.ok(fs.existsSync(imagePath), `Image file ${src} should exist`);
-      }
+  test('interactive examples bundle includes pngsuite samples', () => {
+    const requiredAssets = ['basi0g08.png', 'basi2c08.png', 'basi4a16.png'];
+    for (const asset of requiredAssets) {
+      const assetPath = path.join(sampleImagesDir, asset);
+      assert.ok(fs.existsSync(assetPath), `Asset ${asset} should be available for browser demos`);
     }
-
-    await window.close();
   });
 
-  test('bundle script is referenced in HTML', async () => {
-    const window = new Window();
-    const document = window.document;
 
-    const html = fs.readFileSync(indexPath, 'utf8');
-    document.write(html);
+  test('examples page provides code samples for each demo', async () => {
+    const { window, document } = await loadDocument(examplesPath);
 
-    // Find script that imports the bundle
-    const scripts = document.querySelectorAll('script[type="module"]');
-    let foundBundleImport = false;
-
-    for (const script of Array.from(scripts)) {
-      const content = script.textContent || '';
-      if (content.includes('./image-stitch.bundle.js')) {
-        foundBundleImport = true;
-        break;
-      }
-    }
-
-    assert.ok(foundBundleImport, 'HTML should import image-stitch.bundle.js');
-
-    await window.close();
-  });
-
-  test('example functions are defined in HTML', async () => {
-    const window = new Window();
-    const document = window.document;
-
-    const html = fs.readFileSync(indexPath, 'utf8');
-    document.write(html);
-
-    const scripts = document.querySelectorAll('script[type="module"]');
-    const scriptContent = Array.from(scripts).map(s => s.textContent || '').join('\n');
-
-    // Check that example runner functions exist
-    for (let i = 1; i <= 5; i++) {
-      assert.ok(
-        scriptContent.includes(`window.runExample${i}`),
-        `Should define runExample${i} function`
-      );
-    }
-
-    // Check that download function exists
-    assert.ok(
-      scriptContent.includes('window.downloadResult'),
-      'Should define downloadResult function'
-    );
+    const codeBlocks = Array.from(document.querySelectorAll('section.example .code-block[data-code]'));
+    assert.strictEqual(codeBlocks.length, 4, 'Each example should provide a runnable snippet');
 
     await window.close();
   });
@@ -284,40 +298,6 @@ describe('Browser Bundle Tests', () => {
     assert.ok(sizeKB > 10, `Bundle size (${sizeKB.toFixed(2)}KB) seems too small`);
   });
 
-  test('page has proper structure for all examples', async () => {
-    const window = new Window();
-    const document = window.document;
-
-    const html = fs.readFileSync(indexPath, 'utf8');
-    document.write(html);
-
-    const exampleTitles = [
-      'Horizontal Concatenation',
-      'Vertical Concatenation',
-      'Grid Layout',
-      'Arbitrary Image Sizes',
-      'Width Limit with Wrapping',
-    ];
-
-    for (let i = 0; i < exampleTitles.length; i++) {
-      const exampleNum = i + 1;
-      const example = document.querySelector(`#example${exampleNum}`);
-      assert.ok(example, `Example ${exampleNum} should exist`);
-
-      const heading = example.querySelector('h3');
-      assert.ok(heading, `Example ${exampleNum} should have a heading`);
-      assert.ok(
-        heading?.textContent?.includes(exampleTitles[i]),
-        `Example ${exampleNum} heading should mention "${exampleTitles[i]}"`
-      );
-
-      // Check for result container
-      const resultDiv = example.querySelector(`[id="result${exampleNum}"]`);
-      assert.ok(resultDiv, `Example ${exampleNum} should have a result div`);
-    }
-
-    await window.close();
-  });
 });
 
 describe('Functional Tests - Verify Examples Work Correctly', () => {

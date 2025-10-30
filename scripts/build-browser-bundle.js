@@ -100,6 +100,7 @@ const imagesDistDir = path.join(docsDistDir, 'images');
 fs.mkdirSync(imagesDistDir, { recursive: true });
 
 const requiredImages = [
+  'basi0g08.png',
   'basn2c08.png',
   'basn0g08.png',
   'basn6a08.png',
@@ -109,6 +110,7 @@ const requiredImages = [
   'basn0g01.png',
   'basn0g04.png',
   'basi2c08.png',
+  'basi4a16.png',
   'f00n2c08.png',
   'f01n2c08.png',
   'f02n2c08.png',
