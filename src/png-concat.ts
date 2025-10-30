@@ -238,12 +238,14 @@ export class StreamingConcatenator {
   }
 
   /**
-   * Stream compressed scanline data
+   * Stream compressed scanline data with TRUE streaming compression
    *
-   * Note: While we generate scanlines incrementally, the Web Compression Streams API
-   * buffers uncompressed data internally. This means peak memory will be ~40-50% of
-   * uncompressed size, which is still a major improvement over the original bug
-   * (which used 2-3x uncompressed size due to accumulating multiple copies).
+   * Uses pako's onData callback for true constant-memory streaming:
+   * - Generates scanlines incrementally
+   * - Batches scanlines (max 10MB) before flush
+   * - Compresses with Z_SYNC_FLUSH (maintains deflate state)
+   * - Yields IDAT chunks immediately via onData callback
+   * - Memory usage: O(batch_size) ~10-20MB regardless of total image size!
    */
   private async *streamCompressedData(
     grid: number[][],
@@ -256,7 +258,9 @@ export class StreamingConcatenator {
     bytesPerPixel: number,
     transparentColor: Uint8Array
   ): AsyncGenerator<Uint8Array> {
-    // Create a generator that produces filtered scanlines
+    const { StreamingDeflator } = await import('./streaming-deflate.js');
+
+    // Create scanline generator
     const scanlineGenerator = this.generateFilteredScanlines(
       grid,
       rowHeights,
@@ -269,28 +273,54 @@ export class StreamingConcatenator {
       transparentColor
     );
 
-    // Create ReadableStream that pulls from the generator
-    const inputStream = new ReadableStream<Uint8Array>({
-      async pull(controller) {
-        const { value, done } = await scanlineGenerator.next();
-        if (done) {
-          controller.close();
-        } else {
-          controller.enqueue(value);
-        }
+    // Calculate batch size
+    const scanlineSize = totalWidth * bytesPerPixel + 1;
+    const MAX_BATCH_BYTES = 10 * 1024 * 1024; // 10MB
+    const MAX_BATCH_SCANLINES = Math.max(50, Math.floor(MAX_BATCH_BYTES / scanlineSize));
+
+    // Create deflator
+    const deflator = new StreamingDeflator({
+      level: 6,
+      maxBatchSize: MAX_BATCH_BYTES
+    });
+
+    // Queue for compressed chunks from onData callback
+    const compressedChunks: Uint8Array[] = [];
+
+    // Initialize deflator with callback
+    deflator.initialize((compressedData) => {
+      // onData callback - receives compressed chunks immediately!
+      if (compressedData && compressedData.length > 0) {
+        compressedChunks.push(compressedData);
       }
     });
 
-    // Pipe through compression
-    const compressor = new CompressionStream('deflate');
-    const compressedStream = inputStream.pipeThrough(compressor as any);
-    const reader = compressedStream.getReader();
+    let scanlineCount = 0;
 
-    // Yield compressed chunks as IDAT
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      yield serializeChunk(createChunk('IDAT', value as Uint8Array));
+    // Process scanlines
+    for await (const scanline of scanlineGenerator) {
+      deflator.push(scanline);
+      scanlineCount++;
+
+      // Periodic flush for progressive output
+      if (scanlineCount % MAX_BATCH_SCANLINES === 0) {
+        deflator.flush();
+      }
+
+      // Yield any compressed chunks that were produced
+      while (compressedChunks.length > 0) {
+        const chunk = compressedChunks.shift()!;
+        yield serializeChunk(createChunk('IDAT', chunk));
+      }
+    }
+
+    // Finish compression
+    deflator.finish();
+
+    // Yield remaining compressed chunks
+    while (compressedChunks.length > 0) {
+      const chunk = compressedChunks.shift()!;
+      yield serializeChunk(createChunk('IDAT', chunk));
     }
   }
 

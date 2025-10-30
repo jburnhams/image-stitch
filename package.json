@@ -44,5 +44,9 @@
   },
   "engines": {
     "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "@types/pako": "^2.0.4",
+    "pako": "^2.1.0"
   }
 }
