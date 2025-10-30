@@ -8,6 +8,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, '..', '..');
 const bundlePath = path.join(projectRoot, 'dist', 'bundles', 'image-stitch.esm.js');
+const streamingHelperPath = path.join(projectRoot, 'dist', 'bundles', 'streaming-deflate.js');
 const fixturesDir = path.join(projectRoot, 'pngsuite', 'png');
 
 const SAMPLE_NAMES = ['basi0g08.png', 'basi2c08.png', 'basi4a16.png'];
@@ -17,6 +18,10 @@ async function loadBundle() {
     fs.existsSync(bundlePath),
     'Browser bundle is missing. Run `npm run build` before executing tests.'
   );
+  assert.ok(
+    fs.existsSync(streamingHelperPath),
+    'Streaming deflate helper should be copied alongside the browser bundle'
+  );
 
   const moduleUrl = pathToFileURL(bundlePath).href;
   return await import(moduleUrl);
@@ -24,6 +29,14 @@ async function loadBundle() {
 
 test('browser ESM bundle stitches pngsuite samples', async () => {
   const { concatPngs, parsePngHeader } = await loadBundle();
+
+  const streamingHelperUrl = pathToFileURL(streamingHelperPath).href;
+  const streamingHelper = await import(streamingHelperUrl);
+  assert.strictEqual(
+    typeof streamingHelper.StreamingDeflator,
+    'function',
+    'Streaming deflate helper should export StreamingDeflator'
+  );
 
   assert.strictEqual(typeof concatPngs, 'function', 'concatPngs should be exported from the bundle');
 
