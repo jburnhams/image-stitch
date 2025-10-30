@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>image-stitch Guides &amp; API</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: "Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      line-height: 1.7;
+    }
+
+    a {
+      color: #a5b4fc;
+    }
+
+    header {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.9), rgba(76, 29, 149, 0.9));
+      padding: clamp(2.5rem, 8vw, 4rem);
+      text-align: center;
+    }
+
+    header h1 {
+      margin: 0 0 1rem;
+      font-size: clamp(2.2rem, 6vw, 3.5rem);
+    }
+
+    header p {
+      margin: 0 auto;
+      max-width: 70ch;
+      font-size: 1.1rem;
+    }
+
+    nav {
+      margin-top: 1.5rem;
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    nav a {
+      background: rgba(15, 23, 42, 0.35);
+      padding: 0.6rem 1.1rem;
+      border-radius: 999px;
+      text-decoration: none;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    main {
+      padding: clamp(1.5rem, 6vw, 3rem);
+      max-width: 960px;
+      margin: 0 auto;
+      display: grid;
+      gap: 2.5rem;
+    }
+
+    section {
+      background: rgba(30, 41, 59, 0.55);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      padding: clamp(1.5rem, 5vw, 2.25rem);
+      border-radius: 18px;
+    }
+
+    h2 {
+      margin-top: 0;
+      font-size: 1.8rem;
+      color: #c7d2fe;
+    }
+
+    h3 {
+      margin-top: 2rem;
+      font-size: 1.35rem;
+      color: #a5b4fc;
+    }
+
+    pre {
+      background: #0b1120;
+      color: #e2e8f0;
+      padding: 1rem 1.25rem;
+      border-radius: 12px;
+      overflow-x: auto;
+      font-size: 0.95rem;
+    }
+
+    code {
+      font-family: "JetBrains Mono", "Fira Code", "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    }
+
+    ul {
+      padding-left: 1.25rem;
+    }
+
+    footer {
+      text-align: center;
+      padding: 2rem 1rem 3rem;
+      color: rgba(148, 163, 184, 0.8);
+      font-size: 0.95rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Guides &amp; API Reference</h1>
+    <p>Everything you need to ship image-stitch in production: quick scripts, browser bundles, streaming pipelines, and the complete API surface.</p>
+    <nav>
+      <a href="index.html">🏠 Overview</a>
+      <a href="examples.html">🎛️ Interactive Examples</a>
+      <a href="https://github.com/jburnhams/Png-concat">🌐 GitHub</a>
+    </nav>
+  </header>
+
+  <main>
+    <section>
+      <h2>Installation</h2>
+      <p>image-stitch is distributed as an ES module with type definitions. Install it with npm, pnpm, or yarn.</p>
+      <pre><code>npm install image-stitch</code></pre>
+      <p>Node.js 18+ is recommended. In browsers, use a modern bundler or import from a CDN such as <code>https://cdn.jsdelivr.net/npm/image-stitch/dist/index.esm.js</code>.</p>
+    </section>
+
+    <section>
+      <h2>Quick start (Node.js)</h2>
+      <pre><code>import { concatPngs } from "image-stitch";
+import { readFileSync, writeFileSync } from "node:fs";
+
+const stitched = await concatPngs({
+  inputs: [
+    readFileSync("./pngsuite/png/basi0g08.png"),
+    readFileSync("./pngsuite/png/basi2c08.png")
+  ],
+  layout: { columns: 2 }
+});
+
+writeFileSync("spritesheet.png", stitched);
+</code></pre>
+      <p>The returned value is a <code>Uint8Array</code> containing the PNG file. Persist it to disk, push it across the network, or convert it into a Blob for browser usage.</p>
+    </section>
+
+    <section>
+      <h2>Browser usage</h2>
+      <p>Use dynamic imports to fetch the ES module from a CDN when prototyping. The following snippet wires the result into an <code>&lt;img&gt;</code>.</p>
+      <pre><code>const { concatPngs } = await import("https://cdn.jsdelivr.net/npm/image-stitch/dist/index.esm.js");
+
+const buffers = await Promise.all([
+  fetch("./images/basi0g08.png").then(r =&gt; r.arrayBuffer()),
+  fetch("./images/basi2c08.png").then(r =&gt; r.arrayBuffer())
+]);
+
+const stitched = await concatPngs({ inputs: buffers, layout: { columns: 2 } });
+const blob = new Blob([stitched], { type: "image/png" });
+document.querySelector("img.preview").src = URL.createObjectURL(blob);
+</code></pre>
+      <p>When building a production bundle, import directly from <code>image-stitch</code> and let your bundler handle tree-shaking.</p>
+    </section>
+
+    <section>
+      <h2>API reference</h2>
+      <h3><code>concatPngs(options)</code></h3>
+      <p>Concatenate input images and return a <code>Promise&lt;Uint8Array&gt;</code>. All options are required unless marked optional.</p>
+      <pre><code>interface ConcatOptions {
+  inputs: Array&lt;Uint8Array | ArrayBuffer | string&gt;;
+  layout: {
+    columns?: number;
+    rows?: number;
+    width?: number;
+    height?: number;
+    wrapBehavior?: "wrap" | "truncate";
+  };
+}
+</code></pre>
+      <ul>
+        <li><strong>inputs</strong> — Buffers, typed arrays, or Node.js file paths.</li>
+        <li><strong>layout.columns</strong> — Fixed number of images per row.</li>
+        <li><strong>layout.rows</strong> — Fixed number of images per column.</li>
+        <li><strong>layout.width</strong> — Maximum pixel width; wraps when exceeded.</li>
+        <li><strong>layout.height</strong> — Maximum pixel height; truncates or wraps based on <code>wrapBehavior</code>.</li>
+      </ul>
+
+      <h3><code>concatPngsStream(options)</code></h3>
+      <p>Returns an async generator of <code>Uint8Array</code> chunks. Perfect for HTTP responses.</p>
+      <pre><code>import { concatPngsStream } from "image-stitch";
+
+const stream = concatPngsStream({ inputs, layout: { width: 2048 } });
+for await (const chunk of stream) {
+  response.write(chunk);
+}
+</code></pre>
+    </section>
+
+    <section>
+      <h2>Best practices</h2>
+      <ul>
+        <li>Use inputs with matching bit depth and color type to avoid implicit conversions.</li>
+        <li>Combine sprites that share transparency for consistent padding.</li>
+        <li>Prefer <code>concatPngsStream</code> for large or user-submitted assets.</li>
+        <li>Defer heavy work to a worker thread when running inside a browser UI.</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>
+    Looking for more? Browse the <a href="https://github.com/jburnhams/Png-concat">GitHub repository</a> for changelogs, issues, and contribution guidelines.
+  </footer>
+</body>
+</html>

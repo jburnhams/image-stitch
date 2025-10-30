@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>image-stitch • Interactive Examples</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      font-family: "Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      color: #0f172a;
+      padding: clamp(1.5rem, 4vw, 3rem);
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: rgba(255, 255, 255, 0.96);
+      border-radius: 24px;
+      box-shadow: 0 35px 90px rgba(76, 29, 149, 0.35);
+      overflow: hidden;
+    }
+
+    header {
+      padding: clamp(2rem, 6vw, 3.5rem);
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.95) 0%, rgba(76, 29, 149, 0.95) 100%);
+      color: #fff;
+      text-align: center;
+    }
+
+    header h1 {
+      margin: 0 0 1rem;
+      font-size: clamp(2.4rem, 6vw, 3.75rem);
+    }
+
+    header p {
+      margin: 0 auto;
+      max-width: 70ch;
+      font-size: 1.15rem;
+      line-height: 1.7;
+    }
+
+    nav {
+      margin-top: 2rem;
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    nav a {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(15, 23, 42, 0.35);
+      padding: 0.7rem 1.2rem;
+      border-radius: 999px;
+      text-decoration: none;
+      font-weight: 600;
+      color: #fff;
+      transition: transform 0.2s ease, background 0.2s ease;
+    }
+
+    nav a:hover {
+      transform: translateY(-2px);
+      background: rgba(15, 23, 42, 0.55);
+    }
+
+    main {
+      padding: clamp(2rem, 6vw, 3.5rem);
+      display: grid;
+      gap: clamp(2rem, 4vw, 3rem);
+    }
+
+    .example {
+      border-radius: 18px;
+      background: rgba(248, 250, 252, 0.95);
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      padding: clamp(1.5rem, 4vw, 2.25rem);
+      box-shadow: 0 15px 30px rgba(15, 23, 42, 0.08);
+    }
+
+    .example h2 {
+      margin-top: 0;
+      font-size: 1.8rem;
+      color: #4338ca;
+    }
+
+    .example p {
+      color: #334155;
+      margin-bottom: 1.5rem;
+    }
+
+    .code-block {
+      background: #0b1120;
+      color: #e2e8f0;
+      border-radius: 12px;
+      padding: 1.25rem;
+      font-family: "JetBrains Mono", "Fira Code", "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 0.95rem;
+      overflow-x: auto;
+      margin-bottom: 1.5rem;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      align-items: center;
+      margin-bottom: 1.5rem;
+    }
+
+    button {
+      background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      padding: 0.75rem 1.4rem;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 12px 30px rgba(79, 70, 229, 0.3);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    button:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 15px 40px rgba(124, 58, 237, 0.35);
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    input[type="file"] {
+      font-size: 1rem;
+    }
+
+    .result {
+      border-radius: 14px;
+      background: #fff;
+      border: 1px dashed rgba(79, 70, 229, 0.4);
+      padding: 1.25rem;
+      display: grid;
+      gap: 1rem;
+    }
+
+    .result h3 {
+      margin: 0;
+      font-size: 1.2rem;
+      color: #4c1d95;
+    }
+
+    .result img {
+      max-width: 100%;
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+    }
+
+    .status {
+      color: #4338ca;
+      font-weight: 600;
+    }
+
+    footer {
+      text-align: center;
+      padding: 2.5rem 1rem 3rem;
+      color: rgba(15, 23, 42, 0.7);
+      font-size: 0.95rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Interactive PNG Stitching</h1>
+      <p>Experiment with horizontal strips, vertical reels, and responsive grids powered by image-stitch. Each demo shows the exact code you can drop into your own app.</p>
+      <nav>
+        <a href="index.html">🏠 Overview</a>
+        <a href="guides.html">📘 Guides &amp; API</a>
+        <a href="https://github.com/jburnhams/Png-concat">🌐 GitHub</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="example" id="horizontal">
+        <h2>Horizontal sprite strip</h2>
+        <p>Combine three pngsuite samples into a single row. Useful for spritesheets and UI icon strips.</p>
+        <div class="code-block" data-code>
+import { concatPngs } from "image-stitch";
+
+const names = ["basi0g08.png", "basi2c08.png", "basi4a16.png"];
+const buffers = await Promise.all(
+  names.map((name) => fetch(`images/${name}`).then((res) => res.arrayBuffer()))
+);
+const output = await concatPngs({
+  inputs: buffers,
+  layout: { columns: 3 }
+});
+        </div>
+        <div class="controls">
+          <button data-run="horizontal">Run example</button>
+          <span class="status" data-status="horizontal"></span>
+        </div>
+        <div class="result" data-result="horizontal">
+          <h3>Result</h3>
+          <img alt="Horizontal stitched output" />
+          <div class="meta" data-meta="horizontal"></div>
+        </div>
+      </section>
+
+      <section class="example" id="vertical">
+        <h2>Vertical film strip</h2>
+        <p>Let image-stitch handle varying heights automatically. Smaller inputs are padded with transparent pixels.</p>
+        <div class="code-block" data-code>
+import { concatPngs } from "image-stitch";
+
+const names = ["basi2c08.png", "basi0g08.png"];
+const buffers = await Promise.all(
+  names.map((name) => fetch(`images/${name}`).then((res) => res.arrayBuffer()))
+);
+const output = await concatPngs({
+  inputs: buffers,
+  layout: { rows: 2 }
+});
+        </div>
+        <div class="controls">
+          <button data-run="vertical">Run example</button>
+          <span class="status" data-status="vertical"></span>
+        </div>
+        <div class="result" data-result="vertical">
+          <h3>Result</h3>
+          <img alt="Vertical stitched output" />
+          <div class="meta" data-meta="vertical"></div>
+        </div>
+      </section>
+
+      <section class="example" id="grid">
+        <h2>Auto-wrapping grid</h2>
+        <p>Limit the maximum width to let image-stitch wrap rows automatically. Perfect for responsive contact sheets.</p>
+        <div class="code-block" data-code>
+import { concatPngs } from "image-stitch";
+
+const names = ["basi0g08.png", "basi2c08.png", "basi4a16.png", "basi0g08.png"];
+const buffers = await Promise.all(
+  names.map((name) => fetch(`images/${name}`).then((res) => res.arrayBuffer()))
+);
+const output = await concatPngs({
+  inputs: buffers,
+  layout: { width: 256 }
+});
+        </div>
+        <div class="controls">
+          <button data-run="grid">Run example</button>
+          <span class="status" data-status="grid"></span>
+        </div>
+        <div class="result" data-result="grid">
+          <h3>Result</h3>
+          <img alt="Grid stitched output" />
+          <div class="meta" data-meta="grid"></div>
+        </div>
+      </section>
+
+      <section class="example" id="custom">
+        <h2>Bring your own PNGs</h2>
+        <p>Drop in up to eight PNG files (16-bit color is supported!) and stitch them in your browser. No uploads—everything runs locally.</p>
+        <div class="code-block" data-code>
+import { concatPngs } from "image-stitch";
+
+const files = Array.from(fileInput.files ?? []);
+const buffers = await Promise.all(files.map(file => file.arrayBuffer()));
+const output = await concatPngs({
+  inputs: buffers,
+  layout: { columns: 4, wrapBehavior: "wrap" }
+});
+        </div>
+        <div class="controls">
+          <input type="file" id="custom-files" accept="image/png" multiple />
+          <button data-run="custom">Stitch selected files</button>
+          <span class="status" data-status="custom"></span>
+        </div>
+        <div class="result" data-result="custom">
+          <h3>Result</h3>
+          <img alt="Custom stitched output" />
+          <div class="meta" data-meta="custom"></div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      Need deeper dives? Explore the <a href="guides.html">Guides &amp; API reference</a> or visit <a href="https://github.com/jburnhams/Png-concat">GitHub</a> for advanced usage and source code.
+    </footer>
+  </div>
+
+  <script type="module">
+    const CDN_URL = "https://cdn.jsdelivr.net/npm/image-stitch/dist/index.esm.js";
+    const SAMPLE_PATH = "images/";
+
+    const SAMPLE_MAP = {
+      horizontal: ["basi0g08.png", "basi2c08.png", "basi4a16.png"],
+      vertical: ["basi2c08.png", "basi0g08.png"],
+      grid: ["basi0g08.png", "basi2c08.png", "basi4a16.png", "basi0g08.png"]
+    };
+
+    const LAYOUTS = {
+      horizontal: { columns: 3 },
+      vertical: { rows: 2 },
+      grid: { width: 256 }
+    };
+
+    let concatPngs;
+
+    async function ensureLibrary() {
+      if (!concatPngs) {
+        const module = await import(CDN_URL);
+        concatPngs = module.concatPngs;
+      }
+      return concatPngs;
+    }
+
+    async function loadSampleBuffers(keys) {
+      return Promise.all(
+        keys.map(async (file) => {
+          const response = await fetch(`${SAMPLE_PATH}${file}`);
+          if (!response.ok) {
+            throw new Error(`Failed to load sample ${file}`);
+          }
+          return response.arrayBuffer();
+        })
+      );
+    }
+
+    async function runExample(id) {
+      const status = document.querySelector(`[data-status="${id}"]`);
+      const resultEl = document.querySelector(`[data-result="${id}"] img`);
+      const meta = document.querySelector(`[data-meta="${id}"]`);
+      if (!status || !resultEl || !meta) return;
+
+      try {
+        status.textContent = "Preparing…";
+        meta.textContent = "";
+        const concat = await ensureLibrary();
+        status.textContent = "Loading samples…";
+        let buffers;
+        if (id === "custom") {
+          const input = document.getElementById("custom-files");
+          const files = Array.from(input.files || []).slice(0, 8);
+          if (!files.length) {
+            status.textContent = "Select one or more PNG files.";
+            return;
+          }
+          status.textContent = `Processing ${files.length} file${files.length === 1 ? "" : "s"}…`;
+          buffers = await Promise.all(files.map((file) => file.arrayBuffer()));
+        } else {
+          buffers = await loadSampleBuffers(SAMPLE_MAP[id]);
+        }
+
+        status.textContent = "Stitching…";
+        const layout = id === "custom" ? { columns: 4, wrapBehavior: "wrap" } : LAYOUTS[id];
+        const stitched = await concat({ inputs: buffers, layout });
+        const blob = new Blob([stitched], { type: "image/png" });
+        const url = URL.createObjectURL(blob);
+        if (resultEl.dataset.url) {
+          URL.revokeObjectURL(resultEl.dataset.url);
+        }
+        resultEl.src = url;
+        resultEl.dataset.url = url;
+        meta.textContent = `Output size: ${(stitched.byteLength / 1024).toFixed(2)} KB`;
+        status.textContent = "Done!";
+      } catch (error) {
+        console.error(error);
+        status.textContent = error.message;
+      }
+    }
+
+    document.querySelectorAll("button[data-run]").forEach((button) => {
+      button.addEventListener("click", () => runExample(button.dataset.run));
+    });
+  </script>
+</body>
+</html>
