@@ -17,8 +17,9 @@
     "build": "tsc",
     "build:docs": "npm run build && node scripts/build-browser-bundle.js",
     "test": "npm run build && node --test dist/*.test.js",
+    "test:memory": "npm run build && node --expose-gc --test dist/memory.test.js",
     "test:browser": "npm run build:docs && tsc tests/browser.test.ts --outDir dist --module ES2022 --target ES2022 --moduleResolution node --esModuleInterop --allowSyntheticDefaultImports --skipLibCheck && node --test dist/browser.test.js",
-    "test:all": "npm run test && npm run test:browser",
+    "test:all": "npm run test && npm run test:memory && npm run test:browser",
     "coverage": "npm run build && c8 --reporter=lcov --reporter=text node --test dist/*.test.js",
     "example": "npm run build && node examples/basic-usage.js",
     "example:stream": "npm run build && node examples/streaming-usage.js",
@@ -38,10 +39,14 @@
     "@types/node": "^24.9.1",
     "c8": "^10.1.3",
     "happy-dom": "^20.0.8",
-    "typescript": "^5.9.3",
-    "pngjs": "^7.0.0"
+    "pngjs": "^7.0.0",
+    "typescript": "^5.9.3"
   },
   "engines": {
     "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "@types/pako": "^2.0.4",
+    "pako": "^2.1.0"
   }
 }
