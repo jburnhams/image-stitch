@@ -111,18 +111,13 @@ function copyEsmBundle() {
     return;
   }
 
-  const destinations = [
-    path.join(docsDistDir, 'image-stitch.esm.js'),
-    path.join(docsSourceDir, 'image-stitch.esm.js')
-  ];
+  const dest = path.join(docsDistDir, 'image-stitch.esm.js');
+  fs.mkdirSync(path.dirname(dest), { recursive: true });
+  fs.copyFileSync(esmBundle, dest);
 
-  for (const dest of destinations) {
-    fs.mkdirSync(path.dirname(dest), { recursive: true });
-    fs.copyFileSync(esmBundle, dest);
-    const mapSrc = `${esmBundle}.map`;
-    if (fs.existsSync(mapSrc)) {
-      fs.copyFileSync(mapSrc, `${dest}.map`);
-    }
+  const mapSrc = `${esmBundle}.map`;
+  if (fs.existsSync(mapSrc)) {
+    fs.copyFileSync(mapSrc, `${dest}.map`);
   }
 }
 
