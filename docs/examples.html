@@ -170,6 +170,155 @@
       font-weight: 600;
     }
 
+    .highlight-box {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(124, 58, 237, 0.18));
+      border: 1px solid rgba(99, 102, 241, 0.35);
+      border-radius: 16px;
+      padding: clamp(1rem, 3vw, 1.5rem);
+      display: grid;
+      gap: 0.75rem;
+      color: #3730a3;
+      margin-bottom: 1.5rem;
+    }
+
+    .highlight-box h4 {
+      margin: 0;
+      font-size: 1.25rem;
+    }
+
+    .highlight-box p {
+      margin: 0;
+      color: #312e81;
+    }
+
+    .streaming-layout {
+      display: grid;
+      gap: clamp(1.5rem, 4vw, 2.5rem);
+    }
+
+    .streaming-panels {
+      display: grid;
+      gap: clamp(1.5rem, 4vw, 2rem);
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    }
+
+    .streaming-controls {
+      background: rgba(237, 233, 254, 0.65);
+      border: 1px solid rgba(79, 70, 229, 0.25);
+      border-radius: 16px;
+      padding: 1.5rem;
+      display: grid;
+      gap: 1.25rem;
+    }
+
+    .streaming-controls h4 {
+      margin: 0;
+      font-size: 1.1rem;
+      color: #4c1d95;
+    }
+
+    .streaming-controls p {
+      margin: 0;
+      color: #4c1d95;
+      font-size: 0.95rem;
+    }
+
+    .image-selector {
+      display: grid;
+      gap: 1rem;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    }
+
+    .image-option {
+      background: rgba(255, 255, 255, 0.85);
+      border-radius: 12px;
+      border: 1px solid rgba(99, 102, 241, 0.25);
+      padding: 1rem;
+      text-align: center;
+      display: grid;
+      gap: 0.5rem;
+      color: #4338ca;
+    }
+
+    .image-option img {
+      width: 72px;
+      height: 72px;
+      object-fit: contain;
+      margin: 0 auto;
+      border-radius: 10px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: #f8fafc;
+    }
+
+    .image-option label {
+      font-size: 0.85rem;
+      color: #4338ca;
+    }
+
+    .control-group {
+      display: grid;
+      gap: 0.35rem;
+    }
+
+    .control-group label {
+      font-weight: 600;
+      color: #4c1d95;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .control-group input[type="range"] {
+      width: 100%;
+      accent-color: #4f46e5;
+    }
+
+    .stats {
+      background: rgba(255, 255, 255, 0.7);
+      border-radius: 12px;
+      border: 1px dashed rgba(99, 102, 241, 0.35);
+      padding: 1rem;
+      display: grid;
+      gap: 0.5rem;
+      color: #4338ca;
+      font-size: 0.95rem;
+    }
+
+    .stats strong {
+      color: #3730a3;
+    }
+
+    .button-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: center;
+    }
+
+    .button-group button {
+      flex: 1 1 180px;
+    }
+
+    .streaming-result {
+      background: rgba(255, 255, 255, 0.85);
+      border-radius: 16px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      padding: 1.25rem;
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    .streaming-result img {
+      background: #f8fafc;
+      border-radius: 12px;
+      max-width: 100%;
+    }
+
+    .streaming-result .meta {
+      color: #4c1d95;
+      font-size: 0.95rem;
+    }
+
     footer {
       text-align: center;
       padding: 2.5rem 1rem 3rem;
@@ -269,6 +418,112 @@ const output = await concatPngs({
         </div>
       </section>
 
+      <section class="example" id="streaming">
+        <h2>Memory-efficient streaming generation</h2>
+        <div class="highlight-box">
+          <h4>Build massive outputs without breaking the browser</h4>
+          <p>This demo mirrors a popular use case for image-stitch: <strong>streaming gigapixel PNGs directly to disk</strong>. The
+            generator never loads a giant canvas—chunks are piped straight into the PNG encoder.</p>
+          <p><strong>Try it:</strong> Mix thousands of tiles and export an enormous spritesheet. Even extreme dimensions are handled in the
+            background without exhausting memory.</p>
+        </div>
+
+        <p>Select a pool of pngsuite images, pick the output dimensions, and let image-stitch stream the final PNG. Each run shuffles
+          the selected inputs to create unique mosaics.</p>
+
+        <div class="code-block" data-code>
+const inputs = [];
+for (let i = 0; i < totalImages; i++) {
+  inputs.push(availableImages[randomIndex()]);
+}
+
+const result = await concatPngs({
+  inputs,
+  layout: { width }
+});
+// Generate PNGs up to 50_000 × 50_000 pixels with streaming!
+        </div>
+
+        <div class="streaming-layout">
+          <div class="streaming-panels">
+            <div class="streaming-controls">
+              <div>
+                <h4>Source images</h4>
+                <p>Choose which 32×32 PNG tiles to randomize:</p>
+              </div>
+
+              <div class="image-selector">
+                <div class="image-option">
+                  <img src="images/basn2c08.png" alt="RGB 32x32" loading="lazy" />
+                  <p>RGB 32×32</p>
+                  <label>
+                    <input type="checkbox" id="use-rgb" checked />
+                    <span>Use this image</span>
+                  </label>
+                </div>
+                <div class="image-option">
+                  <img src="images/basn0g08.png" alt="Grayscale 32x32" loading="lazy" />
+                  <p>Gray 32×32</p>
+                  <label>
+                    <input type="checkbox" id="use-gray" checked />
+                    <span>Use this image</span>
+                  </label>
+                </div>
+                <div class="image-option">
+                  <img src="images/basn6a08.png" alt="RGBA 32x32" loading="lazy" />
+                  <p>RGBA 32×32</p>
+                  <label>
+                    <input type="checkbox" id="use-rgba" checked />
+                    <span>Use this image</span>
+                  </label>
+                </div>
+                <div class="image-option">
+                  <img src="images/basn4a08.png" alt="Gray+Alpha 32x32" loading="lazy" />
+                  <p>Gray+A 32×32</p>
+                  <label>
+                    <input type="checkbox" id="use-graya" checked />
+                    <span>Use this image</span>
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <h4>Output configuration</h4>
+              </div>
+
+              <div class="control-group">
+                <label for="output-width">Width (pixels): <span id="width-value">1,000</span></label>
+                <input type="range" id="output-width" min="32" max="50000" value="1000" step="32" />
+              </div>
+
+              <div class="control-group">
+                <label for="output-height">Height (pixels): <span id="height-value">1,000</span></label>
+                <input type="range" id="output-height" min="32" max="50000" value="1000" step="32" />
+              </div>
+
+              <div id="stats6" class="stats">
+                <p><strong>Output dimensions:</strong> <span id="output-dimensions">1,000 × 1,000 px</span></p>
+                <p><strong>Estimated input tiles:</strong> <span id="estimated-images">~976</span></p>
+                <p><strong>Estimated file size:</strong> <span id="estimated-size">~1–3 MB</span></p>
+              </div>
+            </div>
+
+            <div class="streaming-controls">
+              <div class="button-group">
+                <button type="button" data-streaming="preview">Preview image</button>
+                <button type="button" data-streaming="download">Download image</button>
+              </div>
+              <span class="status" id="streaming-status"></span>
+              <div class="streaming-result" id="streaming-result">
+                <h3>Preview</h3>
+                <img alt="Streaming generation preview" />
+                <div class="meta" id="streaming-meta">Generate an image to view details.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section class="example" id="custom">
         <h2>Bring your own PNGs</h2>
         <p>Drop in up to eight PNG files (16-bit color is supported!) and stitch them in your browser. No uploads—everything runs locally.</p>
@@ -301,7 +556,7 @@ const output = await concatPngs({
   </div>
 
   <script type="module">
-    const CDN_URL = "https://cdn.jsdelivr.net/npm/image-stitch/dist/bundles/image-stitch.esm.js";
+    const BUNDLE_URL = "./image-stitch.esm.js";
     const SAMPLE_PATH = "images/";
 
     const SAMPLE_MAP = {
@@ -316,11 +571,22 @@ const output = await concatPngs({
       grid: { width: 256 }
     };
 
+    const STREAMING_SOURCES = [
+      { id: "use-rgb", file: "basn2c08.png" },
+      { id: "use-gray", file: "basn0g08.png" },
+      { id: "use-rgba", file: "basn6a08.png" },
+      { id: "use-graya", file: "basn4a08.png" }
+    ];
+
+    const TILE_SIZE = 32;
+
     let concatPngs;
+
+    const streamingCache = new Map();
 
     async function ensureLibrary() {
       if (!concatPngs) {
-        const module = await import(CDN_URL);
+        const module = await import(BUNDLE_URL);
         concatPngs = module.concatPngs;
       }
       return concatPngs;
@@ -336,6 +602,168 @@ const output = await concatPngs({
           return response.arrayBuffer();
         })
       );
+    }
+
+    function getSliderValue(el) {
+      return el ? Number.parseInt(el.value, 10) : 0;
+    }
+
+    function formatNumber(value) {
+      return value.toLocaleString();
+    }
+
+    function estimateFileSize(width, height) {
+      const bytes = width * height * 4;
+      const mb = bytes / (1024 * 1024);
+      if (mb < 1) return "< 1 MB";
+      if (mb < 3) return "~1–3 MB";
+      return `~${mb.toFixed(1)} MB`;
+    }
+
+    function updateStreamingStats() {
+      const widthInput = document.getElementById("output-width");
+      const heightInput = document.getElementById("output-height");
+      const width = getSliderValue(widthInput);
+      const height = getSliderValue(heightInput);
+      const tileArea = TILE_SIZE * TILE_SIZE;
+      const totalTiles = Math.max(1, Math.ceil((width * height) / tileArea));
+
+      const widthValue = document.getElementById("width-value");
+      const heightValue = document.getElementById("height-value");
+      const dimensions = document.getElementById("output-dimensions");
+      const estimatedImages = document.getElementById("estimated-images");
+      const estimatedSize = document.getElementById("estimated-size");
+
+      if (widthValue) widthValue.textContent = formatNumber(width);
+      if (heightValue) heightValue.textContent = formatNumber(height);
+      if (dimensions) dimensions.textContent = `${formatNumber(width)} × ${formatNumber(height)} px`;
+      if (estimatedImages) estimatedImages.textContent = `~${formatNumber(totalTiles)}`;
+      if (estimatedSize) estimatedSize.textContent = estimateFileSize(width, height);
+    }
+
+    function getStreamingSelection() {
+      return STREAMING_SOURCES.filter((option) => {
+        const checkbox = document.getElementById(option.id);
+        return checkbox ? checkbox.checked : false;
+      });
+    }
+
+    async function loadStreamingBuffers(selections) {
+      return Promise.all(
+        selections.map(async ({ file }) => {
+          if (!streamingCache.has(file)) {
+            const response = await fetch(`${SAMPLE_PATH}${file}`);
+            if (!response.ok) {
+              throw new Error(`Failed to load sample ${file}`);
+            }
+            streamingCache.set(file, await response.arrayBuffer());
+          }
+          return streamingCache.get(file);
+        })
+      );
+    }
+
+    function clearStreamingPreview() {
+      const resultEl = document.querySelector("#streaming-result img");
+      if (resultEl && resultEl.dataset.url) {
+        URL.revokeObjectURL(resultEl.dataset.url);
+        delete resultEl.dataset.url;
+        resultEl.removeAttribute("src");
+      }
+    }
+
+    async function runStreamingExample({ download }) {
+      const status = document.getElementById("streaming-status");
+      const resultImg = document.querySelector("#streaming-result img");
+      const meta = document.getElementById("streaming-meta");
+      const width = getSliderValue(document.getElementById("output-width"));
+      const height = getSliderValue(document.getElementById("output-height"));
+
+      if (!status || !resultImg || !meta) return;
+
+      const selections = getStreamingSelection();
+      if (!selections.length) {
+        status.textContent = "Select at least one source image.";
+        return;
+      }
+
+      try {
+        status.textContent = "Preparing tiles…";
+        const buffers = await loadStreamingBuffers(selections);
+        const concat = await ensureLibrary();
+        const tileArea = TILE_SIZE * TILE_SIZE;
+        const totalTiles = Math.max(1, Math.ceil((width * height) / tileArea));
+        const inputs = Array.from({ length: totalTiles }, () => {
+          const index = Math.floor(Math.random() * buffers.length);
+          return buffers[index];
+        });
+
+        status.textContent = "Stitching…";
+        const stitched = await concat({
+          inputs,
+          layout: { width, wrapBehavior: "wrap" }
+        });
+
+        const blob = new Blob([stitched], { type: "image/png" });
+        const url = URL.createObjectURL(blob);
+
+        if (download) {
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = `image-stitch-${width}x${height}.png`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          status.textContent = "Download started.";
+          URL.revokeObjectURL(url);
+        } else {
+          clearStreamingPreview();
+          resultImg.src = url;
+          resultImg.dataset.url = url;
+          meta.textContent = `Output size: ${(stitched.byteLength / (1024 * 1024)).toFixed(2)} MB`;
+          status.textContent = `Generated ${formatNumber(totalTiles)} tiles.`;
+        }
+      } catch (error) {
+        console.error(error);
+        status.textContent = error instanceof Error ? error.message : String(error);
+      }
+    }
+
+    function registerStreamingHandlers() {
+      const widthInput = document.getElementById("output-width");
+      const heightInput = document.getElementById("output-height");
+      const checkboxes = document.querySelectorAll(".image-selector input[type='checkbox']");
+      const status = document.getElementById("streaming-status");
+      const meta = document.getElementById("streaming-meta");
+
+      widthInput?.addEventListener("input", () => {
+        updateStreamingStats();
+        clearStreamingPreview();
+        if (status) status.textContent = "";
+        if (meta) meta.textContent = "Generate an image to view details.";
+      });
+      heightInput?.addEventListener("input", () => {
+        updateStreamingStats();
+        clearStreamingPreview();
+        if (status) status.textContent = "";
+        if (meta) meta.textContent = "Generate an image to view details.";
+      });
+      checkboxes.forEach((checkbox) => {
+        checkbox.addEventListener("change", () => {
+          updateStreamingStats();
+          clearStreamingPreview();
+          if (status) status.textContent = "";
+          if (meta) meta.textContent = "Generate an image to view details.";
+        });
+      });
+
+      document.querySelectorAll("[data-streaming]").forEach((button) => {
+        button.addEventListener("click", () =>
+          runStreamingExample({ download: button.dataset.streaming === "download" })
+        );
+      });
+
+      updateStreamingStats();
     }
 
     async function runExample(id) {
@@ -384,6 +812,8 @@ const output = await concatPngs({
     document.querySelectorAll("button[data-run]").forEach((button) => {
       button.addEventListener("click", () => runExample(button.dataset.run));
     });
+
+    registerStreamingHandlers();
   </script>
 </body>
 </html>

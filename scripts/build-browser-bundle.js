@@ -101,13 +101,27 @@ function copyBrowserBundles() {
     const destPath = path.join(docsDistDir, file);
     fs.copyFileSync(srcPath, destPath);
   }
+}
 
+function copyEsmBundle() {
+  console.log('Copying ESM bundle for documentation...');
   const esmBundle = path.join(distDir, 'bundles', 'image-stitch.esm.js');
-  if (fs.existsSync(esmBundle)) {
-    fs.copyFileSync(esmBundle, path.join(docsDistDir, 'image-stitch.esm.js'));
-    const esmMap = `${esmBundle}.map`;
-    if (fs.existsSync(esmMap)) {
-      fs.copyFileSync(esmMap, path.join(docsDistDir, 'image-stitch.esm.js.map'));
+  if (!fs.existsSync(esmBundle)) {
+    console.warn('ESM bundle not found; skipping.');
+    return;
+  }
+
+  const destinations = [
+    path.join(docsDistDir, 'image-stitch.esm.js'),
+    path.join(docsSourceDir, 'image-stitch.esm.js')
+  ];
+
+  for (const dest of destinations) {
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    fs.copyFileSync(esmBundle, dest);
+    const mapSrc = `${esmBundle}.map`;
+    if (fs.existsSync(mapSrc)) {
+      fs.copyFileSync(mapSrc, `${dest}.map`);
     }
   }
 }
@@ -115,5 +129,6 @@ function copyBrowserBundles() {
 copyDocs();
 copyImages();
 copyBrowserBundles();
+copyEsmBundle();
 
 console.log('Documentation assets ready in docs-dist/.');
