@@ -117,9 +117,9 @@
   <main>
     <section>
       <h2>Installation</h2>
-      <p>image-stitch is distributed as an ES module with type definitions. Install it with npm, pnpm, or yarn.</p>
+      <p>image-stitch ships ready for every runtime: native ESM, CommonJS, a tree-shakeable ESM bundle, and a browser-friendly global build. Install it with npm, pnpm, or yarn.</p>
       <pre><code>npm install image-stitch</code></pre>
-      <p>Node.js 18+ is recommended. In browsers, use a modern bundler or import from a CDN such as <code>https://cdn.jsdelivr.net/npm/image-stitch/dist/index.esm.js</code>.</p>
+      <p>Node.js 18+ is recommended. In browsers, load the prebuilt script tag bundle from <code>https://cdn.jsdelivr.net/npm/image-stitch/dist/browser/image-stitch.min.js</code> or import the module build from <code>https://cdn.jsdelivr.net/npm/image-stitch/dist/bundles/image-stitch.esm.js</code>.</p>
     </section>
 
     <section>
@@ -142,8 +142,8 @@ writeFileSync("spritesheet.png", stitched);
 
     <section>
       <h2>Browser usage</h2>
-      <p>Use dynamic imports to fetch the ES module from a CDN when prototyping. The following snippet wires the result into an <code>&lt;img&gt;</code>.</p>
-      <pre><code>const { concatPngs } = await import("https://cdn.jsdelivr.net/npm/image-stitch/dist/index.esm.js");
+      <p>Use dynamic imports to fetch the ESM bundle from a CDN when prototyping. The following snippet wires the result into an <code>&lt;img&gt;</code>.</p>
+      <pre><code>const { concatPngs } = await import("https://cdn.jsdelivr.net/npm/image-stitch/dist/bundles/image-stitch.esm.js");
 
 const buffers = await Promise.all([
   fetch("./images/basi0g08.png").then(r =&gt; r.arrayBuffer()),

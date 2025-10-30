@@ -1,17 +1,19 @@
 import { describe, test } from 'node:test';
 import * as assert from 'node:assert';
 import { Window } from 'happy-dom';
+import vm from 'node:vm';
 import { PNG } from 'pngjs';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Path to the generated docs
-const docsDistDir = path.join(__dirname, '..', 'docs-dist');
-const bundlePath = path.join(docsDistDir, 'image-stitch.bundle.js');
+const docsDistDir = path.resolve(__dirname, '..', '..', 'docs-dist');
+const iifeBundlePath = path.join(docsDistDir, 'image-stitch.min.js');
+const esmBundlePath = path.join(docsDistDir, 'image-stitch.esm.js');
 const indexPath = path.join(docsDistDir, 'index.html');
 const guidesPath = path.join(docsDistDir, 'guides.html');
 const examplesPath = path.join(docsDistDir, 'examples.html');
@@ -33,112 +35,32 @@ async function loadDocument(htmlPath: string) {
 }
 
 describe('Browser Bundle Tests', () => {
-  test('bundle loads without syntax errors', async () => {
-    const bundleExists = fs.existsSync(bundlePath);
-    assert.ok(bundleExists, 'Bundle file should exist. Run `npm run build:docs` first.');
+  test('IIFE bundle attaches ImageStitch global', () => {
+    assert.ok(fs.existsSync(iifeBundlePath), 'Minified bundle should exist. Run `npm run build:docs` first.');
 
-    const window = new Window();
-    const document = window.document;
+    const bundleCode = fs.readFileSync(iifeBundlePath, 'utf8');
+    const context: Record<string, any> = { window: {}, globalThis: {} };
+    vm.createContext(context);
 
-    const bundleCode = fs.readFileSync(bundlePath, 'utf8');
-
-    // Execute the bundle code - if there are syntax errors, this will throw
-    const scriptEl = document.createElement('script');
-    scriptEl.textContent = bundleCode;
-
-    // This should not throw
     assert.doesNotThrow(() => {
-      document.head.appendChild(scriptEl);
+      vm.runInContext(bundleCode, context);
     });
 
-    await window.close();
+    const imageStitchGlobal = context.window.ImageStitch ?? context.globalThis.ImageStitch;
+    assert.ok(imageStitchGlobal, 'Global ImageStitch namespace should exist');
+    assert.strictEqual(typeof imageStitchGlobal.concatPngs, 'function');
+    assert.strictEqual(typeof imageStitchGlobal.concatPngsToFile, 'function');
   });
 
-  test('concatPngs function is exported', async () => {
-    const window = new Window();
-    const document = window.document;
+  test('ESM bundle can be imported directly', async () => {
+    assert.ok(fs.existsSync(esmBundlePath), 'ESM bundle should exist. Run `npm run build:docs` first.');
 
-    const bundleCode = fs.readFileSync(bundlePath, 'utf8');
+    const moduleUrl = pathToFileURL(esmBundlePath).href;
+    const mod = await import(moduleUrl);
 
-    // Create a script element and execute
-    const scriptEl = document.createElement('script');
-    scriptEl.type = 'module';
-    scriptEl.textContent = bundleCode;
-    document.head.appendChild(scriptEl);
-
-    // Give it a moment to execute
-    await new Promise(resolve => setTimeout(resolve, 100));
-
-    // Note: In happy-dom, ES modules don't populate window.concatPngs
-    // but we can verify the bundle contains the export
-    assert.ok(bundleCode.includes('export'), 'Bundle should contain exports');
-    assert.ok(bundleCode.includes('concatPngs'), 'Bundle should export concatPngs');
-
-    await window.close();
-  });
-
-  test('no duplicate getSamplesPerPixel declarations', () => {
-    const bundleCode = fs.readFileSync(bundlePath, 'utf8');
-
-    // Count how many times "function getSamplesPerPixel" appears
-    const matches = bundleCode.match(/function getSamplesPerPixel/g);
-    const declarationCount = matches ? matches.length : 0;
-
-    assert.strictEqual(declarationCount, 1,
-      `Expected 1 getSamplesPerPixel declaration, found ${declarationCount}`);
-  });
-
-  test('bundle has no duplicate const/function declarations', () => {
-    const bundleCode = fs.readFileSync(bundlePath, 'utf8');
-
-    // Extract all function and const declarations
-    const functionMatches = bundleCode.matchAll(/function\s+(\w+)/g);
-    const constMatches = bundleCode.matchAll(/(?:^|\n)const\s+(\w+)\s*=/gm);
-
-    const declarations = new Map<string, number>();
-
-    for (const match of functionMatches) {
-      const name = match[1];
-      declarations.set(name, (declarations.get(name) || 0) + 1);
-    }
-
-    for (const match of constMatches) {
-      const name = match[1];
-      declarations.set(name, (declarations.get(name) || 0) + 1);
-    }
-
-    // Find duplicates
-    const duplicates: string[] = [];
-    for (const [name, count] of declarations.entries()) {
-      if (count > 1) {
-        duplicates.push(`${name} (${count} times)`);
-      }
-    }
-
-    assert.strictEqual(duplicates.length, 0,
-      `Found duplicate declarations: ${duplicates.join(', ')}`);
-  });
-
-  test('bundle contains all required utilities', () => {
-    const bundleCode = fs.readFileSync(bundlePath, 'utf8');
-
-    const requiredFunctions = [
-      'concatPngs',
-      'crc32',
-      'readUInt32BE',
-      'writeUInt32BE',
-      'getSamplesPerPixel',
-      'getBytesPerPixel',
-      'decompressImageData',
-      'compressImageData',
-    ];
-
-    for (const func of requiredFunctions) {
-      assert.ok(
-        bundleCode.includes(func),
-        `Bundle should contain ${func}`
-      );
-    }
+    assert.strictEqual(typeof mod.concatPngs, 'function');
+    assert.strictEqual(typeof mod.concatPngsToFile, 'function');
+    assert.strictEqual(typeof mod.StreamingConcatenator, 'function');
   });
 
   test('landing page renders feature overview and navigation', async () => {
@@ -219,7 +141,7 @@ describe('Browser Bundle Tests', () => {
     const moduleScript = document.querySelector('script[type="module"]');
     assert.ok(moduleScript, 'Examples page should include module script');
     assert.ok(
-      moduleScript?.textContent?.includes('cdn.jsdelivr.net/npm/image-stitch/dist/index.esm.js'),
+      moduleScript?.textContent?.includes('cdn.jsdelivr.net/npm/image-stitch/dist/bundles/image-stitch.esm.js'),
       'Module script should load the CDN build'
     );
     assert.ok(
@@ -288,7 +210,7 @@ describe('Browser Bundle Tests', () => {
   });
 
   test('bundle size is reasonable', () => {
-    const stats = fs.statSync(bundlePath);
+    const stats = fs.statSync(iifeBundlePath);
     const sizeKB = stats.size / 1024;
 
     // Bundle should be less than 100KB (currently ~27KB)
@@ -301,16 +223,16 @@ describe('Browser Bundle Tests', () => {
 });
 
 describe('Functional Tests - Verify Examples Work Correctly', () => {
-  const pngsuiteDir = path.join(__dirname, '..', 'pngsuite', 'png');
-  const fixturesDir = path.join(__dirname, '..', 'tests', 'fixtures', 'expected-outputs');
+  const pngsuiteDir = path.resolve(__dirname, '..', '..', 'pngsuite', 'png');
+  const fixturesDir = path.resolve(__dirname, '..', '..', 'tests', 'fixtures', 'expected-outputs');
 
   // Helper to load the bundle and get its exports
   async function loadBundleModule() {
     // Read the actual bundle that gets deployed
-    const bundleCode = fs.readFileSync(bundlePath, 'utf8');
+    const bundleCode = fs.readFileSync(esmBundlePath, 'utf8');
 
     // Create a temporary .mjs file to import from
-    const tempBundlePath = path.join(__dirname, '..', 'dist', 'bundle-test-temp.mjs');
+    const tempBundlePath = path.resolve(__dirname, '..', '..', 'dist', 'bundle-test-temp.mjs');
     fs.writeFileSync(tempBundlePath, bundleCode);
 
     // Import from the temporary file (use timestamp to avoid caching)
@@ -344,7 +266,7 @@ describe('Functional Tests - Verify Examples Work Correctly', () => {
       return result;
     } catch (err) {
       // Fallback to internal dist implementation (more reliable for Node tests)
-      const distModule = await import(path.join(__dirname, '..', 'dist', 'png-concat.js'));
+      const distModule = await import(path.resolve(__dirname, '..', '..', 'dist', 'esm', 'png-concat.js'));
       const fallback = distModule.concatPngs || distModule.concatPngsToFile || distModule.default?.concatPngs;
       if (!fallback) throw err;
       return await fallback(options);
@@ -387,8 +309,8 @@ describe('Functional Tests - Verify Examples Work Correctly', () => {
       return true;
     } catch (err) {
       // Fall back to built-in parser + decompressor (more tolerant)
-      const parser = await import(path.join(__dirname, '..', 'dist', 'png-parser.js'));
-      const decompressor = await import(path.join(__dirname, '..', 'dist', 'png-decompress.js'));
+      const parser = await import(path.resolve(__dirname, '..', '..', 'dist', 'esm', 'png-parser.js'));
+      const decompressor = await import(path.resolve(__dirname, '..', '..', 'dist', 'esm', 'png-decompress.js'));
 
       const parsePngChunks = parser.parsePngChunks;
       const parsePngHeader = parser.parsePngHeader;
