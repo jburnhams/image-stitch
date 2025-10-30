@@ -51,7 +51,7 @@ export interface PngInputAdapter {
 /**
  * Input types that can be automatically converted to adapters
  */
-export type PngInput = string | Uint8Array | PngInputAdapter;
+export type PngInput = string | Uint8Array | ArrayBuffer | PngInputAdapter;
 
 async function* decodeScanlinesFromCompressedData(
   compressedData: Uint8Array,
@@ -310,7 +310,11 @@ export async function createInputAdapter(input: PngInput): Promise<PngInputAdapt
     return new Uint8ArrayInputAdapter(input);
   }
 
-  throw new Error('Unsupported input type. Expected string (file path), Uint8Array, or PngInputAdapter');
+  if (input instanceof ArrayBuffer) {
+    return new Uint8ArrayInputAdapter(new Uint8Array(input));
+  }
+
+  throw new Error('Unsupported input type. Expected string (file path), Uint8Array, ArrayBuffer, or PngInputAdapter');
 }
 
 /**
