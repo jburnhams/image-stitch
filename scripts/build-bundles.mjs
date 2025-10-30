@@ -243,12 +243,23 @@ function buildBundles() {
   const exportNameMap = new Map();
 
   function addExport(modulePath, local, exported) {
-    if (!exportMap.has(modulePath)) {
-      exportMap.set(modulePath, new Map());
+    const resolvedPath = path.resolve(modulePath);
+    let resolvedLocal = local;
+
+    const targetModule = modules.get(resolvedPath);
+    if (targetModule) {
+      const alias = targetModule.localExports.find((pair) => pair.exported === local);
+      if (alias) {
+        resolvedLocal = alias.local;
+      }
     }
-    const moduleExports = exportMap.get(modulePath);
-    moduleExports.set(exported, local);
-    exportNameMap.set(exported, local);
+
+    if (!exportMap.has(resolvedPath)) {
+      exportMap.set(resolvedPath, new Map());
+    }
+    const moduleExports = exportMap.get(resolvedPath);
+    moduleExports.set(exported, resolvedLocal);
+    exportNameMap.set(exported, resolvedLocal);
   }
 
   for (const record of entryInfo.exportFrom) {

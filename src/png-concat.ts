@@ -275,7 +275,7 @@ export class StreamingConcatenator {
 
     // Calculate batch size
     const scanlineSize = totalWidth * bytesPerPixel + 1;
-    const MAX_BATCH_BYTES = 10 * 1024 * 1024; // 10MB
+    const MAX_BATCH_BYTES = 1 * 1024 * 1024; // 1MB
     const MAX_BATCH_SCANLINES = Math.max(50, Math.floor(MAX_BATCH_BYTES / scanlineSize));
 
     // Create deflator
