@@ -1,8 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 import { parsePngHeader, parsePngChunks } from './png-parser.js';
 import { concatPngs } from './png-concat.js';
 import { ColorType } from './types.js';
@@ -23,13 +22,11 @@ import { ColorType } from './types.js';
  * - Bit depth: 01, 02, 04, 08, 16
  */
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const PNGSUITE_PATH = '../pngsuite/png';
+const PNGSUITE_PATH = join(process.cwd(), 'pngsuite', 'png');
 
 // Helper to load a PngSuite test image
 function loadPngSuite(filename: string): Uint8Array {
-  const path = join(__dirname, PNGSUITE_PATH, filename);
+  const path = join(PNGSUITE_PATH, filename);
   return new Uint8Array(readFileSync(path));
 }
 

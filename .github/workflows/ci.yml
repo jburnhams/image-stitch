@@ -40,6 +40,12 @@ jobs:
         env:
           CI: true
 
+      - name: Run smoke tests for published entrypoints
+        run: npm run smoke
+
+      - name: Enforce browser bundle size budget
+        run: npm run size
+
       - name: Generate coverage
         run: npm run coverage --silent
         env:

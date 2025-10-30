@@ -6,23 +6,63 @@
     "type": "git",
     "url": "https://github.com/jburnhams/image-stitch.git"
   },
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "dist/cjs/index.cjs",
+  "module": "dist/esm/index.js",
+  "types": "dist/types/index.d.ts",
   "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.cjs",
+      "browser": {
+        "default": "./dist/bundles/image-stitch.esm.js"
+      },
+      "deno": "./deno/mod.ts",
+      "default": "./dist/esm/index.js"
+    },
+    "./bundle": {
+      "types": "./dist/types/index.d.ts",
+      "default": "./dist/bundles/image-stitch.esm.js"
+    },
+    "./browser": {
+      "default": "./dist/browser/image-stitch.min.js"
+    },
+    "./deno": "./deno/mod.ts",
+    "./package.json": "./package.json"
+  },
+  "browser": "dist/browser/image-stitch.min.js",
+  "unpkg": "dist/browser/image-stitch.min.js",
+  "jsdelivr": "dist/browser/image-stitch.min.js",
   "files": [
-    "dist",
+    "dist/esm",
+    "dist/cjs",
+    "dist/bundles",
+    "dist/browser",
+    "dist/types",
+    "deno",
     "README.md"
   ],
   "scripts": {
-    "build": "tsc",
+    "clean": "node scripts/clean.mjs",
+    "build:esm": "tsc -p tsconfig.esm.json",
+    "build:cjs": "tsc -p tsconfig.cjs.json",
+    "build:bundles": "node scripts/build-bundles.mjs",
+    "build": "npm run clean && npm run build:esm && npm run build:cjs && npm run build:bundles",
+    "build:tests": "tsc -p tsconfig.tests.json",
+    "build:browser-test": "tsc tests/browser.test.ts --outDir build/browser-tests --module ES2022 --target ES2022 --moduleResolution node --esModuleInterop --allowSyntheticDefaultImports --skipLibCheck",
     "build:docs": "npm run build && node scripts/build-browser-bundle.js",
-    "test": "npm run build && node --test dist/*.test.js",
-    "test:memory": "npm run build && node --expose-gc --test dist/memory.test.js",
-    "test:browser": "npm run build:docs && tsc tests/browser.test.ts --outDir dist --module ES2022 --target ES2022 --moduleResolution node --esModuleInterop --allowSyntheticDefaultImports --skipLibCheck && node --test dist/browser.test.js",
+    "test": "npm run build && npm run build:tests && node --test build/tests",
+    "test:memory": "npm run build && npm run build:tests && node --expose-gc --test build/tests/memory.test.js",
+    "test:browser": "npm run build:docs && npm run build:browser-test && node --test build/browser-tests/browser.test.js",
     "test:all": "npm run test && npm run test:memory && npm run test:browser",
-    "coverage": "npm run build && c8 --reporter=lcov --reporter=text node --test dist/*.test.js",
+    "smoke:esm": "node scripts/smoke-esm.mjs",
+    "smoke:cjs": "node scripts/smoke-cjs.cjs",
+    "smoke": "npm run smoke:esm && npm run smoke:cjs",
+    "coverage": "npm run build && npm run build:tests && c8 --reporter=lcov --reporter=text node --test build/tests",
     "example": "npm run build && node examples/basic-usage.js",
     "example:stream": "npm run build && node examples/streaming-usage.js",
+    "size": "npm run build && node scripts/check-bundle-size.mjs",
     "prepublishOnly": "npm run build"
   },
   "keywords": [

@@ -11,8 +11,7 @@ import { readFileSync } from 'node:fs';
 import { PngHeader } from './types.js';
 import { parsePngHeader, parsePngChunks } from './png-parser.js';
 import { unfilterScanline, getBytesPerPixel, FilterType } from './png-filter.js';
-import { readUInt32BE, bytesToString } from './utils.js';
-import { decompressData } from './png-decompress.js';
+import { readUInt32BE, bytesToString, getSamplesPerPixel } from './utils.js';
 
 /**
  * Abstract interface for PNG input sources
@@ -54,6 +53,87 @@ export interface PngInputAdapter {
  */
 export type PngInput = string | Uint8Array | PngInputAdapter;
 
+async function* decodeScanlinesFromCompressedData(
+  compressedData: Uint8Array,
+  header: PngHeader
+): AsyncGenerator<Uint8Array> {
+  const bytesPerPixel = getBytesPerPixel(header.bitDepth, header.colorType);
+  const scanlineLength = Math.ceil(
+    (header.width * header.bitDepth * getSamplesPerPixel(header.colorType)) / 8
+  );
+  const bytesPerLine = 1 + scanlineLength;
+
+  let previousScanline: Uint8Array | null = null;
+  let buffer = new Uint8Array(0);
+  let processedLines = 0;
+
+  const sourceBuffer =
+    compressedData.byteOffset === 0 && compressedData.byteLength === compressedData.buffer.byteLength
+      ? (compressedData.buffer as ArrayBuffer)
+      : compressedData.buffer.slice(
+          compressedData.byteOffset,
+          compressedData.byteOffset + compressedData.byteLength
+        );
+
+  const normalizedBuffer =
+    sourceBuffer instanceof ArrayBuffer ? sourceBuffer : new Uint8Array(sourceBuffer).slice().buffer;
+
+  const decompressedStream = new Blob([normalizedBuffer]).stream().pipeThrough(new DecompressionStream('deflate'));
+  const reader = decompressedStream.getReader();
+
+  try {
+    while (processedLines < header.height) {
+      const { value, done } = await reader.read();
+      if (done) {
+        break;
+      }
+      if (!value || value.length === 0) {
+        continue;
+      }
+
+      const merged = new Uint8Array(buffer.length + value.length);
+      merged.set(buffer, 0);
+      merged.set(value, buffer.length);
+      buffer = merged;
+
+      while (buffer.length >= bytesPerLine && processedLines < header.height) {
+        const filterType = buffer[0] as FilterType;
+        const filtered = buffer.subarray(1, 1 + scanlineLength);
+        buffer = buffer.subarray(bytesPerLine);
+
+        const unfiltered = unfilterScanline(filterType, filtered, previousScanline, bytesPerPixel);
+        previousScanline = unfiltered;
+        processedLines++;
+        yield unfiltered;
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  while (buffer.length >= bytesPerLine && processedLines < header.height) {
+    const filterType = buffer[0] as FilterType;
+    const filtered = buffer.subarray(1, 1 + scanlineLength);
+    buffer = buffer.subarray(bytesPerLine);
+
+    const unfiltered = unfilterScanline(filterType, filtered, previousScanline, bytesPerPixel);
+    previousScanline = unfiltered;
+    processedLines++;
+    yield unfiltered;
+  }
+
+  if (processedLines !== header.height) {
+    throw new Error(`Expected ${header.height} scanlines, decoded ${processedLines}`);
+  }
+
+  if (buffer.length > 0) {
+    const hasResidualData = buffer.some((value) => value !== 0);
+    if (hasResidualData) {
+      throw new Error(`Unexpected remaining decompressed data (${buffer.length} bytes)`);
+    }
+  }
+}
+
 /**
  * Adapter for file-based PNG inputs
  * Streams data directly from disk with minimal memory usage
@@ -88,32 +168,10 @@ export class FileInputAdapter implements PngInputAdapter {
       // Find and read IDAT chunks
       const idatData = await this.extractIdatData();
 
-      // Decompress IDAT data using Web Compression Streams API
-      const decompressedData = await decompressData(idatData);
+      const compressedView = new Uint8Array(idatData.buffer, idatData.byteOffset, idatData.byteLength);
 
-      // Stream scanlines
-      const bytesPerPixel = getBytesPerPixel(header.bitDepth, header.colorType);
-      const scanlineLength = Math.ceil(
-        (header.width * header.bitDepth * this.getSamplesPerPixel(header.colorType)) / 8
-      );
-      const bytesPerLine = 1 + scanlineLength; // 1 byte for filter type
-
-      let previousScanline: Uint8Array | null = null;
-
-      for (let line = 0; line < header.height; line++) {
-        const offset = line * bytesPerLine;
-        const filterType = decompressedData[offset] as FilterType;
-        const filteredData = decompressedData.slice(offset + 1, offset + bytesPerLine);
-
-        const unfilteredData = unfilterScanline(
-          filterType,
-          filteredData,
-          previousScanline,
-          bytesPerPixel
-        );
-
-        previousScanline = unfilteredData;
-        yield unfilteredData;
+      for await (const scanline of decodeScanlinesFromCompressedData(compressedView, header)) {
+        yield scanline;
       }
     } finally {
       // Ensure file handle is closed even if iteration stops early
@@ -178,16 +236,6 @@ export class FileInputAdapter implements PngInputAdapter {
     return idatData;
   }
 
-  private getSamplesPerPixel(colorType: number): number {
-    switch (colorType) {
-      case 0: return 1; // Grayscale
-      case 2: return 3; // RGB
-      case 3: return 1; // Palette
-      case 4: return 2; // Grayscale + Alpha
-      case 6: return 4; // RGBA
-      default: throw new Error(`Unknown color type: ${colorType}`);
-    }
-  }
 }
 
 /**
@@ -233,47 +281,13 @@ export class Uint8ArrayInputAdapter implements PngInputAdapter {
       offset += chunk.data.length;
     }
 
-    // Decompress IDAT data using Web Compression Streams API
-    const decompressedData = await decompressData(compressedData);
-
-    const bytesPerPixel = getBytesPerPixel(header.bitDepth, header.colorType);
-    const scanlineLength = Math.ceil(
-      (header.width * header.bitDepth * this.getSamplesPerPixel(header.colorType)) / 8
-    );
-    const bytesPerLine = 1 + scanlineLength;
-
-    let previousScanline: Uint8Array | null = null;
-
-    for (let line = 0; line < header.height; line++) {
-      const dataOffset = line * bytesPerLine;
-      const filterType = decompressedData[dataOffset] as FilterType;
-      const filteredData = decompressedData.slice(dataOffset + 1, dataOffset + bytesPerLine);
-
-      const unfilteredData = unfilterScanline(
-        filterType,
-        filteredData,
-        previousScanline,
-        bytesPerPixel
-      );
-
-      previousScanline = unfilteredData;
-      yield unfilteredData;
+    for await (const scanline of decodeScanlinesFromCompressedData(compressedData, header)) {
+      yield scanline;
     }
   }
 
   async close(): Promise<void> {
     // No resources to clean up for memory-based input
-  }
-
-  private getSamplesPerPixel(colorType: number): number {
-    switch (colorType) {
-      case 0: return 1; // Grayscale
-      case 2: return 3; // RGB
-      case 3: return 1; // Palette
-      case 4: return 2; // Grayscale + Alpha
-      case 6: return 4; // RGBA
-      default: throw new Error(`Unknown color type: ${colorType}`);
-    }
   }
 }
 
