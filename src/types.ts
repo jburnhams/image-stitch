@@ -1,3 +1,5 @@
+import type { PngInputAdapter } from './png-input-adapter.js';
+
 /**
  * PNG chunk structure
  */
@@ -25,8 +27,8 @@ export interface PngHeader {
  * Configuration for PNG concatenation
  */
 export interface ConcatOptions {
-  /** Input PNG files as Uint8Arrays or file paths (Node.js only) */
-  inputs: Array<Uint8Array | string>;
+  /** Input PNG files as buffers, ArrayBuffers, adapters, or file paths (Node.js only) */
+  inputs: Array<Uint8Array | ArrayBuffer | string | PngInputAdapter>;
   /** Layout configuration */
   layout: {
     /** Number of images per row (horizontal concatenation) */

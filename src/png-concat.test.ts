@@ -58,6 +58,12 @@ async function collectChunks(generator: AsyncGenerator<Uint8Array>): Promise<Uin
   return result;
 }
 
+function toArrayBuffer(view: Uint8Array): ArrayBuffer {
+  const buffer = new ArrayBuffer(view.byteLength);
+  new Uint8Array(buffer).set(view);
+  return buffer;
+}
+
 // ===== BASIC FUNCTIONALITY TESTS =====
 
 test('concatPngs throws on empty inputs', async () => {
@@ -533,6 +539,20 @@ test('concatPngs supports mixed input types (file + Uint8Array)', async () => {
   }
 });
 
+test('concatPngs supports ArrayBuffer inputs (streaming)', async () => {
+  const png1 = await createTestPng(12, 12, new Uint8Array([120, 45, 200, 255]));
+  const png2 = await createTestPng(12, 12, new Uint8Array([45, 200, 120, 255]));
+
+  const result = await collectChunks(concatPngsStreaming({
+    inputs: [toArrayBuffer(png1), toArrayBuffer(png2)],
+    layout: { columns: 2 }
+  }));
+
+  const header = parsePngHeader(result);
+  assert.strictEqual(header.width, 24);
+  assert.strictEqual(header.height, 12);
+});
+
 test('concatPngs supports multiple file inputs', async () => {
   const png1 = await createTestPng(10, 10, new Uint8Array([255, 0, 0, 255]));
   const png2 = await createTestPng(10, 10, new Uint8Array([0, 255, 0, 255]));
@@ -628,6 +648,21 @@ test('concatPngs (unified API) with file paths', async () => {
     unlinkSync(tempFile1);
     unlinkSync(tempFile2);
   }
+});
+
+test('concatPngs (unified API) accepts ArrayBuffer inputs', async () => {
+  const png1 = await createTestPng(16, 8, new Uint8Array([5, 100, 200, 255]));
+  const png2 = await createTestPng(16, 8, new Uint8Array([200, 5, 100, 255]));
+
+  const result = await concatPngs({
+    inputs: [toArrayBuffer(png1), toArrayBuffer(png2)],
+    layout: { columns: 2 }
+  });
+
+  assert.ok(result instanceof Uint8Array);
+  const header = parsePngHeader(result);
+  assert.strictEqual(header.width, 32);
+  assert.strictEqual(header.height, 8);
 });
 
 test('concatPngsToFile returns a stream', async () => {
