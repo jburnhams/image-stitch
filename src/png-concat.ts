@@ -215,6 +215,7 @@ function calculatePixelBasedLayout(
  * Supports:
  * - File paths (string)
  * - Uint8Array buffers
+ * - ArrayBuffer instances (browser-friendly)
  * - Custom PngInputAdapter implementations
  * - Mixed input types in the same operation
  */
@@ -586,9 +587,9 @@ export interface UnifiedConcatOptions extends ConcatOptions {
  * stream.pipe(res);
  *
  * @example
- * // Mix file paths and Uint8Arrays
+ * // Mix file paths, Uint8Arrays, and ArrayBuffers
  * const result = await concatPngs({
- *   inputs: ['img1.png', pngBuffer],
+ *   inputs: ['img1.png', pngBuffer, anotherArrayBuffer],
  *   layout: { rows: 2 }
  * });
  */
