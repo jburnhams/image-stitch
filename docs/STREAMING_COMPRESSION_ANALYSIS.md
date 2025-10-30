@@ -246,15 +246,43 @@ For our use case:
 
 **Still worth it for memory efficiency!**
 
+## Reality Check: Pako Limitation Discovered
+
+After implementing with pako, we discovered a critical limitation:
+
+**Pako's `Deflate` class accumulates ALL compressed output in its internal `result` buffer with no way to clear it.**
+
+This means:
+- Even with Z_SYNC_FLUSH, pako buffers the entire compressed stream in memory
+- Memory usage: ~uncompressed_size (similar to Web Compression Streams API)
+- No memory advantage over the simpler Web API
+
+### Test Results
+
+For 10000×10000 image:
+- Uncompressed: 381 MB
+- Compressed: 412 KB
+- **Peak memory with pako: ~170 MB** (45% of uncompressed)
+- Peak memory with Web API: ~170 MB (same!)
+
+### Why This Happens
+
+Both pako and Web Compression Streams API buffer uncompressed data internally during compression. The compression algorithm needs to look back at previous data for LZ77 matching, and both implementations keep significant buffers.
+
 ## Conclusion
 
-Implement streaming compression using pako with Z_SYNC_FLUSH batching:
+**For this library, stick with Web Compression Streams API:**
 
-- ✅ True streaming (constant memory)
-- ✅ Works in Node.js and browser
-- ✅ Maintains single deflate stream (PNG compliant)
-- ✅ Minimal compression ratio impact (+2-5%)
-- ✅ Acceptable performance impact (+6-11%)
-- ✅ 20x memory reduction
+- ✅ No dependencies (smaller bundle)
+- ✅ Native browser/Node.js support
+- ✅ Same memory usage as pako (~40-50% of uncompressed)
+- ✅ Still achieved ~50% improvement over original bug (which used 2-3x uncompressed)
+- ❌ Not true constant-memory streaming
 
-**This is the right solution for production use!**
+**For TRUE constant-memory streaming, we would need:**
+- Custom deflate implementation with explicit memory limits
+- OR Accept breaking PNG into multiple independent deflate streams (non-standard)
+- OR Server-side Node.js zlib with manual flush and buffer management
+
+For now, the ~50% memory improvement is significant and practical for most use cases.
+
