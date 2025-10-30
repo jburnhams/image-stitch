@@ -185,6 +185,7 @@
       <p>Experiment with horizontal strips, vertical reels, and responsive grids powered by image-stitch. Each demo shows the exact code you can drop into your own app.</p>
       <nav>
         <a href="index.html">🏠 Overview</a>
+        <a href="streaming.html">⚡ Streaming demo</a>
         <a href="guides.html">📘 Guides &amp; API</a>
         <a href="https://github.com/jburnhams/Png-concat">🌐 GitHub</a>
       </nav>
@@ -301,7 +302,7 @@ const output = await concatPngs({
   </div>
 
   <script type="module">
-    const CDN_URL = "https://cdn.jsdelivr.net/npm/image-stitch/dist/bundles/image-stitch.esm.js";
+    const BUNDLE_URL = "./image-stitch.esm.js";
     const SAMPLE_PATH = "images/";
 
     const SAMPLE_MAP = {
@@ -316,12 +317,17 @@ const output = await concatPngs({
       grid: { width: 256 }
     };
 
+    let moduleCache;
     let concatPngs;
 
-    async function ensureLibrary() {
+    const bufferCache = new Map();
+
+    async function ensureConcat() {
+      if (!moduleCache) {
+        moduleCache = await import(BUNDLE_URL);
+      }
       if (!concatPngs) {
-        const module = await import(CDN_URL);
-        concatPngs = module.concatPngs;
+        concatPngs = moduleCache.concatPngs;
       }
       return concatPngs;
     }
@@ -329,13 +335,20 @@ const output = await concatPngs({
     async function loadSampleBuffers(keys) {
       return Promise.all(
         keys.map(async (file) => {
-          const response = await fetch(`${SAMPLE_PATH}${file}`);
-          if (!response.ok) {
-            throw new Error(`Failed to load sample ${file}`);
+          if (!bufferCache.has(file)) {
+            const response = await fetch(`${SAMPLE_PATH}${file}`);
+            if (!response.ok) {
+              throw new Error(`Failed to load sample ${file}`);
+            }
+            bufferCache.set(file, await response.arrayBuffer());
           }
-          return response.arrayBuffer();
+          return bufferCache.get(file);
         })
       );
+    }
+
+    function formatNumber(value) {
+      return new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(value);
     }
 
     async function runExample(id) {
@@ -347,7 +360,7 @@ const output = await concatPngs({
       try {
         status.textContent = "Preparing…";
         meta.textContent = "";
-        const concat = await ensureLibrary();
+        const concat = await ensureConcat();
         status.textContent = "Loading samples…";
         let buffers;
         if (id === "custom") {
@@ -377,12 +390,12 @@ const output = await concatPngs({
         status.textContent = "Done!";
       } catch (error) {
         console.error(error);
-        status.textContent = error.message;
+        status.textContent = error instanceof Error ? error.message : String(error);
       }
     }
 
-    document.querySelectorAll("button[data-run]").forEach((button) => {
-      button.addEventListener("click", () => runExample(button.dataset.run));
+    document.querySelectorAll('button[data-run]').forEach((button) => {
+      button.addEventListener('click', () => runExample(button.dataset.run));
     });
   </script>
 </body>

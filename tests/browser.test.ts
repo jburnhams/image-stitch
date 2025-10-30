@@ -17,6 +17,7 @@ const esmBundlePath = path.join(docsDistDir, 'image-stitch.esm.js');
 const indexPath = path.join(docsDistDir, 'index.html');
 const guidesPath = path.join(docsDistDir, 'guides.html');
 const examplesPath = path.join(docsDistDir, 'examples.html');
+const streamingPath = path.join(docsDistDir, 'streaming.html');
 const sampleImagesDir = path.join(docsDistDir, 'images');
 
 async function loadDocument(htmlPath: string) {
@@ -77,8 +78,8 @@ describe('Browser Bundle Tests', () => {
     const navLinks = Array.from(document.querySelectorAll('nav a')).map((link) => link.getAttribute('href'));
     assert.deepStrictEqual(
       navLinks,
-      ['examples.html', 'guides.html', 'https://github.com/jburnhams/Png-concat'],
-      'Navigation should link to examples, guides, and GitHub'
+      ['examples.html', 'streaming.html', 'guides.html', 'https://github.com/jburnhams/Png-concat'],
+      'Navigation should link to examples, streaming demo, guides, and GitHub'
     );
 
     assert.ok(document.querySelector('.feature-grid'), 'Feature grid should be present');
@@ -98,8 +99,8 @@ describe('Browser Bundle Tests', () => {
     const navLinks = Array.from(document.querySelectorAll('nav a')).map((link) => link.getAttribute('href'));
     assert.deepStrictEqual(
       navLinks,
-      ['index.html', 'examples.html', 'https://github.com/jburnhams/Png-concat'],
-      'Guides nav should link back to overview and GitHub'
+      ['index.html', 'examples.html', 'streaming.html', 'https://github.com/jburnhams/Png-concat'],
+      'Guides nav should link to overview, examples, streaming demo, and GitHub'
     );
 
     const codeSamples = document.querySelectorAll('pre code');
@@ -141,8 +142,8 @@ describe('Browser Bundle Tests', () => {
     const moduleScript = document.querySelector('script[type="module"]');
     assert.ok(moduleScript, 'Examples page should include module script');
     assert.ok(
-      moduleScript?.textContent?.includes('cdn.jsdelivr.net/npm/image-stitch/dist/bundles/image-stitch.esm.js'),
-      'Module script should load the CDN build'
+      moduleScript?.textContent?.includes('./image-stitch.esm.js'),
+      'Module script should load the local ESM bundle'
     );
     assert.ok(
       moduleScript?.textContent?.includes('SAMPLE_MAP'),
@@ -197,6 +198,41 @@ describe('Browser Bundle Tests', () => {
       const assetPath = path.join(sampleImagesDir, asset);
       assert.ok(fs.existsSync(assetPath), `Asset ${asset} should be available for browser demos`);
     }
+  });
+
+  test('streaming demo exposes StreamingConcatenator-based workflow', async () => {
+    assert.ok(fs.existsSync(streamingPath), 'streaming.html should exist');
+
+    const { window, document } = await loadDocument(streamingPath);
+
+    const navLinks = Array.from(document.querySelectorAll('nav a')).map((link) => link.getAttribute('href'));
+    assert.deepStrictEqual(
+      navLinks,
+      ['index.html', 'examples.html', 'guides.html', 'https://github.com/jburnhams/Png-concat'],
+      'Streaming nav should link across docs and GitHub'
+    );
+
+    const status = document.getElementById('streaming-status');
+    const meta = document.getElementById('streaming-meta');
+    const previewImg = document.querySelector('#streaming-result img');
+    assert.ok(status, 'Streaming page should surface a status element');
+    assert.ok(meta, 'Streaming page should include metadata container');
+    assert.ok(previewImg, 'Streaming page should render preview image shell');
+
+    const moduleScript = document.querySelector('script[type="module"]');
+    assert.ok(moduleScript, 'Streaming page should include module script');
+    const scriptSource = moduleScript?.textContent ?? '';
+    assert.ok(scriptSource.includes('./image-stitch.esm.js'), 'Streaming page should load the local ESM bundle');
+    assert.ok(
+      scriptSource.includes('StreamingConcatenator'),
+      'Streaming page should reference the StreamingConcatenator API'
+    );
+    assert.ok(
+      scriptSource.includes('showSaveFilePicker'),
+      'Streaming page should mention File System Access streaming'
+    );
+
+    await window.close();
   });
 
 
