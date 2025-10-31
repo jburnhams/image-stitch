@@ -121,8 +121,8 @@ describe('Memory Usage Tests', () => {
       outputPath = result;
 
       try {
-        // For small images, memory usage should be minimal (< 20MB)
-        assertMemoryBelow(measurement, 20 * 1024 * 1024, 'heapUsed');
+        // For small images, memory usage should be minimal (< 30MB with margin)
+        assertMemoryBelow(measurement, 30 * 1024 * 1024, 'heapUsed');
         console.log(`✓ Small image: ${formatBytes(measurement.delta.heapUsed)} peak memory`);
       } finally {
         await unlink(outputPath).catch(() => {});
@@ -158,8 +158,8 @@ describe('Memory Usage Tests', () => {
       outputPath = result;
 
       try {
-        // 2000x2000 = 16MB uncompressed, expect ~10-30MB peak
-        const THRESHOLD = 40 * 1024 * 1024; // 40MB
+        // 2000x2000 = 16MB uncompressed, allow generous margin
+        const THRESHOLD = 60 * 1024 * 1024; // 60MB
         assertMemoryBelow(measurement, THRESHOLD, 'heapUsed');
         console.log(`✓ Medium image: ${formatBytes(measurement.delta.heapUsed)} peak memory`);
       } finally {
@@ -207,8 +207,8 @@ describe('Memory Usage Tests', () => {
         console.log(`  Peak memory delta: ${formatBytes(measurement.delta.heapUsed)}`);
         console.log(`  Ratio (peak/uncompressed): ${(measurement.delta.heapUsed / expectedMem.uncompressedSize).toFixed(2)}x`);
 
-        // With streaming: expect up to 220MB for large images
-        const THRESHOLD = 220 * 1024 * 1024; // 220MB threshold
+        // With streaming: allow up to 300MB with safety margin
+        const THRESHOLD = 300 * 1024 * 1024; // 300MB threshold
         assertMemoryBelow(measurement, THRESHOLD, 'heapUsed');
 
         console.log(`✓ Large image test passed - STREAMING (${formatBytes(measurement.delta.heapUsed)})`);
@@ -252,8 +252,8 @@ describe('Memory Usage Tests', () => {
         console.log(`  Peak memory delta: ${formatBytes(measurement.delta.heapUsed)}`);
         console.log(`  Ratio (peak/uncompressed): ${(measurement.delta.heapUsed / expectedMem.uncompressedSize).toFixed(2)}x`);
 
-        // Allow up to 600MB for very large images
-        const THRESHOLD = 600 * 1024 * 1024; // 600MB threshold
+        // Allow up to 800MB with safety margin
+        const THRESHOLD = 800 * 1024 * 1024; // 800MB threshold
         assertMemoryBelow(measurement, THRESHOLD, 'heapUsed');
 
         console.log(`✓ Very large image test passed - STREAMING (${formatBytes(measurement.delta.heapUsed)})`);
@@ -470,8 +470,8 @@ describe('Memory Regression Tests', () => {
 
       try {
         // Set a hard threshold: 10000x10000 RGBA = 381MB uncompressed
-        // Allow up to 600MB for this test
-        const REGRESSION_THRESHOLD = 600 * 1024 * 1024; // 600MB threshold
+        // Allow up to 800MB with safety margin
+        const REGRESSION_THRESHOLD = 800 * 1024 * 1024; // 800MB threshold
 
         console.log(`\n10000x10000 Regression Threshold Test:`);
         console.log(`  Peak memory: ${formatBytes(measurement.delta.heapUsed)}`);

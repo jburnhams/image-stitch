@@ -64,7 +64,8 @@ async function* decodeScanlinesFromCompressedData(
   const bytesPerLine = 1 + scanlineLength;
 
   let previousScanline: Uint8Array | null = null;
-  let buffer = new Uint8Array(0);
+  let bufferChunks: Uint8Array[] = [];
+  let totalBufferLength = 0;
   let processedLines = 0;
 
   const sourceBuffer =
@@ -81,6 +82,25 @@ async function* decodeScanlinesFromCompressedData(
   const decompressedStream = new Blob([normalizedBuffer]).stream().pipeThrough(new DecompressionStream('deflate'));
   const reader = decompressedStream.getReader();
 
+  // Helper to merge chunks only when needed
+  function getWorkingBuffer(): Uint8Array {
+    if (bufferChunks.length === 0) {
+      return new Uint8Array(0);
+    }
+    if (bufferChunks.length === 1) {
+      return bufferChunks[0];
+    }
+    // Merge chunks
+    const merged = new Uint8Array(totalBufferLength);
+    let offset = 0;
+    for (const chunk of bufferChunks) {
+      merged.set(chunk, offset);
+      offset += chunk.length;
+    }
+    bufferChunks = [merged];
+    return merged;
+  }
+
   try {
     while (processedLines < header.height) {
       const { value, done } = await reader.read();
@@ -91,19 +111,28 @@ async function* decodeScanlinesFromCompressedData(
         continue;
       }
 
-      const merged = new Uint8Array(buffer.length + value.length);
-      merged.set(buffer, 0);
-      merged.set(value, buffer.length);
-      buffer = merged;
+      // Add chunk to list instead of merging immediately
+      bufferChunks.push(value);
+      totalBufferLength += value.length;
 
-      while (buffer.length >= bytesPerLine && processedLines < header.height) {
+      // Process scanlines if we have enough data
+      while (totalBufferLength >= bytesPerLine && processedLines < header.height) {
+        const buffer = getWorkingBuffer();
+
+        if (buffer.length < bytesPerLine) break;
+
         const filterType = buffer[0] as FilterType;
         const filtered = buffer.subarray(1, 1 + scanlineLength);
-        buffer = buffer.subarray(bytesPerLine);
 
         const unfiltered = unfilterScanline(filterType, filtered, previousScanline, bytesPerPixel);
         previousScanline = unfiltered;
         processedLines++;
+
+        // Update buffer
+        const remaining = buffer.subarray(bytesPerLine);
+        bufferChunks = remaining.length > 0 ? [remaining] : [];
+        totalBufferLength = remaining.length;
+
         yield unfiltered;
       }
     }
@@ -111,14 +140,24 @@ async function* decodeScanlinesFromCompressedData(
     reader.releaseLock();
   }
 
-  while (buffer.length >= bytesPerLine && processedLines < header.height) {
+  // Process any remaining scanlines
+  while (totalBufferLength >= bytesPerLine && processedLines < header.height) {
+    const buffer = getWorkingBuffer();
+
+    if (buffer.length < bytesPerLine) break;
+
     const filterType = buffer[0] as FilterType;
     const filtered = buffer.subarray(1, 1 + scanlineLength);
-    buffer = buffer.subarray(bytesPerLine);
 
     const unfiltered = unfilterScanline(filterType, filtered, previousScanline, bytesPerPixel);
     previousScanline = unfiltered;
     processedLines++;
+
+    // Update buffer
+    const remaining = buffer.subarray(bytesPerLine);
+    bufferChunks = remaining.length > 0 ? [remaining] : [];
+    totalBufferLength = remaining.length;
+
     yield unfiltered;
   }
 
@@ -126,10 +165,11 @@ async function* decodeScanlinesFromCompressedData(
     throw new Error(`Expected ${header.height} scanlines, decoded ${processedLines}`);
   }
 
-  if (buffer.length > 0) {
-    const hasResidualData = buffer.some((value) => value !== 0);
+  if (totalBufferLength > 0) {
+    const finalBuffer = getWorkingBuffer();
+    const hasResidualData = finalBuffer.some((value) => value !== 0);
     if (hasResidualData) {
-      throw new Error(`Unexpected remaining decompressed data (${buffer.length} bytes)`);
+      throw new Error(`Unexpected remaining decompressed data (${totalBufferLength} bytes)`);
     }
   }
 }
