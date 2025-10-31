@@ -29,8 +29,11 @@ import { concatPngs } from './png-concat.js';
 import { createIHDR, createIEND, createChunk, buildPng } from './png-writer.js';
 import { compressImageData } from './png-decompress.js';
 import { PngHeader, ColorType } from './types.js';
-// Input caching deliberately NOT enabled for memory tests
-// Caching trades memory for speed - we want to measure minimal memory usage
+
+import { enableInputCache } from './png-input-adapter.ts';
+// Enable caching for tiling/grid scenarios
+enableInputCache();
+
 import {
   monitorMemory,
   assertMemoryBelow,
