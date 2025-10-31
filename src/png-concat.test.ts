@@ -539,6 +539,25 @@ test('concatPngs supports mixed input types (file + Uint8Array)', async () => {
   }
 });
 
+test('concatPngs accepts async iterable inputs', async () => {
+  const png1 = await createTestPng(8, 8, new Uint8Array([255, 0, 0, 255]));
+  const png2 = await createTestPng(8, 8, new Uint8Array([0, 0, 255, 255]));
+
+  async function* inputStream() {
+    yield png1;
+    yield png2;
+  }
+
+  const result = await concatPngs({
+    inputs: inputStream(),
+    layout: { columns: 2 }
+  });
+
+  const header = parsePngHeader(result as Uint8Array);
+  assert.strictEqual(header.width, 16);
+  assert.strictEqual(header.height, 8);
+});
+
 test('concatPngs supports ArrayBuffer inputs (streaming)', async () => {
   const png1 = await createTestPng(12, 12, new Uint8Array([120, 45, 200, 255]));
   const png2 = await createTestPng(12, 12, new Uint8Array([45, 200, 120, 255]));
