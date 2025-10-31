@@ -30,7 +30,7 @@ import { createIHDR, createIEND, createChunk, buildPng } from '../src/png-writer
 import { compressImageData } from '../src/png-decompress.js';
 import { PngHeader, ColorType } from '../src/types.js';
 
-import { enableInputCache } from '../src/png-input-adapter.ts';
+import { enableInputCache } from '../src/png-input-adapter.js';
 // Enable caching for tiling/grid scenarios
 enableInputCache();
 
