@@ -14,6 +14,77 @@ import { unfilterScanline, getBytesPerPixel, FilterType } from './png-filter.js'
 import { readUInt32BE, bytesToString, getSamplesPerPixel } from './utils.js';
 
 /**
+ * Input caching configuration
+ *
+ * When enabled, caches decompressed scanlines for Uint8Array inputs to avoid
+ * redundant parsing and decompression when the same image is used multiple times.
+ *
+ * IMPORTANT: Off by default. Enable for:
+ * - Tests that reuse the same image data many times
+ * - Examples/demos showing tiling or grid layouts
+ * - NOT recommended for production unless you know you'll reuse images
+ *
+ * Memory impact: O(unique_images × image_size_decompressed)
+ * Performance gain: Avoids O(reuse_count × parse_time)
+ */
+interface InputCacheConfig {
+  enabled: boolean;
+  cache: WeakMap<Uint8Array, CachedImageData>;
+}
+
+interface CachedImageData {
+  header: PngHeader;
+  scanlines: Uint8Array[];
+}
+
+const inputCache: InputCacheConfig = {
+  enabled: false,
+  cache: new WeakMap()
+};
+
+/**
+ * Enable input caching for performance optimization
+ *
+ * Use this when the same Uint8Array images will be reused many times,
+ * such as in tests or tiling examples.
+ *
+ * @example
+ * import { enableInputCache } from 'image-stitch';
+ * enableInputCache();
+ * // ... use same image data multiple times
+ * disableInputCache(); // Clean up when done
+ */
+export function enableInputCache(): void {
+  inputCache.enabled = true;
+}
+
+/**
+ * Disable input caching and clear the cache
+ *
+ * Call this to free memory when done with cached operations.
+ */
+export function disableInputCache(): void {
+  inputCache.enabled = false;
+  clearInputCache();
+}
+
+/**
+ * Clear the input cache without disabling it
+ *
+ * Useful to free memory while keeping caching enabled.
+ */
+export function clearInputCache(): void {
+  inputCache.cache = new WeakMap();
+}
+
+/**
+ * Check if input caching is currently enabled
+ */
+export function isInputCacheEnabled(): boolean {
+  return inputCache.enabled;
+}
+
+/**
  * Abstract interface for PNG input sources
  *
  * This interface enables streaming access to PNG image data without
@@ -281,6 +352,8 @@ export class FileInputAdapter implements PngInputAdapter {
 /**
  * Adapter for Uint8Array (in-memory) PNG inputs
  * Efficient for already-loaded images
+ *
+ * Supports optional caching when enabled via enableInputCache()
  */
 export class Uint8ArrayInputAdapter implements PngInputAdapter {
   private header: PngHeader | null = null;
@@ -295,12 +368,35 @@ export class Uint8ArrayInputAdapter implements PngInputAdapter {
       return this.header;
     }
 
+    // Check cache first if enabled
+    if (inputCache.enabled) {
+      const cached = inputCache.cache.get(this.data);
+      if (cached) {
+        this.header = cached.header;
+        return this.header;
+      }
+    }
+
     this.header = parsePngHeader(this.data);
     return this.header;
   }
 
   async *scanlines(): AsyncGenerator<Uint8Array> {
     const header = await this.getHeader();
+
+    // If caching is enabled, check cache first
+    if (inputCache.enabled) {
+      const cached = inputCache.cache.get(this.data);
+      if (cached) {
+        // Return cached scanlines
+        for (const scanline of cached.scanlines) {
+          yield scanline;
+        }
+        return;
+      }
+    }
+
+    // Not cached or caching disabled - parse and decompress
     const chunks = parsePngChunks(this.data);
 
     // Find and concatenate IDAT chunks
@@ -321,8 +417,20 @@ export class Uint8ArrayInputAdapter implements PngInputAdapter {
       offset += chunk.data.length;
     }
 
-    for await (const scanline of decodeScanlinesFromCompressedData(compressedData, header)) {
-      yield scanline;
+    // If caching enabled, collect scanlines to cache them
+    if (inputCache.enabled) {
+      const scanlines: Uint8Array[] = [];
+      for await (const scanline of decodeScanlinesFromCompressedData(compressedData, header)) {
+        scanlines.push(scanline);
+        yield scanline;
+      }
+      // Store in cache for future use
+      inputCache.cache.set(this.data, { header, scanlines });
+    } else {
+      // No caching - just stream
+      for await (const scanline of decodeScanlinesFromCompressedData(compressedData, header)) {
+        yield scanline;
+      }
     }
   }
 

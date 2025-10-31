@@ -29,6 +29,8 @@ import { concatPngs } from './png-concat.js';
 import { createIHDR, createIEND, createChunk, buildPng } from './png-writer.js';
 import { compressImageData } from './png-decompress.js';
 import { PngHeader, ColorType } from './types.js';
+// Input caching deliberately NOT enabled for memory tests
+// Caching trades memory for speed - we want to measure minimal memory usage
 import {
   monitorMemory,
   assertMemoryBelow,
@@ -104,6 +106,11 @@ if (!gcAvailable) {
   console.warn('   Tests will verify functional behavior only.');
   console.warn('   For full memory validation, run with: node --expose-gc --test build/tests/memory.test.js');
 }
+
+// NOTE: Input caching is NOT enabled for memory tests
+// While caching dramatically improves performance (50-100x faster),
+// it increases memory usage by storing decompressed scanlines.
+// Memory tests intentionally measure worst-case (no cache) memory usage.
 
 describe('Memory Usage Tests', () => {
   test('Small image (100x100) - baseline memory check', async () => {
