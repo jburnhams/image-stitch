@@ -602,19 +602,24 @@ export function concatPngs(options: UnifiedConcatOptions): Promise<Uint8Array | 
       return concatPngsToStream(options);
     } else {
       // User wants Uint8Array result - collect chunks from stream
+      // Memory optimization: collect chunks, then copy and clear incrementally
       const chunks: Uint8Array[] = [];
+      let totalLength = 0;
 
       for await (const chunk of concatPngsStreaming(options)) {
         chunks.push(chunk);
+        totalLength += chunk.length;
       }
 
-      // Combine chunks
-      const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+      // Combine chunks while releasing memory incrementally
       const result = new Uint8Array(totalLength);
       let offset = 0;
-      for (const chunk of chunks) {
+      for (let i = 0; i < chunks.length; i++) {
+        const chunk = chunks[i];
         result.set(chunk, offset);
         offset += chunk.length;
+        // Release chunk reference immediately to allow GC
+        chunks[i] = null as any;
       }
 
       return result;

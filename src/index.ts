@@ -15,7 +15,11 @@ export {
   FileInputAdapter,
   Uint8ArrayInputAdapter,
   createInputAdapter,
-  createInputAdapters
+  createInputAdapters,
+  enableInputCache,
+  disableInputCache,
+  clearInputCache,
+  isInputCacheEnabled
 } from './png-input-adapter.js';
 
 // Streaming implementation
