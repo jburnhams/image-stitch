@@ -9,6 +9,7 @@
 import { open, FileHandle } from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
 import { PngHeader } from './types.js';
+import type { PngInputSource } from './types.js';
 import { parsePngHeader, parsePngChunks } from './png-parser.js';
 import { unfilterScanline, getBytesPerPixel, FilterType } from './png-filter.js';
 import { readUInt32BE, bytesToString, getSamplesPerPixel } from './utils.js';
@@ -468,6 +469,19 @@ export async function createInputAdapter(input: PngInput): Promise<PngInputAdapt
 /**
  * Create multiple adapters from mixed input types
  */
-export async function createInputAdapters(inputs: PngInput[]): Promise<PngInputAdapter[]> {
-  return Promise.all(inputs.map(input => createInputAdapter(input)));
+export async function createInputAdapters(inputs: PngInputSource): Promise<PngInputAdapter[]> {
+  const adapters: PngInputAdapter[] = [];
+
+  const asyncIterator = (inputs as AsyncIterable<PngInput>)[Symbol.asyncIterator];
+  if (typeof asyncIterator === 'function') {
+    for await (const input of inputs as AsyncIterable<PngInput>) {
+      adapters.push(await createInputAdapter(input));
+    }
+  } else {
+    for (const input of inputs as Iterable<PngInput>) {
+      adapters.push(await createInputAdapter(input));
+    }
+  }
+
+  return adapters;
 }

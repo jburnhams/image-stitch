@@ -28,10 +28,10 @@ import { pipeline } from 'node:stream/promises';
 import { concatPngs } from '../src/png-concat.js';
 import { createIHDR, createIEND, createChunk, buildPng } from '../src/png-writer.js';
 import { compressImageData } from '../src/png-decompress.js';
-import { PngHeader, ColorType } from '../src/types.js';
+import { PngHeader, ColorType, PngInputSource } from '../src/types.js';
 
 import { enableInputCache } from '../src/png-input-adapter.js';
-// Enable caching for tiling/grid scenarios
+// Enable caching for tiling/grid scenarios to minimize duplicate decoding
 enableInputCache();
 
 import {
@@ -81,7 +81,7 @@ async function createTestPng(
  * This ensures output doesn't consume memory during measurement
  */
 async function concatToFile(
-  inputs: Uint8Array[],
+  inputs: PngInputSource,
   layout: any
 ): Promise<string> {
   const outputPath = `/tmp/concat-test-${Date.now()}-${Math.random().toString(36).slice(2)}.png`;
@@ -110,10 +110,17 @@ if (!gcAvailable) {
   console.warn('   For full memory validation, run with: node --expose-gc --test build/tests/memory.test.js');
 }
 
-// NOTE: Input caching is NOT enabled for memory tests
-// While caching dramatically improves performance (50-100x faster),
-// it increases memory usage by storing decompressed scanlines.
-// Memory tests intentionally measure worst-case (no cache) memory usage.
+/**
+ * Lazily yield the same image multiple times without allocating large arrays.
+ * This keeps memory usage stable for tiled mega-images.
+ */
+function createRepeatedInputStream(image: Uint8Array, count: number): AsyncGenerator<Uint8Array> {
+  return (async function* () {
+    for (let i = 0; i < count; i++) {
+      yield image;
+    }
+  })();
+}
 
 describe('Memory Usage Tests', () => {
   test('Small image (100x100) - baseline memory check', async () => {
@@ -199,13 +206,12 @@ describe('Memory Usage Tests', () => {
     const tileSize = 32;
     const tilesNeeded = Math.ceil(targetSize / tileSize) ** 2;
 
-    const inputs = Array(tilesNeeded).fill(smallPng);
-
     let outputPath: string;
 
     if (gcAvailable) {
+      const createInputs = () => createRepeatedInputStream(smallPng, tilesNeeded);
       const { result, measurement } = await monitorMemory(async () => {
-        return await concatToFile(inputs, { width: targetSize });
+        return await concatToFile(createInputs(), { width: targetSize });
       }, 100); // Sample every 100ms for long operations
       outputPath = result;
 
@@ -226,7 +232,7 @@ describe('Memory Usage Tests', () => {
         await unlink(outputPath).catch(() => {});
       }
     } else {
-      outputPath = await concatToFile(inputs, { width: targetSize });
+      outputPath = await concatToFile(createRepeatedInputStream(smallPng, tilesNeeded), { width: targetSize });
       try {
         const { access } = await import('node:fs/promises');
         await access(outputPath);
@@ -244,13 +250,12 @@ describe('Memory Usage Tests', () => {
     const tileSize = 32;
     const tilesNeeded = Math.ceil(targetSize / tileSize) ** 2;
 
-    const inputs = Array(tilesNeeded).fill(smallPng);
-
     let outputPath: string;
 
     if (gcAvailable) {
+      const createInputs = () => createRepeatedInputStream(smallPng, tilesNeeded);
       const { result, measurement } = await monitorMemory(async () => {
-        return await concatToFile(inputs, { width: targetSize });
+        return await concatToFile(createInputs(), { width: targetSize });
       }, 100);
       outputPath = result;
 
@@ -271,7 +276,7 @@ describe('Memory Usage Tests', () => {
         await unlink(outputPath).catch(() => {});
       }
     } else {
-      outputPath = await concatToFile(inputs, { width: targetSize });
+      outputPath = await concatToFile(createRepeatedInputStream(smallPng, tilesNeeded), { width: targetSize });
       try {
         const { access } = await import('node:fs/promises');
         await access(outputPath);
@@ -292,14 +297,13 @@ describe('Memory Usage Tests', () => {
     const tileSize = 32;
     const tilesNeeded = Math.ceil(targetSize / tileSize) ** 2;
 
-    const inputs = Array(tilesNeeded).fill(smallPng);
-
     let outputPath: string;
 
     if (gcAvailable) {
       const startTime = Date.now();
+      const createInputs = () => createRepeatedInputStream(smallPng, tilesNeeded);
       const { result, measurement} = await monitorMemory(async () => {
-        return await concatToFile(inputs, { width: targetSize });
+        return await concatToFile(createInputs(), { width: targetSize });
       }, 200);
       const duration = (Date.now() - startTime) / 1000;
       outputPath = result;
@@ -322,7 +326,7 @@ describe('Memory Usage Tests', () => {
         await unlink(outputPath).catch(() => {});
       }
     } else {
-      outputPath = await concatToFile(inputs, { width: targetSize });
+      outputPath = await concatToFile(createRepeatedInputStream(smallPng, tilesNeeded), { width: targetSize });
       try {
         const { access } = await import('node:fs/promises');
         await access(outputPath);
@@ -471,11 +475,10 @@ describe('Memory Regression Tests', () => {
     const targetSize = 10000;
     const tileSize = 32;
     const tilesNeeded = Math.ceil(targetSize / tileSize) ** 2;
-    const inputs = Array(tilesNeeded).fill(smallPng);
-
     if (gcAvailable) {
+      const createInputs = () => createRepeatedInputStream(smallPng, tilesNeeded);
       const { result, measurement } = await monitorMemory(async () => {
-        return await concatToFile(inputs, { width: targetSize });
+        return await concatToFile(createInputs(), { width: targetSize });
       }, 100);
 
       try {
@@ -494,7 +497,7 @@ describe('Memory Regression Tests', () => {
         await unlink(result).catch(() => {});
       }
     } else {
-      const outputPath = await concatToFile(inputs, { width: targetSize });
+      const outputPath = await concatToFile(createRepeatedInputStream(smallPng, tilesNeeded), { width: targetSize });
       try {
         const { access } = await import('node:fs/promises');
         await access(outputPath);

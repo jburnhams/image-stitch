@@ -10,7 +10,7 @@ import { ConcatOptions, PngHeader } from './types.js';
 import { PNG_SIGNATURE } from './utils.js';
 import { filterScanline, getBytesPerPixel } from './png-filter.js';
 import { createIHDR, createIEND, serializeChunk, createChunk } from './png-writer.js';
-import { PngInput, createInputAdapters } from './png-input-adapter.js';
+import { createInputAdapters } from './png-input-adapter.js';
 import { determineCommonFormat, convertScanline, getTransparentColor } from './pixel-ops.js';
 
 /**
@@ -228,7 +228,10 @@ export class StreamingConcatenator {
   }
 
   private validateOptions(options: ConcatOptions): void {
-    if (!options.inputs || options.inputs.length === 0) {
+    if (
+      !options.inputs ||
+      (Array.isArray(options.inputs) && options.inputs.length === 0)
+    ) {
       throw new Error('At least one input image is required');
     }
 
@@ -437,7 +440,10 @@ export class StreamingConcatenator {
    */
   async *stream(): AsyncGenerator<Uint8Array> {
     // PASS 1: Create adapters and read headers
-    const adapters = await createInputAdapters(this.options.inputs as PngInput[]);
+    const adapters = await createInputAdapters(this.options.inputs);
+    if (adapters.length === 0) {
+      throw new Error('At least one input image is required');
+    }
     const headers: PngHeader[] = [];
 
     try {
