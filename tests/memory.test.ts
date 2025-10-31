@@ -17,7 +17,7 @@
  *
  * Memory is now constant and does NOT grow with image size!
  *
- * Run with: node --expose-gc --test build/tests/memory.test.js
+ * Run with: node --expose-gc --test memory.test.js
  */
 
 import { test, describe } from 'node:test';
@@ -25,12 +25,12 @@ import assert from 'node:assert';
 import { createWriteStream } from 'node:fs';
 import { unlink } from 'node:fs/promises';
 import { pipeline } from 'node:stream/promises';
-import { concatPngs } from './png-concat.js';
-import { createIHDR, createIEND, createChunk, buildPng } from './png-writer.js';
-import { compressImageData } from './png-decompress.js';
-import { PngHeader, ColorType } from './types.js';
+import { concatPngs } from '../src/png-concat.js';
+import { createIHDR, createIEND, createChunk, buildPng } from '../src/png-writer.js';
+import { compressImageData } from '../src/png-decompress.js';
+import { PngHeader, ColorType } from '../src/types.js';
 
-import { enableInputCache } from './png-input-adapter.ts';
+import { enableInputCache } from '../src/png-input-adapter.ts';
 // Enable caching for tiling/grid scenarios
 enableInputCache();
 
@@ -40,7 +40,7 @@ import {
   calculateExpectedMemory,
   formatBytes,
   isGCAvailable
-} from './test-utils/memory-monitor.js';
+} from '../src/test-utils/memory-monitor.js';
 
 /**
  * Create a simple test PNG with solid color
