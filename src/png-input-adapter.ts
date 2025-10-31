@@ -28,20 +28,80 @@ import { readUInt32BE, bytesToString, getSamplesPerPixel } from './utils.js';
  * Memory impact: O(unique_images × image_size_decompressed)
  * Performance gain: Avoids O(reuse_count × parse_time)
  */
-interface InputCacheConfig {
-  enabled: boolean;
-  cache: WeakMap<Uint8Array, CachedImageData>;
+interface CacheWaiter {
+  resolve: () => void;
+  reject: (error: Error) => void;
 }
 
 interface CachedImageData {
-  header: PngHeader;
+  header?: PngHeader;
+  headerPromise?: Promise<PngHeader>;
   scanlines: Uint8Array[];
+  completed: boolean;
+  producerActive: boolean;
+  waiters: CacheWaiter[];
+  error?: Error;
+}
+
+interface InputCacheConfig {
+  enabled: boolean;
+  cache: WeakMap<Uint8Array, CachedImageData>;
 }
 
 const inputCache: InputCacheConfig = {
   enabled: false,
   cache: new WeakMap()
 };
+
+function getOrCreateCacheEntry(data: Uint8Array): CachedImageData {
+  let entry = inputCache.cache.get(data);
+  if (!entry) {
+    entry = {
+      scanlines: [],
+      completed: false,
+      producerActive: false,
+      waiters: []
+    };
+    inputCache.cache.set(data, entry);
+  }
+  return entry;
+}
+
+function notifyCacheWaiters(entry: CachedImageData, error?: Error): void {
+  if (entry.waiters.length === 0) {
+    return;
+  }
+  const waiters = entry.waiters.splice(0, entry.waiters.length);
+  for (const waiter of waiters) {
+    if (error) {
+      waiter.reject(error);
+    } else {
+      waiter.resolve();
+    }
+  }
+}
+
+async function* consumeCachedScanlines(entry: CachedImageData): AsyncGenerator<Uint8Array> {
+  let index = 0;
+
+  while (true) {
+    if (index < entry.scanlines.length) {
+      yield entry.scanlines[index++];
+      continue;
+    }
+
+    if (entry.completed) {
+      if (entry.error) {
+        throw entry.error;
+      }
+      return;
+    }
+
+    await new Promise<void>((resolve, reject) => {
+      entry.waiters.push({ resolve, reject });
+    });
+  }
+}
 
 /**
  * Enable input caching for performance optimization
@@ -369,13 +429,22 @@ export class Uint8ArrayInputAdapter implements PngInputAdapter {
       return this.header;
     }
 
-    // Check cache first if enabled
     if (inputCache.enabled) {
-      const cached = inputCache.cache.get(this.data);
-      if (cached) {
-        this.header = cached.header;
-        return this.header;
+      const entry = getOrCreateCacheEntry(this.data);
+
+      if (entry.header) {
+        this.header = entry.header;
+        return entry.header;
       }
+
+      if (!entry.headerPromise) {
+        entry.headerPromise = Promise.resolve().then(() => parsePngHeader(this.data));
+      }
+
+      const header = await entry.headerPromise;
+      entry.header = header;
+      this.header = header;
+      return header;
     }
 
     this.header = parsePngHeader(this.data);
@@ -385,22 +454,60 @@ export class Uint8ArrayInputAdapter implements PngInputAdapter {
   async *scanlines(): AsyncGenerator<Uint8Array> {
     const header = await this.getHeader();
 
-    // If caching is enabled, check cache first
     if (inputCache.enabled) {
-      const cached = inputCache.cache.get(this.data);
-      if (cached) {
-        // Return cached scanlines
-        for (const scanline of cached.scanlines) {
-          yield scanline;
-        }
+      const entry = getOrCreateCacheEntry(this.data);
+
+      if (entry.error) {
+        throw entry.error;
+      }
+
+      if (entry.completed || entry.scanlines.length > 0 || entry.producerActive) {
+        yield* consumeCachedScanlines(entry);
         return;
       }
+
+      entry.producerActive = true;
+
+      try {
+        const chunks = parsePngChunks(this.data);
+        const idatChunks = chunks.filter(chunk => chunk.type === 'IDAT');
+        if (idatChunks.length === 0) {
+          throw new Error('No IDAT chunks found in PNG');
+        }
+
+        let totalLength = 0;
+        for (const chunk of idatChunks) {
+          totalLength += chunk.data.length;
+        }
+
+        const compressedData = new Uint8Array(totalLength);
+        let offset = 0;
+        for (const chunk of idatChunks) {
+          compressedData.set(chunk.data, offset);
+          offset += chunk.data.length;
+        }
+
+        for await (const scanline of decodeScanlinesFromCompressedData(compressedData, header)) {
+          entry.scanlines.push(scanline);
+          notifyCacheWaiters(entry);
+          yield scanline;
+        }
+
+        entry.completed = true;
+        entry.producerActive = false;
+        notifyCacheWaiters(entry);
+      } catch (error) {
+        entry.error = error as Error;
+        entry.completed = true;
+        entry.producerActive = false;
+        notifyCacheWaiters(entry, entry.error);
+        throw error;
+      }
+
+      return;
     }
 
-    // Not cached or caching disabled - parse and decompress
     const chunks = parsePngChunks(this.data);
-
-    // Find and concatenate IDAT chunks
     const idatChunks = chunks.filter(chunk => chunk.type === 'IDAT');
     if (idatChunks.length === 0) {
       throw new Error('No IDAT chunks found in PNG');
@@ -418,20 +525,8 @@ export class Uint8ArrayInputAdapter implements PngInputAdapter {
       offset += chunk.data.length;
     }
 
-    // If caching enabled, collect scanlines to cache them
-    if (inputCache.enabled) {
-      const scanlines: Uint8Array[] = [];
-      for await (const scanline of decodeScanlinesFromCompressedData(compressedData, header)) {
-        scanlines.push(scanline);
-        yield scanline;
-      }
-      // Store in cache for future use
-      inputCache.cache.set(this.data, { header, scanlines });
-    } else {
-      // No caching - just stream
-      for await (const scanline of decodeScanlinesFromCompressedData(compressedData, header)) {
-        yield scanline;
-      }
+    for await (const scanline of decodeScanlinesFromCompressedData(compressedData, header)) {
+      yield scanline;
     }
   }
 

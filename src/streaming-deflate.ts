@@ -32,8 +32,7 @@ export interface StreamingDeflatorOptions {
  */
 export class StreamingDeflator {
   private deflator: pako.Deflate | null = null;
-  private batchBuffer: Uint8Array[] = [];
-  private batchSize = 0;
+  private pendingBytes = 0;
   private readonly maxBatchSize: number;
   private readonly level: pako.DeflateOptions['level'];
   private finished = false;
@@ -82,12 +81,12 @@ export class StreamingDeflator {
       throw new Error('Cannot push after finish()');
     }
 
-    this.batchBuffer.push(data);
-    this.batchSize += data.length;
+    this.deflator.push(data, false);
+    this.pendingBytes += data.length;
 
     // Flush batch if full
-    if (this.batchSize >= this.maxBatchSize) {
-      this.flushBatch(false);
+    if (this.pendingBytes >= this.maxBatchSize) {
+      this.flushInternal(false);
       return true;
     }
 
@@ -98,9 +97,7 @@ export class StreamingDeflator {
    * Force flush current batch
    */
   flush(): void {
-    if (this.batchSize > 0) {
-      this.flushBatch(false);
-    }
+    this.flushInternal(false);
   }
 
   /**
@@ -118,8 +115,8 @@ export class StreamingDeflator {
     this.finished = true;
 
     // Flush remaining data
-    if (this.batchSize > 0) {
-      this.flushBatch(true);
+    if (this.pendingBytes > 0) {
+      this.flushInternal(true);
     } else {
       // Just finalize
       this.deflator.push(new Uint8Array(0), true);
@@ -131,27 +128,17 @@ export class StreamingDeflator {
   }
 
   /**
-   * Internal: Flush the batch buffer
+   * Internal helper to flush pending bytes
    */
-  private flushBatch(final: boolean): void {
+  private flushInternal(final: boolean): void {
     if (!this.deflator) return;
-
-    // Concatenate batch
-    const batchData = new Uint8Array(this.batchSize);
-    let offset = 0;
-    for (const chunk of this.batchBuffer) {
-      batchData.set(chunk, offset);
-      offset += chunk.length;
+    if (!this.pendingBytes && !final) {
+      return;
     }
 
-    // Clear batch buffer - critical for memory!
-    this.batchBuffer = [];
-    this.batchSize = 0;
-
-    // Push to deflator
-    // final=false uses Z_SYNC_FLUSH (maintains state, allows incremental output)
-    // final=true uses Z_FINISH (completes stream)
-    this.deflator.push(batchData, final);
+    const mode: boolean | number = final ? true : pako.constants.Z_SYNC_FLUSH;
+    this.deflator.push(new Uint8Array(0), mode);
+    this.pendingBytes = 0;
 
     if (this.deflator.err) {
       throw new Error(`Deflate error: ${this.deflator.msg}`);
