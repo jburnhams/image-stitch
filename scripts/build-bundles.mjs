@@ -9,6 +9,7 @@ const distDir = path.join(projectRoot, 'dist');
 const esmDir = path.join(distDir, 'esm');
 const cjsDir = path.join(distDir, 'cjs');
 const bundlesDir = path.join(distDir, 'bundles');
+const normalizedBundlesDir = path.resolve(bundlesDir);
 const browserDir = path.join(distDir, 'browser');
 const pakoEntry = path.join(projectRoot, 'node_modules', 'pako', 'dist', 'pako.esm.mjs');
 
@@ -125,6 +126,7 @@ function parseModule(modulePath) {
   const original = fs.readFileSync(absolute, 'utf8');
   let code = original;
   const imports = new Set();
+  const dynamicImports = [];
   const localExports = [];
   const exportFrom = [];
   const exportAll = [];
@@ -177,6 +179,15 @@ function parseModule(modulePath) {
     return '';
   });
 
+  const dynamicImportRegex = /import\((['"])(\.\.?(?:\/[^'"`]+)+)\1\)/g;
+  for (const match of code.matchAll(dynamicImportRegex)) {
+    const spec = match[2];
+    const resolved = resolveSpecifier(absolute, spec);
+    if (resolved) {
+      dynamicImports.push({ spec, resolved });
+    }
+  }
+
   code = code.replace(/\/\/# sourceMappingURL=.*$/gm, '');
   if (fallbackSnippets.length) {
     code = `${fallbackSnippets.join('\n')}\n${code}`;
@@ -187,6 +198,7 @@ function parseModule(modulePath) {
     path: absolute,
     code,
     imports: Array.from(imports),
+    dynamicImports,
     localExports,
     exportFrom,
     exportAll
@@ -353,7 +365,35 @@ function minify(code) {
   return result.join('\n');
 }
 
+function copyDynamicImportModules() {
+  const copies = new Map();
+  for (const info of modules.values()) {
+    if (!info.dynamicImports || info.dynamicImports.length === 0) {
+      continue;
+    }
+    for (const entry of info.dynamicImports) {
+      const destPath = path.resolve(bundlesDir, entry.spec);
+      if (!destPath.startsWith(normalizedBundlesDir)) {
+        throw new Error(`Dynamic import target resolves outside bundle directory: ${entry.spec}`);
+      }
+      if (!copies.has(destPath)) {
+        copies.set(destPath, entry.resolved);
+      }
+    }
+  }
+
+  for (const [destPath, sourcePath] of copies.entries()) {
+    fs.mkdirSync(path.dirname(destPath), { recursive: true });
+    fs.copyFileSync(sourcePath, destPath);
+    const sourceMapPath = `${sourcePath}.map`;
+    if (fs.existsSync(sourceMapPath)) {
+      fs.copyFileSync(sourceMapPath, `${destPath}.map`);
+    }
+  }
+}
+
 renameCjsArtifacts();
 buildBundles();
+copyDynamicImportModules();
 
 console.log('ESM and browser bundles generated.');
