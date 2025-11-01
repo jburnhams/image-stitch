@@ -15,13 +15,16 @@ for (let n = 0; n < 256; n++) {
 /**
  * Calculate CRC32 checksum for PNG chunk
  */
-export function crc32(data: Uint8Array, start = 0, length = data.length): number {
+export function pngCrc32(data: Uint8Array, start = 0, length = data.length): number {
   let crc = 0xffffffff;
   for (let i = start; i < start + length; i++) {
     crc = CRC_TABLE[(crc ^ data[i]) & 0xff] ^ (crc >>> 8);
   }
   return (crc ^ 0xffffffff) >>> 0;
 }
+
+// Maintain backwards compatibility with the previous export name
+export { pngCrc32 as crc32 };
 
 /**
  * Read a 32-bit big-endian unsigned integer

@@ -53,7 +53,8 @@ export {
 } from './pixel-ops.js';
 export * from './types.js';
 export {
-  crc32,
+  pngCrc32,
+  pngCrc32 as crc32,
   readUInt32BE,
   writeUInt32BE,
   isPngSignature,

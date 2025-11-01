@@ -11,6 +11,7 @@ const cjsDir = path.join(distDir, 'cjs');
 const bundlesDir = path.join(distDir, 'bundles');
 const browserDir = path.join(distDir, 'browser');
 const pakoEntry = path.join(projectRoot, 'node_modules', 'pako', 'dist', 'pako.esm.mjs');
+const pakoMinEntry = path.join(projectRoot, 'node_modules', 'pako', 'dist', 'pako_deflate.min.js');
 
 fs.mkdirSync(bundlesDir, { recursive: true });
 fs.mkdirSync(browserDir, { recursive: true });
@@ -122,8 +123,24 @@ function parseModule(modulePath) {
     return modules.get(absolute);
   }
 
-  const original = fs.readFileSync(absolute, 'utf8');
-  let code = original;
+  let code = fs.readFileSync(absolute, 'utf8');
+
+  if (absolute === pakoEntry) {
+    const minSource = fs.readFileSync(pakoMinEntry, 'utf8');
+    code = [
+      '// Wrapped pako deflate build for browser bundle',
+      'const module = { exports: {} };',
+      'const exports = module.exports;',
+      '(function (module, exports) {',
+      minSource,
+      '})(module, exports);',
+      'const pako = module.exports;',
+      'const { Deflate, constants, deflate, deflateRaw, gzip } = pako;',
+      'const defaultExport = pako;',
+      'export { Deflate, constants, deflate, deflateRaw, gzip };',
+      'export { defaultExport as default };'
+    ].join('\n');
+  }
   const imports = new Set();
   const localExports = [];
   const exportFrom = [];

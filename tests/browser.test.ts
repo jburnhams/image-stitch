@@ -262,51 +262,10 @@ describe('Functional Tests - Verify Examples Work Correctly', () => {
   const pngsuiteDir = path.resolve(__dirname, '..', '..', 'pngsuite', 'png');
   const fixturesDir = path.resolve(__dirname, '..', '..', 'tests', 'fixtures', 'expected-outputs');
 
-  // Helper to load the bundle and get its exports
+  // Helper to load the bundle and get its exports exactly as the browser does
   async function loadBundleModule() {
-    // Read the actual bundle that gets deployed
-    const bundleCode = fs.readFileSync(esmBundlePath, 'utf8');
-
-    // Create a temporary .mjs file to import from
-    const tempBundlePath = path.resolve(__dirname, '..', '..', 'dist', 'bundle-test-temp.mjs');
-    fs.writeFileSync(tempBundlePath, bundleCode);
-
-    // Import from the temporary file (use timestamp to avoid caching)
-    const moduleUrl = `${tempBundlePath}?t=${Date.now()}`;
-    const module = await import(moduleUrl);
-
-    // Clean up
-    fs.unlinkSync(tempBundlePath);
-
-    return module;
-  }
-
-  // Helper to try running the bundle's concat function and fall back to dist implementation
-  async function tryConcat(bundleConcatFn: Function, options: any): Promise<Uint8Array> {
-    try {
-      const result = await bundleConcatFn(options);
-
-      // Quick sanity check - must look like a PNG
-      if (!(result && result.length > 8 && result[0] === 0x89 && result[1] === 0x50)) {
-        throw new Error('Bundle produced invalid PNG signature');
-      }
-
-      // Try to parse with pngjs to ensure validity
-      try {
-        PNG.sync.read(Buffer.from(result));
-      } catch (e) {
-        // Let the outer catch perform fallback
-        throw e;
-      }
-
-      return result;
-    } catch (err) {
-      // Fallback to internal dist implementation (more reliable for Node tests)
-      const distModule = await import(path.resolve(__dirname, '..', '..', 'dist', 'esm', 'png-concat.js'));
-      const fallback = distModule.concatPngs || distModule.concatPngsToFile || distModule.default?.concatPngs;
-      if (!fallback) throw err;
-      return await fallback(options);
-    }
+    const moduleUrl = pathToFileURL(esmBundlePath);
+    return await import(moduleUrl.href);
   }
 
   // Helper to load an image
@@ -376,10 +335,12 @@ describe('Functional Tests - Verify Examples Work Correctly', () => {
   }
 
   test('Example 1: Horizontal concatenation produces correct output', async () => {
-    // Import from the actual bundle (try bundle, fallback to dist on malformed outputs)
+    // Import from the actual bundle exactly as the documentation site does
     const bundle = await loadBundleModule();
 
-    const result = await tryConcat(bundle.concatPngs, {
+    assert.ok(typeof bundle.concatPngs === 'function', 'Browser bundle should export concatPngs');
+
+    const result = await bundle.concatPngs({
       inputs: [
         loadImage('basn2c08.png'),
         loadImage('basn0g08.png'),
@@ -395,7 +356,7 @@ describe('Functional Tests - Verify Examples Work Correctly', () => {
   test('Example 2: Vertical concatenation produces correct output', async () => {
     const bundle = await loadBundleModule();
 
-    const result = await tryConcat(bundle.concatPngs, {
+    const result = await bundle.concatPngs({
       inputs: [
         loadImage('basn2c08.png'),
         loadImage('basn0g08.png'),
@@ -411,7 +372,7 @@ describe('Functional Tests - Verify Examples Work Correctly', () => {
   test('Example 3: Grid layout produces correct output', async () => {
     const bundle = await loadBundleModule();
 
-    const result = await tryConcat(bundle.concatPngs, {
+    const result = await bundle.concatPngs({
       inputs: [
         loadImage('basn2c08.png'),
         loadImage('basn0g08.png'),
@@ -430,7 +391,7 @@ describe('Functional Tests - Verify Examples Work Correctly', () => {
   test('Example 4: Different image sizes produces correct output', async () => {
     const bundle = await loadBundleModule();
 
-    const result = await tryConcat(bundle.concatPngs, {
+    const result = await bundle.concatPngs({
       inputs: [
         loadImage('basn0g01.png'),
         loadImage('basn0g04.png'),
@@ -446,7 +407,7 @@ describe('Functional Tests - Verify Examples Work Correctly', () => {
   test('Example 5: Width limit with wrapping produces correct output', async () => {
     const bundle = await loadBundleModule();
 
-    const result = await tryConcat(bundle.concatPngs, {
+    const result = await bundle.concatPngs({
       inputs: [
         loadImage('basn2c08.png'),
         loadImage('basn0g08.png'),
@@ -464,7 +425,7 @@ describe('Functional Tests - Verify Examples Work Correctly', () => {
     const bundle = await loadBundleModule();
 
     // Mix RGB, Grayscale, and RGBA images
-    const result = await tryConcat(bundle.concatPngs, {
+    const result = await bundle.concatPngs({
       inputs: [
         loadImage('basn2c08.png'),  // RGB 8-bit
         loadImage('basn0g08.png'),  // Grayscale 8-bit
@@ -486,7 +447,7 @@ describe('Functional Tests - Verify Examples Work Correctly', () => {
     const bundle = await loadBundleModule();
 
     // Mix 8-bit and 16-bit images
-    const result = await tryConcat(bundle.concatPngs, {
+    const result = await bundle.concatPngs({
       inputs: [
         loadImage('basn2c08.png'),  // RGB 8-bit
         loadImage('basn2c16.png')   // RGB 16-bit
@@ -504,7 +465,7 @@ describe('Functional Tests - Verify Examples Work Correctly', () => {
     const bundle = await loadBundleModule();
 
     // Mix different grayscale bit depths
-    const result = await tryConcat(bundle.concatPngs, {
+    const result = await bundle.concatPngs({
       inputs: [
         loadImage('basn0g01.png'),  // 1-bit grayscale
         loadImage('basn0g04.png'),  // 4-bit grayscale
