@@ -1,6 +1,6 @@
 import { PngChunk, PngHeader } from './types.js';
 import {
-  crc32,
+  pngCrc32,
   writeUInt32BE,
   stringToBytes,
   PNG_SIGNATURE
@@ -19,7 +19,7 @@ export function createChunk(type: string, data: Uint8Array): PngChunk {
   const crcData = new Uint8Array(4 + data.length);
   crcData.set(typeBytes, 0);
   crcData.set(data, 4);
-  const crc = crc32(crcData);
+  const crc = pngCrc32(crcData);
 
   return {
     length: data.length,

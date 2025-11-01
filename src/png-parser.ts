@@ -1,6 +1,6 @@
 import { PngChunk, PngHeader } from './types.js';
 import {
-  crc32,
+  pngCrc32,
   readUInt32BE,
   bytesToString,
   isPngSignature
@@ -57,7 +57,7 @@ export class PngParser {
     const crcData = new Uint8Array(4 + length);
     crcData.set(typeBytes, 0);
     crcData.set(data, 4);
-    const calculatedCrc = crc32(crcData);
+    const calculatedCrc = pngCrc32(crcData);
 
     if (calculatedCrc !== crc) {
       throw new Error(`CRC mismatch for chunk ${type}`);
