@@ -12,6 +12,7 @@ import { filterScanline, getBytesPerPixel } from './png-filter.js';
 import { createIHDR, createIEND, serializeChunk, createChunk } from './png-writer.js';
 import { createInputAdapters } from './png-input-adapter.js';
 import { determineCommonFormat, convertScanline, getTransparentColor } from './pixel-ops.js';
+import { StreamingDeflator } from './streaming-deflate.js';
 
 /**
  * Combines multiple scanlines horizontally into one output scanline with variable widths
@@ -262,8 +263,6 @@ export class StreamingConcatenator {
     bytesPerPixel: number,
     transparentColor: Uint8Array
   ): AsyncGenerator<Uint8Array> {
-    const { StreamingDeflator } = await import('./streaming-deflate.js');
-
     // Create scanline generator
     const scanlineGenerator = this.generateFilteredScanlines(
       grid,

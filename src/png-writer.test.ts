@@ -8,7 +8,7 @@ import {
   buildPng
 } from './png-writer.js';
 import { PngHeader, ColorType } from './types.js';
-import { stringToBytes, isPngSignature, crc32 } from './utils.js';
+import { stringToBytes, isPngSignature, pngCrc32 } from './utils.js';
 
 test('createChunk creates valid chunk structure', () => {
   const data = new Uint8Array([1, 2, 3, 4]);
@@ -29,7 +29,7 @@ test('createChunk calculates CRC correctly', () => {
   const crcData = new Uint8Array(8);
   crcData.set(typeBytes, 0);
   crcData.set(data, 4);
-  const expectedCrc = crc32(crcData);
+  const expectedCrc = pngCrc32(crcData);
 
   assert.strictEqual(chunk.crc, expectedCrc);
 });

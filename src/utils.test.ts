@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 import {
+  pngCrc32,
   crc32,
   readUInt32BE,
   writeUInt32BE,
@@ -10,20 +11,25 @@ import {
   PNG_SIGNATURE
 } from './utils.js';
 
-test('crc32 calculates correct checksum', () => {
+test('pngCrc32 calculates correct checksum', () => {
   // Test with known CRC values
   const data = stringToBytes('IHDR');
-  const crc = crc32(data);
+  const crc = pngCrc32(data);
   assert.strictEqual(typeof crc, 'number');
   assert.ok(crc >= 0);
 });
 
-test('crc32 returns different values for different data', () => {
+test('pngCrc32 returns different values for different data', () => {
   const data1 = stringToBytes('IHDR');
   const data2 = stringToBytes('IDAT');
-  const crc1 = crc32(data1);
-  const crc2 = crc32(data2);
+  const crc1 = pngCrc32(data1);
+  const crc2 = pngCrc32(data2);
   assert.notStrictEqual(crc1, crc2);
+});
+
+test('crc32 alias matches pngCrc32 implementation', () => {
+  const data = stringToBytes('IHDR');
+  assert.strictEqual(crc32(data), pngCrc32(data));
 });
 
 test('readUInt32BE reads big-endian 32-bit integer', () => {
