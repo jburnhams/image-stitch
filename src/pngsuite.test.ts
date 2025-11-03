@@ -313,6 +313,65 @@ test('PngSuite: Concatenate vertical layout', async () => {
   assert.strictEqual(header.bitDepth, 8);
 });
 
+// Test that interlaced PNGs are properly rejected
+test('PngSuite: Reject interlaced grayscale PNG (basi0g08.png)', async () => {
+  const png = loadPngSuite('basi0g08.png');
+
+  // Verify it's parsed as interlaced
+  const header = parsePngHeader(png);
+  assert.strictEqual(header.interlaceMethod, 1);
+
+  // Verify it's rejected when trying to concatenate
+  await assert.rejects(
+    async () => {
+      await concatPngs({
+        inputs: [png],
+        layout: { columns: 1 }
+      });
+    },
+    {
+      message: 'Interlaced PNGs are not currently supported. Please use non-interlaced PNG files.'
+    }
+  );
+});
+
+test('PngSuite: Reject interlaced RGB PNG (basi2c08.png)', async () => {
+  const png = loadPngSuite('basi2c08.png');
+
+  const header = parsePngHeader(png);
+  assert.strictEqual(header.interlaceMethod, 1);
+
+  await assert.rejects(
+    async () => {
+      await concatPngs({
+        inputs: [png],
+        layout: { columns: 1 }
+      });
+    },
+    {
+      message: 'Interlaced PNGs are not currently supported. Please use non-interlaced PNG files.'
+    }
+  );
+});
+
+test('PngSuite: Reject mixed interlaced and non-interlaced PNGs', async () => {
+  const interlacedPng = loadPngSuite('basi0g08.png');
+  const normalPng = loadPngSuite('basn0g08.png');
+
+  // Should reject even if only one is interlaced
+  await assert.rejects(
+    async () => {
+      await concatPngs({
+        inputs: [normalPng, interlacedPng],
+        layout: { columns: 2 }
+      });
+    },
+    {
+      message: 'Interlaced PNGs are not currently supported. Please use non-interlaced PNG files.'
+    }
+  );
+});
+
 // Summary test to validate available images
 test('PngSuite: Verify basic test suite is available', () => {
   const requiredFiles = [

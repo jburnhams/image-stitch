@@ -333,6 +333,11 @@ export class FileInputAdapter implements PngInputAdapter {
   async *scanlines(): AsyncGenerator<Uint8Array> {
     const header = await this.getHeader();
 
+    // Check for interlaced PNGs
+    if (header.interlaceMethod !== 0) {
+      throw new Error('Interlaced PNGs are not currently supported. Please use non-interlaced PNG files.');
+    }
+
     // Open file for streaming
     this.fileHandle = await open(this.filePath, 'r');
 
@@ -453,6 +458,11 @@ export class Uint8ArrayInputAdapter implements PngInputAdapter {
 
   async *scanlines(): AsyncGenerator<Uint8Array> {
     const header = await this.getHeader();
+
+    // Check for interlaced PNGs
+    if (header.interlaceMethod !== 0) {
+      throw new Error('Interlaced PNGs are not currently supported. Please use non-interlaced PNG files.');
+    }
 
     if (inputCache.enabled) {
       const entry = getOrCreateCacheEntry(this.data);
