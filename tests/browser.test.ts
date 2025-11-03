@@ -478,4 +478,43 @@ describe('Functional Tests - Verify Examples Work Correctly', () => {
     assert.ok(result.length > 8, 'Output should have content');
     assert.strictEqual(result[0], 0x89, 'PNG signature byte 1');
   });
+
+  test('Library handles interlaced PNG images correctly', async () => {
+    const bundle = await loadBundleModule();
+
+    // Load interlaced images (basi prefix)
+    const result = await bundle.concatPngs({
+      inputs: [
+        loadImage('basi0g08.png'),  // Interlaced grayscale 8-bit
+        loadImage('basi2c08.png'),  // Interlaced RGB 8-bit
+        loadImage('basi4a16.png')   // Interlaced grayscale+alpha 16-bit
+      ],
+      layout: { columns: 3 }
+    });
+
+    // Verify it produces a valid PNG
+    assert.ok(result.length > 8, 'Output should have content');
+    assert.strictEqual(result[0], 0x89, 'PNG signature byte 1');
+    assert.strictEqual(result[1], 0x50, 'PNG signature byte 2');
+    assert.strictEqual(result[2], 0x4E, 'PNG signature byte 3');
+    assert.strictEqual(result[3], 0x47, 'PNG signature byte 4');
+  });
+
+  test('Library handles mixed interlaced and non-interlaced images', async () => {
+    const bundle = await loadBundleModule();
+
+    // Mix interlaced and non-interlaced
+    const result = await bundle.concatPngs({
+      inputs: [
+        loadImage('basn2c08.png'),  // Non-interlaced
+        loadImage('basi2c08.png'),  // Interlaced
+        loadImage('basn6a08.png')   // Non-interlaced
+      ],
+      layout: { columns: 3 }
+    });
+
+    // Verify it produces a valid PNG
+    assert.ok(result.length > 8, 'Output should have content');
+    assert.strictEqual(result[0], 0x89, 'PNG signature byte 1');
+  });
 });

@@ -1,6 +1,7 @@
 import { PngChunk, PngHeader } from './types.js';
 import { unfilterScanline, filterScanline, getBytesPerPixel, FilterType } from './png-filter.js';
 import { getSamplesPerPixel } from './utils.js';
+import { deinterlaceAdam7 } from './adam7.js';
 
 /**
  * Decompress data using Web Compression Streams API
@@ -81,7 +82,12 @@ export async function decompressImageData(idatChunks: PngChunk[], header: PngHea
   // Decompress using Web Compression Streams API
   const decompressed = await decompressData(compressedData);
 
-  // Unfilter scanlines
+  // Handle interlaced images (Adam7)
+  if (header.interlaceMethod === 1) {
+    return deinterlaceAdam7(decompressed, header);
+  }
+
+  // Handle non-interlaced images
   const bytesPerPixel = getBytesPerPixel(header.bitDepth, header.colorType);
   const scanlineLength = Math.ceil((header.width * header.bitDepth * getSamplesPerPixel(header.colorType)) / 8);
   const unfilteredData = new Uint8Array(header.height * scanlineLength);

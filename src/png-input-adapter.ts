@@ -13,6 +13,8 @@ import type { PngInputSource } from './types.js';
 import { parsePngHeader, parsePngChunks } from './png-parser.js';
 import { unfilterScanline, getBytesPerPixel, FilterType } from './png-filter.js';
 import { readUInt32BE, bytesToString, getSamplesPerPixel } from './utils.js';
+import { decompressData } from './png-decompress.js';
+import { deinterlaceAdam7 } from './adam7.js';
 
 /**
  * Input caching configuration
@@ -193,6 +195,22 @@ async function* decodeScanlinesFromCompressedData(
   const scanlineLength = Math.ceil(
     (header.width * header.bitDepth * getSamplesPerPixel(header.colorType)) / 8
   );
+
+  // For interlaced images, we need all data at once to deinterlace
+  // Fall back to batch processing
+  if (header.interlaceMethod === 1) {
+    const decompressed = await decompressData(compressedData);
+    const deinterlaced = deinterlaceAdam7(decompressed, header);
+
+    // Yield scanlines from the deinterlaced data
+    for (let y = 0; y < header.height; y++) {
+      const offset = y * scanlineLength;
+      yield deinterlaced.slice(offset, offset + scanlineLength);
+    }
+    return;
+  }
+
+  // For non-interlaced images, stream scanlines
   const bytesPerLine = 1 + scanlineLength;
 
   let previousScanline: Uint8Array | null = null;
@@ -333,11 +351,6 @@ export class FileInputAdapter implements PngInputAdapter {
   async *scanlines(): AsyncGenerator<Uint8Array> {
     const header = await this.getHeader();
 
-    // Check for interlaced PNGs
-    if (header.interlaceMethod !== 0) {
-      throw new Error('Interlaced PNGs are not currently supported. Please use non-interlaced PNG files.');
-    }
-
     // Open file for streaming
     this.fileHandle = await open(this.filePath, 'r');
 
@@ -458,11 +471,6 @@ export class Uint8ArrayInputAdapter implements PngInputAdapter {
 
   async *scanlines(): AsyncGenerator<Uint8Array> {
     const header = await this.getHeader();
-
-    // Check for interlaced PNGs
-    if (header.interlaceMethod !== 0) {
-      throw new Error('Interlaced PNGs are not currently supported. Please use non-interlaced PNG files.');
-    }
 
     if (inputCache.enabled) {
       const entry = getOrCreateCacheEntry(this.data);

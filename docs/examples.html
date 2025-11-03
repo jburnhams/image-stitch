@@ -198,7 +198,7 @@
         <div class="code-block" data-code>
 import { concatPngs } from "image-stitch";
 
-const names = ["basn0g08.png", "basn2c08.png", "basn6a08.png"];
+const names = ["basi0g08.png", "basi2c08.png", "basi4a16.png"];
 const buffers = await Promise.all(
   names.map((name) => fetch(`images/${name}`).then((res) => res.arrayBuffer()))
 );
@@ -224,7 +224,7 @@ const output = await concatPngs({
         <div class="code-block" data-code>
 import { concatPngs } from "image-stitch";
 
-const names = ["basn2c08.png", "basn0g08.png"];
+const names = ["basi2c08.png", "basi0g08.png"];
 const buffers = await Promise.all(
   names.map((name) => fetch(`images/${name}`).then((res) => res.arrayBuffer()))
 );
@@ -250,7 +250,7 @@ const output = await concatPngs({
         <div class="code-block" data-code>
 import { concatPngs } from "image-stitch";
 
-const names = ["basn0g08.png", "basn2c08.png", "basn6a08.png", "basn0g08.png"];
+const names = ["basi0g08.png", "basi2c08.png", "basi4a16.png", "basi0g08.png"];
 const buffers = await Promise.all(
   names.map((name) => fetch(`images/${name}`).then((res) => res.arrayBuffer()))
 );
@@ -306,9 +306,9 @@ const output = await concatPngs({
     const SAMPLE_PATH = "images/";
 
     const SAMPLE_MAP = {
-      horizontal: ["basn0g08.png", "basn2c08.png", "basn6a08.png"],
-      vertical: ["basn2c08.png", "basn0g08.png"],
-      grid: ["basn0g08.png", "basn2c08.png", "basn6a08.png", "basn0g08.png"]
+      horizontal: ["basi0g08.png", "basi2c08.png", "basi4a16.png"],
+      vertical: ["basi2c08.png", "basi0g08.png"],
+      grid: ["basi0g08.png", "basi2c08.png", "basi4a16.png", "basi0g08.png"]
     };
 
     const LAYOUTS = {
