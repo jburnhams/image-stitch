@@ -313,6 +313,72 @@ test('PngSuite: Concatenate vertical layout', async () => {
   assert.strictEqual(header.bitDepth, 8);
 });
 
+// Test that interlaced PNGs work correctly
+test('PngSuite: Concatenate interlaced grayscale PNG (basi0g08.png)', async () => {
+  const png = loadPngSuite('basi0g08.png');
+
+  // Verify it's parsed as interlaced
+  const header = parsePngHeader(png);
+  assert.strictEqual(header.interlaceMethod, 1);
+
+  // Should successfully process interlaced image
+  const result = await concatPngs({
+    inputs: [png],
+    layout: { columns: 1 }
+  });
+
+  const resultHeader = parsePngHeader(result);
+  assert.strictEqual(resultHeader.width, 32);
+  assert.strictEqual(resultHeader.height, 32);
+  assert.ok(result.length > 0, 'Result should have data');
+});
+
+test('PngSuite: Concatenate interlaced RGB PNG (basi2c08.png)', async () => {
+  const png = loadPngSuite('basi2c08.png');
+
+  const header = parsePngHeader(png);
+  assert.strictEqual(header.interlaceMethod, 1);
+
+  const result = await concatPngs({
+    inputs: [png],
+    layout: { columns: 1 }
+  });
+
+  const resultHeader = parsePngHeader(result);
+  assert.strictEqual(resultHeader.width, 32);
+  assert.strictEqual(resultHeader.height, 32);
+});
+
+test('PngSuite: Concatenate two interlaced images', async () => {
+  const png1 = loadPngSuite('basi0g08.png');
+  const png2 = loadPngSuite('basi2c08.png');
+
+  const result = await concatPngs({
+    inputs: [png1, png2],
+    layout: { columns: 2 }
+  });
+
+  const resultHeader = parsePngHeader(result);
+  assert.strictEqual(resultHeader.width, 64); // 32 * 2
+  assert.strictEqual(resultHeader.height, 32);
+  assert.strictEqual(resultHeader.colorType, ColorType.RGBA);
+});
+
+test('PngSuite: Mix interlaced and non-interlaced PNGs', async () => {
+  const interlacedPng = loadPngSuite('basi0g08.png');
+  const normalPng = loadPngSuite('basn0g08.png');
+
+  // Should handle mixed interlaced and non-interlaced
+  const result = await concatPngs({
+    inputs: [normalPng, interlacedPng],
+    layout: { columns: 2 }
+  });
+
+  const resultHeader = parsePngHeader(result);
+  assert.strictEqual(resultHeader.width, 64); // 32 * 2
+  assert.strictEqual(resultHeader.height, 32);
+});
+
 // Summary test to validate available images
 test('PngSuite: Verify basic test suite is available', () => {
   const requiredFiles = [
