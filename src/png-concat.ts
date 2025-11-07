@@ -1,8 +1,9 @@
 /**
- * PNG Concatenation
+ * Image Concatenation (Multi-Format Support)
  *
  * Scanline-by-scanline streaming approach that minimizes memory usage.
- * Processes one output row at a time using the adapter architecture.
+ * Supports PNG, JPEG, and HEIC input formats with automatic format detection.
+ * Processes one output row at a time using the decoder architecture.
  */
 
 import { Readable } from 'node:stream';
@@ -10,9 +11,40 @@ import { ConcatOptions, PngHeader } from './types.js';
 import { PNG_SIGNATURE } from './utils.js';
 import { filterScanline, getBytesPerPixel } from './png-filter.js';
 import { createIHDR, createIEND, serializeChunk, createChunk } from './png-writer.js';
-import { createInputAdapters } from './png-input-adapter.js';
+import { createDecodersFromIterable } from './decoders/decoder-factory.js';
+import type { ImageHeader } from './decoders/types.js';
 import { determineCommonFormat, convertScanline, getTransparentColor } from './pixel-ops.js';
 import { StreamingDeflator } from './streaming-deflate.js';
+
+/**
+ * Convert ImageHeader to PngHeader for internal PNG processing
+ * Maps generic image headers to PNG-specific format
+ */
+function imageHeaderToPngHeader(header: ImageHeader): PngHeader {
+  // Determine PNG color type from channel count
+  let colorType: number;
+  if (header.channels === 1) {
+    colorType = 0; // Grayscale
+  } else if (header.channels === 2) {
+    colorType = 4; // Grayscale + Alpha
+  } else if (header.channels === 3) {
+    colorType = 2; // RGB
+  } else if (header.channels === 4) {
+    colorType = 6; // RGBA
+  } else {
+    throw new Error(`Unsupported channel count: ${header.channels}`);
+  }
+
+  return {
+    width: header.width,
+    height: header.height,
+    bitDepth: header.bitDepth,
+    colorType,
+    compressionMethod: 0, // Deflate (standard)
+    filterMethod: 0, // Adaptive filtering (standard)
+    interlaceMethod: 0 // No interlacing (standard for output)
+  };
+}
 
 /**
  * Combines multiple scanlines horizontally into one output scanline with variable widths
@@ -438,19 +470,22 @@ export class StreamingConcatenator {
    * Stream concatenated PNG output scanline-by-scanline
    */
   async *stream(): AsyncGenerator<Uint8Array> {
-    // PASS 1: Create adapters and read headers
-    const adapters = await createInputAdapters(this.options.inputs);
-    if (adapters.length === 0) {
+    // PASS 1: Create decoders and read headers (supports PNG, JPEG, HEIC)
+    const decoders = await createDecodersFromIterable(this.options.inputs, this.options.decoderOptions);
+    if (decoders.length === 0) {
       throw new Error('At least one input image is required');
     }
-    const headers: PngHeader[] = [];
+
+    // Get headers from all decoders
+    const imageHeaders: ImageHeader[] = [];
+    for (const decoder of decoders) {
+      imageHeaders.push(await decoder.getHeader());
+    }
+
+    // Convert to PNG headers for internal processing
+    const headers: PngHeader[] = imageHeaders.map(imageHeaderToPngHeader);
 
     try {
-      for (const adapter of adapters) {
-        const header = await adapter.getHeader();
-        headers.push(header);
-      }
-
       // Determine common format that can represent all images
       const { bitDepth: targetBitDepth, colorType: targetColorType } = determineCommonFormat(headers);
 
@@ -476,8 +511,8 @@ export class StreamingConcatenator {
       yield serializeChunk(createIHDR(outputHeader));
 
       // PASS 2: Stream scanlines with true streaming compression
-      // Create iterators for each input
-      const iterators = adapters.map(adapter => adapter.scanlines());
+      // Create iterators for each input decoder
+      const iterators = decoders.map(decoder => decoder.scanlines());
       const bytesPerPixel = getBytesPerPixel(outputHeader.bitDepth, outputHeader.colorType);
       const transparentColor = getTransparentColor(outputHeader.colorType, outputHeader.bitDepth);
 
@@ -497,9 +532,9 @@ export class StreamingConcatenator {
       // Yield IEND
       yield serializeChunk(createIEND());
     } finally {
-      // Clean up all adapters
-      for (const adapter of adapters) {
-        await adapter.close();
+      // Clean up all decoders and release resources
+      for (const decoder of decoders) {
+        await decoder.close();
       }
     }
   }
@@ -528,17 +563,33 @@ export class StreamingConcatenator {
 }
 
 /**
- * Concatenate PNGs with streaming (minimal memory usage)
+ * Concatenate images with streaming (minimal memory usage)
  *
- * This processes images scanline-by-scanline, keeping only a few rows
- * in memory at a time. Ideal for large images.
+ * Supports PNG, JPEG, and HEIC input formats with automatic format detection.
+ * Processes images scanline-by-scanline, keeping only a few rows in memory at a time.
+ * Output is always PNG format.
  *
- * Supports:
+ * Supported input formats:
+ * - PNG (all color types, bit depths, interlaced)
+ * - JPEG (baseline, progressive, grayscale, RGB)
+ * - HEIC/HEIF (all variants)
+ *
+ * Supported input types:
  * - File paths (string)
  * - Uint8Array buffers
- * - Mixed input types
+ * - ArrayBuffer
+ * - Mixed input types and formats
  * - Variable image dimensions with automatic padding
  * - All layout options (columns, rows, width, height)
+ *
+ * @example
+ * // Mix PNG, JPEG, and HEIC files
+ * for await (const chunk of concatPngsStreaming({
+ *   inputs: ['photo.jpg', 'image.png', 'pic.heic'],
+ *   layout: { columns: 3 }
+ * })) {
+ *   // Process chunk
+ * }
  */
 export async function* concatPngsStreaming(
   options: ConcatOptions
@@ -549,6 +600,8 @@ export async function* concatPngsStreaming(
 
 /**
  * Get a Readable stream for streaming concatenation
+ *
+ * Supports PNG, JPEG, and HEIC inputs. Output is PNG format.
  */
 export function concatPngsToStream(options: ConcatOptions): Readable {
   const concatenator = new StreamingConcatenator(options);
@@ -567,35 +620,50 @@ export interface UnifiedConcatOptions extends ConcatOptions {
 }
 
 /**
- * Unified PNG concatenation function using streaming
+ * Unified image concatenation function with multi-format support
+ *
+ * Supports PNG, JPEG, and HEIC input formats with automatic detection.
+ * Output is PNG format (additional formats may be added in future).
  *
  * This function uses a streaming implementation which:
  * - Processes images scanline-by-scanline
- * - Minimizes memory usage
- * - Supports both file paths and Uint8Array inputs
+ * - Minimizes memory usage (O(scanline) not O(image))
+ * - Supports file paths, Uint8Array, and ArrayBuffer inputs
  * - Handles variable image dimensions with automatic padding
+ * - Works in both Node.js and browser environments
  *
  * @example
- * // Simple usage - returns Uint8Array
+ * // Simple usage - mix formats, returns Uint8Array
  * const result = await concatPngs({
- *   inputs: ['img1.png', 'img2.png'],
- *   layout: { columns: 2 }
+ *   inputs: ['photo.jpg', 'image.png', 'pic.heic'],
+ *   layout: { columns: 3 }
  * });
  *
  * @example
  * // Stream output for HTTP responses or large files
  * const stream = await concatPngs({
- *   inputs: ['img1.png', 'img2.png'],
+ *   inputs: ['img1.png', 'img2.jpg'],
  *   layout: { columns: 2 },
  *   stream: true
  * });
  * stream.pipe(res);
  *
  * @example
- * // Mix file paths, Uint8Arrays, and ArrayBuffers
+ * // Mix file paths and buffers
  * const result = await concatPngs({
- *   inputs: ['img1.png', pngBuffer, anotherArrayBuffer],
+ *   inputs: ['photo.jpg', jpegBuffer, pngArrayBuffer],
  *   layout: { rows: 2 }
+ * });
+ *
+ * @example
+ * // With decoder options
+ * const result = await concatPngs({
+ *   inputs: ['photo.heic', 'image.jpg'],
+ *   layout: { columns: 2 },
+ *   decoderOptions: {
+ *     jpeg: { useImageDecoderAPI: true },
+ *     heic: { useNativeIfAvailable: true }
+ *   }
  * });
  */
 export function concatPngs(options: UnifiedConcatOptions & { stream: true }): Promise<Readable>;

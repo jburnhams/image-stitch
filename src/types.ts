@@ -1,4 +1,4 @@
-import type { PngInput, PngInputAdapter } from './png-input-adapter.js';
+import type { ImageInput, DecoderOptions } from './decoders/types.js';
 
 /**
  * PNG chunk structure
@@ -24,20 +24,31 @@ export interface PngHeader {
 }
 
 /**
- * Configuration for PNG concatenation
+ * Multi-format image input source type
  */
-export type PngInputSource =
-  | Array<Uint8Array | ArrayBuffer | string | PngInputAdapter>
-  | Iterable<PngInput>
-  | AsyncIterable<PngInput>;
+export type ImageInputSource =
+  | Array<ImageInput>
+  | Iterable<ImageInput>
+  | AsyncIterable<ImageInput>;
 
+/**
+ * Legacy PNG-only input source type (for backward compatibility)
+ * @deprecated Use ImageInputSource instead
+ */
+export type PngInputSource = ImageInputSource;
+
+/**
+ * Configuration for image concatenation (multi-format support)
+ */
 export interface ConcatOptions {
   /**
-   * Input PNG sources. Can be an array, iterable, or async iterable of inputs.
+   * Input image sources (PNG, JPEG, HEIC).
+   * Can be an array, iterable, or async iterable of inputs.
    * Async iterables allow lazily generating tiles so large grids do not require
    * allocating every image up front.
    */
-  inputs: PngInputSource;
+  inputs: ImageInputSource;
+
   /** Layout configuration */
   layout: {
     /** Number of images per row (horizontal concatenation) */
@@ -49,6 +60,16 @@ export interface ConcatOptions {
     /** Output height in pixels (alternative to rows) */
     height?: number;
   };
+
+  /**
+   * Format-specific decoder options
+   */
+  decoderOptions?: DecoderOptions;
+
+  /**
+   * Output format (currently only PNG supported, future: JPEG, WebP)
+   */
+  outputFormat?: 'png';
 }
 
 /**
