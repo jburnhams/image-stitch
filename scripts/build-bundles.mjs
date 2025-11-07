@@ -20,34 +20,60 @@ function renameCjsArtifacts() {
   if (!fs.existsSync(cjsDir)) {
     return;
   }
-  for (const file of fs.readdirSync(cjsDir)) {
-    if (!file.endsWith('.js')) {
-      continue;
-    }
-    const base = file.slice(0, -3);
-    const srcPath = path.join(cjsDir, file);
-    const destPath = path.join(cjsDir, `${base}.cjs`);
-    fs.renameSync(srcPath, destPath);
 
-    const mapPath = `${srcPath}.map`;
-    if (fs.existsSync(mapPath)) {
-      const destMap = path.join(cjsDir, `${base}.cjs.map`);
-      const raw = fs.readFileSync(mapPath, 'utf8');
-      const json = JSON.parse(raw);
-      json.file = `${base}.cjs`;
-      fs.writeFileSync(destMap, JSON.stringify(json));
-      fs.unlinkSync(mapPath);
-    }
+  function processDirectory(dir) {
+    for (const file of fs.readdirSync(dir)) {
+      const fullPath = path.join(dir, file);
 
-    let content = fs.readFileSync(destPath, 'utf8');
-    content = content.replace(/require\((['"]\.\.?(?:\/[^'"\\]+)*)\.js(['"])\)/g, 'require($1.cjs$2)');
-    content = content.replace(/import\((['"]\.\.?(?:\/[^'"\\]+)*)\.js(['"])\)/g, 'import($1.cjs$2)');
-    content = content.replace(/\/\/# sourceMappingURL=.*$/gm, `//# sourceMappingURL=${base}.cjs.map`);
-    if (!content.endsWith('\n')) {
-      content += '\n';
+      // Skip if file doesn't exist (may have been deleted as a .map file)
+      if (!fs.existsSync(fullPath)) {
+        continue;
+      }
+
+      const stat = fs.statSync(fullPath);
+
+      if (stat.isDirectory()) {
+        // Recursively process subdirectories
+        processDirectory(fullPath);
+        continue;
+      }
+
+      // Skip .map files - they're handled together with their .js files
+      if (file.endsWith('.map')) {
+        continue;
+      }
+
+      if (!file.endsWith('.js')) {
+        continue;
+      }
+
+      const base = file.slice(0, -3);
+      const srcPath = fullPath;
+      const destPath = path.join(dir, `${base}.cjs`);
+      fs.renameSync(srcPath, destPath);
+
+      const mapPath = `${srcPath}.map`;
+      if (fs.existsSync(mapPath)) {
+        const destMap = path.join(dir, `${base}.cjs.map`);
+        const raw = fs.readFileSync(mapPath, 'utf8');
+        const json = JSON.parse(raw);
+        json.file = `${base}.cjs`;
+        fs.writeFileSync(destMap, JSON.stringify(json));
+        fs.unlinkSync(mapPath);
+      }
+
+      let content = fs.readFileSync(destPath, 'utf8');
+      content = content.replace(/require\((['"]\.\.?(?:\/[^'"\\]+)*)\.js(['"])\)/g, 'require($1.cjs$2)');
+      content = content.replace(/import\((['"]\.\.?(?:\/[^'"\\]+)*)\.js(['"])\)/g, 'import($1.cjs$2)');
+      content = content.replace(/\/\/# sourceMappingURL=.*$/gm, `//# sourceMappingURL=${base}.cjs.map`);
+      if (!content.endsWith('\n')) {
+        content += '\n';
+      }
+      fs.writeFileSync(destPath, content);
     }
-    fs.writeFileSync(destPath, content);
   }
+
+  processDirectory(cjsDir);
 }
 
 const modules = new Map();
