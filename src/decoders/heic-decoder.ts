@@ -34,7 +34,7 @@ async function hasNativeHeicSupport(): Promise<boolean> {
 /**
  * Decode HEIC using native browser support (Safari/iOS)
  */
-async function decodeWithNative(data: Uint8Array): Promise<Uint8Array> {
+async function decodeWithNative(data: Uint8Array): Promise<{ pixels: Uint8Array; width: number; height: number }> {
   // Create blob from HEIC data - create a copy to ensure it's an ArrayBuffer
   const buffer = data.slice().buffer as ArrayBuffer;
   const blob = new Blob([buffer], { type: 'image/heic' });
@@ -55,7 +55,11 @@ async function decodeWithNative(data: Uint8Array): Promise<Uint8Array> {
 
     ctx.drawImage(imageBitmap, 0, 0);
     const imageData = ctx.getImageData(0, 0, width, height);
-    return new Uint8Array(imageData.data);
+    return {
+      pixels: new Uint8Array(imageData.data),
+      width,
+      height
+    };
   } finally {
     imageBitmap.close();
   }
@@ -64,7 +68,7 @@ async function decodeWithNative(data: Uint8Array): Promise<Uint8Array> {
 /**
  * Decode HEIC using libheif-js WASM (browser fallback)
  */
-async function decodeWithLibheifJs(data: Uint8Array, wasmPath?: string): Promise<Uint8Array> {
+async function decodeWithLibheifJs(data: Uint8Array, wasmPath?: string): Promise<{ pixels: Uint8Array; width: number; height: number }> {
   try {
     // Dynamic import to avoid bundling (optional peer dependency)
     // @ts-expect-error - libheif-js is an optional peer dependency
@@ -92,7 +96,11 @@ async function decodeWithLibheifJs(data: Uint8Array, wasmPath?: string): Promise
     // Get RGBA data
     const rgbaData = image.display({ data: new Uint8ClampedArray(width * height * 4), width, height });
 
-    return new Uint8Array(rgbaData.data);
+    return {
+      pixels: new Uint8Array(rgbaData.data),
+      width,
+      height
+    };
   } catch (err) {
     if ((err as Error).message?.includes('Cannot find module')) {
       throw new Error('libheif-js module not found. Install with: npm install libheif-js');
@@ -135,7 +143,7 @@ async function decodeWithSharp(data: Uint8Array): Promise<{ pixels: Uint8Array; 
 /**
  * Decode HEIC using heic-decode WASM (Node.js fallback)
  */
-async function decodeWithHeicDecode(data: Uint8Array): Promise<Uint8Array> {
+async function decodeWithHeicDecode(data: Uint8Array): Promise<{ pixels: Uint8Array; width: number; height: number }> {
   try {
     // Dynamic import (optional peer dependency)
     // @ts-expect-error - heic-decode is an optional peer dependency
@@ -148,7 +156,11 @@ async function decodeWithHeicDecode(data: Uint8Array): Promise<Uint8Array> {
 
     // Get first image
     const image = result[0];
-    return new Uint8Array(image.data);
+    return {
+      pixels: new Uint8Array(image.data),
+      width: image.width,
+      height: image.height
+    };
   } catch (err) {
     if ((err as Error).message?.includes('Cannot find module')) {
       throw new Error('heic-decode module not found. Install with: npm install heic-decode');
@@ -185,14 +197,7 @@ async function decodeHeic(
       const hasNative = await hasNativeHeicSupport();
       if (hasNative) {
         try {
-          const pixels = await decodeWithNative(data);
-          // Try to parse header for dimensions
-          const header = parseHeicHeader(data);
-          if (header.width && header.height) {
-            return { pixels, width: header.width, height: header.height };
-          }
-          // If header parsing failed, we can't determine dimensions from pixels alone
-          // Fall through to libheif which will give us dimensions
+          return await decodeWithNative(data);
         } catch (err) {
           console.warn('Native HEIC decode failed, trying WASM fallback:', err);
         }
@@ -200,12 +205,7 @@ async function decodeHeic(
     }
 
     // Fallback to libheif-js WASM
-    void await decodeWithLibheifJs(data, options.wasmPath);
-    // libheif-js gives us width/height in the decode result, but we need to extract it
-    // For now, we'll need to rely on the library to provide dimensions
-    // This is a limitation - we'd need to enhance the decodeWithLibheifJs function
-
-    throw new Error('HEIC decoding in browser requires dimension information - enhancement needed');
+    return await decodeWithLibheifJs(data, options.wasmPath);
   }
 
   // Node.js environment
@@ -218,9 +218,7 @@ async function decodeHeic(
     }
 
     // Fallback to heic-decode WASM
-    void await decodeWithHeicDecode(data);
-    // Similar issue - need dimensions from decode result
-    throw new Error('HEIC decoding with heic-decode requires dimension information - enhancement needed');
+    return await decodeWithHeicDecode(data);
   }
 
   throw new Error('Unsupported environment for HEIC decoding');
