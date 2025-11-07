@@ -125,10 +125,10 @@
 
     <section>
       <h2>Quick start (Node.js)</h2>
-      <pre><code>import { concatPngs } from "image-stitch";
+      <pre><code>import { concat } from "image-stitch";
 import { readFileSync, writeFileSync } from "node:fs";
 
-const stitched = await concatPngs({
+const stitched = await concat({
   inputs: [
     readFileSync("./pngsuite/png/basi0g08.png"),
     readFileSync("./pngsuite/png/basi2c08.png")
@@ -144,14 +144,14 @@ writeFileSync("spritesheet.png", stitched);
     <section>
       <h2>Browser usage</h2>
       <p>Use dynamic imports to fetch the ESM bundle from a CDN when prototyping. The following snippet wires the result into an <code>&lt;img&gt;</code>.</p>
-      <pre><code>const { concatPngs } = await import("https://cdn.jsdelivr.net/npm/image-stitch/dist/bundles/image-stitch.esm.js");
+      <pre><code>const { concat } = await import("https://cdn.jsdelivr.net/npm/image-stitch/dist/bundles/image-stitch.esm.js");
 
 const buffers = await Promise.all([
   fetch("./images/basi0g08.png").then(r =&gt; r.arrayBuffer()),
   fetch("./images/basi2c08.png").then(r =&gt; r.arrayBuffer())
 ]);
 
-const stitched = await concatPngs({ inputs: buffers, layout: { columns: 2 } });
+const stitched = await concat({ inputs: buffers, layout: { columns: 2 } });
 const blob = new Blob([stitched], { type: "image/png" });
 document.querySelector("img.preview").src = URL.createObjectURL(blob);
 </code></pre>
@@ -160,7 +160,7 @@ document.querySelector("img.preview").src = URL.createObjectURL(blob);
 
     <section>
       <h2>API reference</h2>
-      <h3><code>concatPngs(options)</code></h3>
+      <h3><code>concat(options)</code></h3>
       <p>Concatenate input images and return a <code>Promise&lt;Uint8Array&gt;</code>. All options are required unless marked optional.</p>
       <pre><code>interface ConcatOptions {
   inputs: Array&lt;Uint8Array | ArrayBuffer | string&gt;;
@@ -181,11 +181,11 @@ document.querySelector("img.preview").src = URL.createObjectURL(blob);
         <li><strong>layout.height</strong> — Maximum pixel height; truncates or wraps based on <code>wrapBehavior</code>.</li>
       </ul>
 
-      <h3><code>concatPngsStream(options)</code></h3>
+      <h3><code>concatStream(options)</code></h3>
       <p>Returns an async generator of <code>Uint8Array</code> chunks. Perfect for HTTP responses.</p>
-      <pre><code>import { concatPngsStream } from "image-stitch";
+      <pre><code>import { concatStream } from "image-stitch";
 
-const stream = concatPngsStream({ inputs, layout: { width: 2048 } });
+const stream = concatStream({ inputs, layout: { width: 2048 } });
 for await (const chunk of stream) {
   response.write(chunk);
 }
@@ -197,7 +197,7 @@ for await (const chunk of stream) {
       <ul>
         <li>Use inputs with matching bit depth and color type to avoid implicit conversions.</li>
         <li>Combine sprites that share transparency for consistent padding.</li>
-        <li>Prefer <code>concatPngsStream</code> for large or user-submitted assets.</li>
+        <li>Prefer <code>concatStream</code> for large or user-submitted assets.</li>
         <li>Defer heavy work to a worker thread when running inside a browser UI.</li>
       </ul>
     </section>

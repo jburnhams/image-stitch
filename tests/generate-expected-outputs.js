@@ -8,7 +8,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { concatPngs } from '../dist/png-concat.js';
+import { concat } from './image-concat.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -29,7 +29,7 @@ function loadImage(filename) {
 // Example 1: Horizontal Concatenation (3 images in a row)
 async function generateExample1() {
   console.log('Example 1: Horizontal concatenation...');
-  const result = await concatPngs({
+  const result = await concat({
     inputs: [
       loadImage('basn2c08.png'),
       loadImage('basn0g08.png'),
@@ -44,7 +44,7 @@ async function generateExample1() {
 // Example 2: Vertical Concatenation (3 images stacked)
 async function generateExample2() {
   console.log('Example 2: Vertical concatenation...');
-  const result = await concatPngs({
+  const result = await concat({
     inputs: [
       loadImage('basn2c08.png'),
       loadImage('basn0g08.png'),
@@ -59,7 +59,7 @@ async function generateExample2() {
 // Example 3: Grid Layout (2x3 grid)
 async function generateExample3() {
   console.log('Example 3: Grid layout...');
-  const result = await concatPngs({
+  const result = await concat({
     inputs: [
       loadImage('basn2c08.png'),
       loadImage('basn0g08.png'),
@@ -77,7 +77,7 @@ async function generateExample3() {
 // Example 4: Different Image Sizes
 async function generateExample4() {
   console.log('Example 4: Different image sizes...');
-  const result = await concatPngs({
+  const result = await concat({
     inputs: [
       loadImage('basn0g01.png'),
       loadImage('basn0g04.png'),
@@ -92,7 +92,7 @@ async function generateExample4() {
 // Example 5: Width Limit with Wrapping
 async function generateExample5() {
   console.log('Example 5: Width limit with wrapping...');
-  const result = await concatPngs({
+  const result = await concat({
     inputs: [
       loadImage('basn2c08.png'),
       loadImage('basn0g08.png'),

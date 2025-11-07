@@ -1,29 +1,61 @@
 /**
- * PNG Concatenation Library
+ * Multi-Format Image Concatenation Library
  *
- * A streaming PNG concatenation library for Node.js and web browsers
- * that works without canvas and can handle large files efficiently.
+ * A streaming image concatenation library for Node.js and web browsers.
+ * Supports PNG, JPEG, and HEIC input formats with automatic detection.
+ * Works without canvas and handles large files efficiently with minimal memory usage.
+ *
+ * Key features:
+ * - Multi-format input: PNG, JPEG, HEIC
+ * - Streaming processing (O(scanline) memory, not O(image))
+ * - Browser and Node.js support
+ * - No canvas dependency
+ * - Automatic format detection
+ * - Variable image sizes with padding
+ *
+ * @example
+ * import { concat } from 'image-stitch';
+ *
+ * // Mix different formats
+ * const result = await concat({
+ *   inputs: ['photo.jpg', 'image.png', 'pic.heic'],
+ *   layout: { columns: 3 }
+ * });
  */
 
 // Main API - use this!
-export { concatPngs, concatPngsToFile } from './png-concat.js';
-export type { UnifiedConcatOptions } from './png-concat.js';
+export { concat, concatToFile, concatStreaming, concatToStream } from './image-concat.js';
+export type { UnifiedConcatOptions } from './image-concat.js';
 
-// Input adapter system for custom input types
-export type { PngInputAdapter, PngInput } from './png-input-adapter.js';
+// Multi-format decoder system (NEW - supports PNG, JPEG, HEIC)
+export type {
+  ImageDecoder,
+  ImageHeader,
+  ImageFormat,
+  ImageInput,
+  DecoderOptions,
+  JpegDecoderOptions,
+  HeicDecoderOptions
+} from './decoders/index.js';
 export {
-  FileInputAdapter,
-  Uint8ArrayInputAdapter,
-  createInputAdapter,
-  createInputAdapters,
-  enableInputCache,
-  disableInputCache,
-  clearInputCache,
-  isInputCacheEnabled
-} from './png-input-adapter.js';
+  // Factory functions (recommended)
+  createDecoder,
+  createDecoders,
+  createDecodersFromIterable,
+  // Format detection
+  detectImageFormat,
+  detectFormat,
+  // Individual decoders (advanced use)
+  PngFileDecoder,
+  PngBufferDecoder,
+  JpegFileDecoder,
+  JpegBufferDecoder,
+  HeicFileDecoder,
+  HeicBufferDecoder
+} from './decoders/index.js';
 
 // Streaming implementation
-export { StreamingConcatenator } from './png-concat.js';
+export { StreamingConcatenator } from './image-concat.js';
 
 // Low-level APIs for advanced use
 export { parsePngHeader, parsePngChunks, PngParser } from './png-parser.js';
