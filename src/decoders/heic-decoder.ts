@@ -34,7 +34,7 @@ async function hasNativeHeicSupport(): Promise<boolean> {
 /**
  * Decode HEIC using native browser support (Safari/iOS)
  */
-async function decodeWithNative(data: Uint8Array): Promise<{ pixels: Uint8Array; width: number; height: number }> {
+async function decodeHeicWithNative(data: Uint8Array): Promise<{ pixels: Uint8Array; width: number; height: number }> {
   // Create blob from HEIC data - create a copy to ensure it's an ArrayBuffer
   const buffer = data.slice().buffer as ArrayBuffer;
   const blob = new Blob([buffer], { type: 'image/heic' });
@@ -68,7 +68,7 @@ async function decodeWithNative(data: Uint8Array): Promise<{ pixels: Uint8Array;
 /**
  * Decode HEIC using libheif-js WASM (browser fallback)
  */
-async function decodeWithLibheifJs(data: Uint8Array, wasmPath?: string): Promise<{ pixels: Uint8Array; width: number; height: number }> {
+async function decodeHeicWithLibheifJs(data: Uint8Array, wasmPath?: string): Promise<{ pixels: Uint8Array; width: number; height: number }> {
   try {
     // Dynamic import to avoid bundling (optional peer dependency)
     // @ts-expect-error - libheif-js is an optional peer dependency
@@ -112,7 +112,7 @@ async function decodeWithLibheifJs(data: Uint8Array, wasmPath?: string): Promise
 /**
  * Decode HEIC using sharp (Node.js, requires libheif)
  */
-async function decodeWithSharp(data: Uint8Array): Promise<{ pixels: Uint8Array; width: number; height: number }> {
+async function decodeHeicWithSharp(data: Uint8Array): Promise<{ pixels: Uint8Array; width: number; height: number }> {
   try {
     // Dynamic import (optional peer dependency)
     // @ts-expect-error - sharp is an optional peer dependency
@@ -143,7 +143,7 @@ async function decodeWithSharp(data: Uint8Array): Promise<{ pixels: Uint8Array; 
 /**
  * Decode HEIC using heic-decode WASM (Node.js fallback)
  */
-async function decodeWithHeicDecode(data: Uint8Array): Promise<{ pixels: Uint8Array; width: number; height: number }> {
+async function decodeHeicWithHeicDecode(data: Uint8Array): Promise<{ pixels: Uint8Array; width: number; height: number }> {
   try {
     // Dynamic import (optional peer dependency)
     // @ts-expect-error - heic-decode is an optional peer dependency
@@ -197,7 +197,7 @@ async function decodeHeic(
       const hasNative = await hasNativeHeicSupport();
       if (hasNative) {
         try {
-          return await decodeWithNative(data);
+          return await decodeHeicWithNative(data);
         } catch (err) {
           console.warn('Native HEIC decode failed, trying WASM fallback:', err);
         }
@@ -205,20 +205,20 @@ async function decodeHeic(
     }
 
     // Fallback to libheif-js WASM
-    return await decodeWithLibheifJs(data, options.wasmPath);
+    return await decodeHeicWithLibheifJs(data, options.wasmPath);
   }
 
   // Node.js environment
   if (isNode) {
     // Try sharp first (fastest, but requires libheif)
     try {
-      return await decodeWithSharp(data);
+      return await decodeHeicWithSharp(data);
     } catch (err) {
       console.warn('sharp with HEIC support not available, using heic-decode fallback');
     }
 
     // Fallback to heic-decode WASM
-    return await decodeWithHeicDecode(data);
+    return await decodeHeicWithHeicDecode(data);
   }
 
   throw new Error('Unsupported environment for HEIC decoding');

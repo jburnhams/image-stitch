@@ -95,7 +95,7 @@ function hasImageDecoderAPI(): boolean {
 /**
  * Decode JPEG using browser's ImageDecoder API (Chrome/Edge/Firefox 119+)
  */
-async function decodeWithImageDecoderAPI(data: Uint8Array): Promise<Uint8Array> {
+async function decodeJpegWithImageDecoderAPI(data: Uint8Array): Promise<Uint8Array> {
   const decoder = new globalThis.ImageDecoder({
     data,
     type: 'image/jpeg'
@@ -131,7 +131,7 @@ async function decodeWithImageDecoderAPI(data: Uint8Array): Promise<Uint8Array> 
 /**
  * Decode JPEG using Canvas API (fallback for browsers)
  */
-async function decodeWithCanvas(data: Uint8Array): Promise<Uint8Array> {
+async function decodeJpegWithCanvas(data: Uint8Array): Promise<Uint8Array> {
   // Create blob from JPEG data - create a copy to ensure it's an ArrayBuffer
   const buffer = data.slice().buffer as ArrayBuffer;
   const blob = new Blob([buffer], { type: 'image/jpeg' });
@@ -164,7 +164,7 @@ async function decodeWithCanvas(data: Uint8Array): Promise<Uint8Array> {
 /**
  * Decode JPEG using sharp (Node.js, fastest option)
  */
-async function decodeWithSharp(data: Uint8Array): Promise<Uint8Array> {
+async function decodeJpegWithSharp(data: Uint8Array): Promise<Uint8Array> {
   try {
     // Dynamic import (optional peer dependency)
     // @ts-expect-error - sharp is an optional peer dependency
@@ -187,7 +187,7 @@ async function decodeWithSharp(data: Uint8Array): Promise<Uint8Array> {
 /**
  * Decode JPEG using jpeg-js (pure JavaScript fallback)
  */
-async function decodeWithJpegJs(data: Uint8Array): Promise<Uint8Array> {
+async function decodeJpegWithJpegJs(data: Uint8Array): Promise<Uint8Array> {
   try {
     // Dynamic import
     const jpegJs = await import('jpeg-js');
@@ -214,7 +214,7 @@ async function decodeJpeg(data: Uint8Array, options: JpegDecoderOptions = {}): P
     // Try ImageDecoder API first (if enabled and available)
     if (options.useImageDecoderAPI !== false && hasImageDecoderAPI()) {
       try {
-        return await decodeWithImageDecoderAPI(data);
+        return await decodeJpegWithImageDecoderAPI(data);
       } catch (err) {
         console.warn('ImageDecoder API failed, falling back to Canvas:', err);
       }
@@ -222,7 +222,7 @@ async function decodeJpeg(data: Uint8Array, options: JpegDecoderOptions = {}): P
 
     // Fallback to Canvas API
     if (typeof OffscreenCanvas !== 'undefined' || typeof HTMLCanvasElement !== 'undefined') {
-      return await decodeWithCanvas(data);
+      return await decodeJpegWithCanvas(data);
     }
 
     throw new Error('No JPEG decoder available in this browser environment');
@@ -233,7 +233,7 @@ async function decodeJpeg(data: Uint8Array, options: JpegDecoderOptions = {}): P
     // Try sharp first (fastest, but optional dependency)
     if (!options.preferWasm) {
       try {
-        return await decodeWithSharp(data);
+        return await decodeJpegWithSharp(data);
       } catch (err) {
         // Sharp not available, continue to fallback
         console.warn('sharp not available, using jpeg-js fallback');
@@ -241,7 +241,7 @@ async function decodeJpeg(data: Uint8Array, options: JpegDecoderOptions = {}): P
     }
 
     // Fallback to jpeg-js (pure JS, always available)
-    return await decodeWithJpegJs(data);
+    return await decodeJpegWithJpegJs(data);
   }
 
   throw new Error('Unsupported environment for JPEG decoding');
