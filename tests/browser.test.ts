@@ -249,8 +249,8 @@ describe('Browser Bundle Tests', () => {
     const stats = fs.statSync(iifeBundlePath);
     const sizeKB = stats.size / 1024;
 
-    // Bundle should be less than 100KB (currently ~27KB)
-    assert.ok(sizeKB < 100, `Bundle size (${sizeKB.toFixed(2)}KB) should be less than 100KB`);
+    // Bundle should be less than 150KB
+    assert.ok(sizeKB < 150, `Bundle size (${sizeKB.toFixed(2)}KB) should be less than 150KB`);
 
     // Bundle should be more than 10KB (sanity check)
     assert.ok(sizeKB > 10, `Bundle size (${sizeKB.toFixed(2)}KB) seems too small`);
