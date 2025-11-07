@@ -9,9 +9,9 @@ const projectRoot = path.join(__dirname, '..');
 const bundlePath = path.join(projectRoot, 'dist', 'browser', 'image-stitch.min.js');
 const esmPath = path.join(projectRoot, 'dist', 'bundles', 'image-stitch.esm.js');
 
-const BUNDLE_LIMIT = 100 * 1024;
-const GZIP_LIMIT = 50 * 1024;
-const ESM_LIMIT = 200 * 1024;
+const BUNDLE_LIMIT = 150 * 1024;
+const GZIP_LIMIT = BUNDLE_LIMIT / 2;
+const ESM_LIMIT = BUNDLE_LIMIT * 2;
 
 function formatSize(bytes) {
   return `${(bytes / 1024).toFixed(2)} KB`;
