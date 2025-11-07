@@ -62,13 +62,14 @@ function parseJpegHeader(data: Uint8Array): { width: number; height: number; cha
     // Check if this is a SOF marker
     if (JPEG_SOF_MARKERS.includes(marker)) {
       // SOF structure: [length (2)] [precision (1)] [height (2)] [width (2)] [components (1)]
-      if (offset + 6 > data.length) {
+      if (offset + 7 > data.length) {
         throw new Error('Invalid JPEG: truncated SOF marker');
       }
 
-      const height = (data[offset + 1] << 8) | data[offset + 2];
-      const width = (data[offset + 3] << 8) | data[offset + 4];
-      const channels = data[offset + 5];
+      // Skip length (2 bytes) and precision (1 byte)
+      const height = (data[offset + 3] << 8) | data[offset + 4];
+      const width = (data[offset + 5] << 8) | data[offset + 6];
+      const channels = data[offset + 7];
 
       return { width, height, channels };
     }
