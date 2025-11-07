@@ -3,7 +3,7 @@ import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parsePngHeader, parsePngChunks } from './png-parser.js';
-import { concatPngs } from './png-concat.js';
+import { concat } from './image-concat.js';
 import { ColorType } from './types.js';
 
 /**
@@ -218,7 +218,7 @@ test('PngSuite: Concatenate two identical grayscale images', async () => {
   const png1 = loadPngSuite('basn0g08.png');
   const png2 = loadPngSuite('basn0g08.png');
 
-  const result = await concatPngs({
+  const result = await concat({
     inputs: [png1, png2],
     layout: { columns: 2 }
   });
@@ -235,7 +235,7 @@ test('PngSuite: Concatenate two identical RGB images', async () => {
   const png1 = loadPngSuite('basn2c08.png');
   const png2 = loadPngSuite('basn2c08.png');
 
-  const result = await concatPngs({
+  const result = await concat({
     inputs: [png1, png2],
     layout: { columns: 2 }
   });
@@ -252,7 +252,7 @@ test('PngSuite: Concatenate two identical RGBA images', async () => {
   const png1 = loadPngSuite('basn6a08.png');
   const png2 = loadPngSuite('basn6a08.png');
 
-  const result = await concatPngs({
+  const result = await concat({
     inputs: [png1, png2],
     layout: { columns: 2 }
   });
@@ -267,7 +267,7 @@ test('PngSuite: Concatenate two identical RGBA images', async () => {
 test('PngSuite: Concatenate four RGBA images in a 2x2 grid', async () => {
   const png = loadPngSuite('basn6a08.png');
 
-  const result = await concatPngs({
+  const result = await concat({
     inputs: [png, png, png, png],
     layout: { columns: 2 }
   });
@@ -283,7 +283,7 @@ test('PngSuite: Concatenate 16-bit RGB images', async () => {
   const png1 = loadPngSuite('basn2c16.png');
   const png2 = loadPngSuite('basn2c16.png');
 
-  const result = await concatPngs({
+  const result = await concat({
     inputs: [png1, png2],
     layout: { columns: 2 }
   });
@@ -301,7 +301,7 @@ test('PngSuite: Concatenate vertical layout', async () => {
   const png2 = loadPngSuite('basn6a08.png');
   const png3 = loadPngSuite('basn6a08.png');
 
-  const result = await concatPngs({
+  const result = await concat({
     inputs: [png1, png2, png3],
     layout: { rows: 3 }
   });
@@ -322,7 +322,7 @@ test('PngSuite: Concatenate interlaced grayscale PNG (basi0g08.png)', async () =
   assert.strictEqual(header.interlaceMethod, 1);
 
   // Should successfully process interlaced image
-  const result = await concatPngs({
+  const result = await concat({
     inputs: [png],
     layout: { columns: 1 }
   });
@@ -339,7 +339,7 @@ test('PngSuite: Concatenate interlaced RGB PNG (basi2c08.png)', async () => {
   const header = parsePngHeader(png);
   assert.strictEqual(header.interlaceMethod, 1);
 
-  const result = await concatPngs({
+  const result = await concat({
     inputs: [png],
     layout: { columns: 1 }
   });
@@ -353,7 +353,7 @@ test('PngSuite: Concatenate two interlaced images', async () => {
   const png1 = loadPngSuite('basi0g08.png');
   const png2 = loadPngSuite('basi2c08.png');
 
-  const result = await concatPngs({
+  const result = await concat({
     inputs: [png1, png2],
     layout: { columns: 2 }
   });
@@ -369,7 +369,7 @@ test('PngSuite: Mix interlaced and non-interlaced PNGs', async () => {
   const normalPng = loadPngSuite('basn0g08.png');
 
   // Should handle mixed interlaced and non-interlaced
-  const result = await concatPngs({
+  const result = await concat({
     inputs: [normalPng, interlacedPng],
     layout: { columns: 2 }
   });

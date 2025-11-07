@@ -7,7 +7,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { concatPngs } from '../dist/png-concat.js';
+import { concat } from './image-concat.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -24,7 +24,7 @@ async function regenerateFixtures() {
 
   // Example 1: Horizontal concatenation
   console.log('Generating example1.png (horizontal concatenation)...');
-  const result1 = await concatPngs({
+  const result1 = await concat({
     inputs: [
       loadImage('basn2c08.png'),
       loadImage('basn0g08.png'),
@@ -37,7 +37,7 @@ async function regenerateFixtures() {
 
   // Example 2: Vertical concatenation
   console.log('Generating example2.png (vertical concatenation)...');
-  const result2 = await concatPngs({
+  const result2 = await concat({
     inputs: [
       loadImage('basn2c08.png'),
       loadImage('basn0g08.png'),
@@ -50,7 +50,7 @@ async function regenerateFixtures() {
 
   // Example 3: Grid layout
   console.log('Generating example3.png (grid layout)...');
-  const result3 = await concatPngs({
+  const result3 = await concat({
     inputs: [
       loadImage('basn2c08.png'),
       loadImage('basn0g08.png'),
@@ -66,7 +66,7 @@ async function regenerateFixtures() {
 
   // Example 4: Different image sizes
   console.log('Generating example4.png (different sizes)...');
-  const result4 = await concatPngs({
+  const result4 = await concat({
     inputs: [
       loadImage('basn0g01.png'),
       loadImage('basn0g04.png'),
@@ -79,7 +79,7 @@ async function regenerateFixtures() {
 
   // Example 5: Width limit with wrapping
   console.log('Generating example5.png (width limit)...');
-  const result5 = await concatPngs({
+  const result5 = await concat({
     inputs: [
       loadImage('basn2c08.png'),
       loadImage('basn0g08.png'),

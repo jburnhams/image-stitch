@@ -17,7 +17,7 @@ npm run test:all
 The browser tests use happy-dom (a lightweight DOM implementation) to verify:
 1. The bundle loads without JavaScript syntax errors
 2. No duplicate declarations exist in the bundled code (specifically checks for the getSamplesPerPixel issue)
-3. The `concatPngs` function is properly exported
+3. The `concat` function is properly exported
 4. All required utility functions are present in the bundle
 5. The HTML page structure is correct with all 5 examples
 6. The bundle size is reasonable (~27KB)

@@ -49,8 +49,8 @@ describe('Browser Bundle Tests', () => {
 
     const imageStitchGlobal = context.window.ImageStitch ?? context.globalThis.ImageStitch;
     assert.ok(imageStitchGlobal, 'Global ImageStitch namespace should exist');
-    assert.strictEqual(typeof imageStitchGlobal.concatPngs, 'function');
-    assert.strictEqual(typeof imageStitchGlobal.concatPngsToFile, 'function');
+    assert.strictEqual(typeof imageStitchGlobal.concat, 'function');
+    assert.strictEqual(typeof imageStitchGlobal.concatToFile, 'function');
   });
 
   test('ESM bundle can be imported directly', async () => {
@@ -59,8 +59,8 @@ describe('Browser Bundle Tests', () => {
     const moduleUrl = pathToFileURL(esmBundlePath).href;
     const mod = await import(moduleUrl);
 
-    assert.strictEqual(typeof mod.concatPngs, 'function');
-    assert.strictEqual(typeof mod.concatPngsToFile, 'function');
+    assert.strictEqual(typeof mod.concat, 'function');
+    assert.strictEqual(typeof mod.concatToFile, 'function');
     assert.strictEqual(typeof mod.StreamingConcatenator, 'function');
   });
 
@@ -107,9 +107,9 @@ describe('Browser Bundle Tests', () => {
     assert.ok(codeSamples.length >= 3, 'Guides page should highlight code samples');
 
     const apiHeading = Array.from(document.querySelectorAll('h3')).some((heading) =>
-      heading.textContent?.includes('concatPngs')
+      heading.textContent?.includes('concat')
     );
-    assert.ok(apiHeading, 'API reference section should document concatPngs');
+    assert.ok(apiHeading, 'API reference section should document concat');
 
     await window.close();
   });
@@ -338,9 +338,9 @@ describe('Functional Tests - Verify Examples Work Correctly', () => {
     // Import from the actual bundle exactly as the documentation site does
     const bundle = await loadBundleModule();
 
-    assert.ok(typeof bundle.concatPngs === 'function', 'Browser bundle should export concatPngs');
+    assert.ok(typeof bundle.concat === 'function', 'Browser bundle should export concat');
 
-    const result = await bundle.concatPngs({
+    const result = await bundle.concat({
       inputs: [
         loadImage('basn2c08.png'),
         loadImage('basn0g08.png'),
@@ -356,7 +356,7 @@ describe('Functional Tests - Verify Examples Work Correctly', () => {
   test('Example 2: Vertical concatenation produces correct output', async () => {
     const bundle = await loadBundleModule();
 
-    const result = await bundle.concatPngs({
+    const result = await bundle.concat({
       inputs: [
         loadImage('basn2c08.png'),
         loadImage('basn0g08.png'),
@@ -372,7 +372,7 @@ describe('Functional Tests - Verify Examples Work Correctly', () => {
   test('Example 3: Grid layout produces correct output', async () => {
     const bundle = await loadBundleModule();
 
-    const result = await bundle.concatPngs({
+    const result = await bundle.concat({
       inputs: [
         loadImage('basn2c08.png'),
         loadImage('basn0g08.png'),
@@ -391,7 +391,7 @@ describe('Functional Tests - Verify Examples Work Correctly', () => {
   test('Example 4: Different image sizes produces correct output', async () => {
     const bundle = await loadBundleModule();
 
-    const result = await bundle.concatPngs({
+    const result = await bundle.concat({
       inputs: [
         loadImage('basn0g01.png'),
         loadImage('basn0g04.png'),
@@ -407,7 +407,7 @@ describe('Functional Tests - Verify Examples Work Correctly', () => {
   test('Example 5: Width limit with wrapping produces correct output', async () => {
     const bundle = await loadBundleModule();
 
-    const result = await bundle.concatPngs({
+    const result = await bundle.concat({
       inputs: [
         loadImage('basn2c08.png'),
         loadImage('basn0g08.png'),
@@ -425,7 +425,7 @@ describe('Functional Tests - Verify Examples Work Correctly', () => {
     const bundle = await loadBundleModule();
 
     // Mix RGB, Grayscale, and RGBA images
-    const result = await bundle.concatPngs({
+    const result = await bundle.concat({
       inputs: [
         loadImage('basn2c08.png'),  // RGB 8-bit
         loadImage('basn0g08.png'),  // Grayscale 8-bit
@@ -447,7 +447,7 @@ describe('Functional Tests - Verify Examples Work Correctly', () => {
     const bundle = await loadBundleModule();
 
     // Mix 8-bit and 16-bit images
-    const result = await bundle.concatPngs({
+    const result = await bundle.concat({
       inputs: [
         loadImage('basn2c08.png'),  // RGB 8-bit
         loadImage('basn2c16.png')   // RGB 16-bit
@@ -465,7 +465,7 @@ describe('Functional Tests - Verify Examples Work Correctly', () => {
     const bundle = await loadBundleModule();
 
     // Mix different grayscale bit depths
-    const result = await bundle.concatPngs({
+    const result = await bundle.concat({
       inputs: [
         loadImage('basn0g01.png'),  // 1-bit grayscale
         loadImage('basn0g04.png'),  // 4-bit grayscale
@@ -483,7 +483,7 @@ describe('Functional Tests - Verify Examples Work Correctly', () => {
     const bundle = await loadBundleModule();
 
     // Load interlaced images (basi prefix)
-    const result = await bundle.concatPngs({
+    const result = await bundle.concat({
       inputs: [
         loadImage('basi0g08.png'),  // Interlaced grayscale 8-bit
         loadImage('basi2c08.png'),  // Interlaced RGB 8-bit
@@ -504,7 +504,7 @@ describe('Functional Tests - Verify Examples Work Correctly', () => {
     const bundle = await loadBundleModule();
 
     // Mix interlaced and non-interlaced
-    const result = await bundle.concatPngs({
+    const result = await bundle.concat({
       inputs: [
         loadImage('basn2c08.png'),  // Non-interlaced
         loadImage('basi2c08.png'),  // Interlaced

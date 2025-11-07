@@ -14,18 +14,18 @@
  * - Variable image sizes with padding
  *
  * @example
- * import { concatPngs } from 'image-stitch';
+ * import { concat } from 'image-stitch';
  *
  * // Mix different formats
- * const result = await concatPngs({
+ * const result = await concat({
  *   inputs: ['photo.jpg', 'image.png', 'pic.heic'],
  *   layout: { columns: 3 }
  * });
  */
 
 // Main API - use this!
-export { concatPngs, concatPngsToFile } from './png-concat.js';
-export type { UnifiedConcatOptions } from './png-concat.js';
+export { concat, concatToFile, concatStreaming, concatToStream } from './image-concat.js';
+export type { UnifiedConcatOptions } from './image-concat.js';
 
 // Multi-format decoder system (NEW - supports PNG, JPEG, HEIC)
 export type {
@@ -55,7 +55,7 @@ export {
 } from './decoders/index.js';
 
 // Streaming implementation
-export { StreamingConcatenator } from './png-concat.js';
+export { StreamingConcatenator } from './image-concat.js';
 
 // Low-level APIs for advanced use
 export { parsePngHeader, parsePngChunks, PngParser } from './png-parser.js';

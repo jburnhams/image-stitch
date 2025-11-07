@@ -584,14 +584,14 @@ export class StreamingConcatenator {
  *
  * @example
  * // Mix PNG, JPEG, and HEIC files
- * for await (const chunk of concatPngsStreaming({
+ * for await (const chunk of concatStreaming({
  *   inputs: ['photo.jpg', 'image.png', 'pic.heic'],
  *   layout: { columns: 3 }
  * })) {
  *   // Process chunk
  * }
  */
-export async function* concatPngsStreaming(
+export async function* concatStreaming(
   options: ConcatOptions
 ): AsyncGenerator<Uint8Array> {
   const concatenator = new StreamingConcatenator(options);
@@ -603,7 +603,7 @@ export async function* concatPngsStreaming(
  *
  * Supports PNG, JPEG, and HEIC inputs. Output is PNG format.
  */
-export function concatPngsToStream(options: ConcatOptions): Readable {
+export function concatToStream(options: ConcatOptions): Readable {
   const concatenator = new StreamingConcatenator(options);
   return concatenator.toReadableStream();
 }
@@ -634,14 +634,14 @@ export interface UnifiedConcatOptions extends ConcatOptions {
  *
  * @example
  * // Simple usage - mix formats, returns Uint8Array
- * const result = await concatPngs({
+ * const result = await concat({
  *   inputs: ['photo.jpg', 'image.png', 'pic.heic'],
  *   layout: { columns: 3 }
  * });
  *
  * @example
  * // Stream output for HTTP responses or large files
- * const stream = await concatPngs({
+ * const stream = await concat({
  *   inputs: ['img1.png', 'img2.jpg'],
  *   layout: { columns: 2 },
  *   stream: true
@@ -650,14 +650,14 @@ export interface UnifiedConcatOptions extends ConcatOptions {
  *
  * @example
  * // Mix file paths and buffers
- * const result = await concatPngs({
+ * const result = await concat({
  *   inputs: ['photo.jpg', jpegBuffer, pngArrayBuffer],
  *   layout: { rows: 2 }
  * });
  *
  * @example
  * // With decoder options
- * const result = await concatPngs({
+ * const result = await concat({
  *   inputs: ['photo.heic', 'image.jpg'],
  *   layout: { columns: 2 },
  *   decoderOptions: {
@@ -666,20 +666,20 @@ export interface UnifiedConcatOptions extends ConcatOptions {
  *   }
  * });
  */
-export function concatPngs(options: UnifiedConcatOptions & { stream: true }): Promise<Readable>;
-export function concatPngs(options: UnifiedConcatOptions): Promise<Uint8Array>;
-export function concatPngs(options: UnifiedConcatOptions): Promise<Uint8Array | Readable> {
+export function concat(options: UnifiedConcatOptions & { stream: true }): Promise<Readable>;
+export function concat(options: UnifiedConcatOptions): Promise<Uint8Array>;
+export function concat(options: UnifiedConcatOptions): Promise<Uint8Array | Readable> {
   return (async () => {
     if (options.stream) {
       // User wants streaming output
-      return concatPngsToStream(options);
+      return concatToStream(options);
     } else {
       // User wants Uint8Array result - collect chunks from stream
       // Memory optimization: collect chunks, then copy and clear incrementally
       const chunks: Uint8Array[] = [];
       let totalLength = 0;
 
-      for await (const chunk of concatPngsStreaming(options)) {
+      for await (const chunk of concatStreaming(options)) {
         chunks.push(chunk);
         totalLength += chunk.length;
       }
@@ -706,12 +706,12 @@ export function concatPngs(options: UnifiedConcatOptions): Promise<Uint8Array | 
  * @example
  * import { createWriteStream } from 'fs';
  *
- * const stream = await concatPngsToFile({
+ * const stream = await concatToFile({
  *   inputs: ['img1.png', 'img2.png'],
  *   layout: { columns: 2 }
  * });
  * stream.pipe(createWriteStream('output.png'));
  */
-export async function concatPngsToFile(options: ConcatOptions): Promise<Readable> {
-  return concatPngs({ ...options, stream: true }) as Promise<Readable>;
+export async function concatToFile(options: ConcatOptions): Promise<Readable> {
+  return concat({ ...options, stream: true }) as Promise<Readable>;
 }

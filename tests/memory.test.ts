@@ -25,7 +25,7 @@ import assert from 'node:assert';
 import { createWriteStream } from 'node:fs';
 import { unlink } from 'node:fs/promises';
 import { pipeline } from 'node:stream/promises';
-import { concatPngs } from '../src/png-concat.js';
+import { concat } from '../src/image-concat.js';
 import { createIHDR, createIEND, createChunk, buildPng } from '../src/png-writer.js';
 import { compressImageData } from '../src/png-decompress.js';
 import { PngHeader, ColorType, PngInputSource } from '../src/types.js';
@@ -86,7 +86,7 @@ async function concatToFile(
 ): Promise<string> {
   const outputPath = `/tmp/concat-test-${Date.now()}-${Math.random().toString(36).slice(2)}.png`;
 
-  const stream = await concatPngs({
+  const stream = await concat({
     inputs,
     layout,
     stream: true

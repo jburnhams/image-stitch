@@ -3,7 +3,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { concatPngs } from '../dist/png-concat.js';
+import { concat } from './image-concat.js';
 import { parsePngHeader } from '../dist/png-parser.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -23,7 +23,7 @@ async function test() {
     bitDepth: header1.bitDepth
   });
 
-  const result = await concatPngs({
+  const result = await concat({
     inputs: [png1, png2],
     layout: { columns: 2 }
   });
