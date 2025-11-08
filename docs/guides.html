@@ -106,7 +106,7 @@
 <body>
   <header>
     <h1>Guides &amp; API Reference</h1>
-    <p>Everything you need to ship image-stitch in production: quick scripts, browser bundles, streaming pipelines, and the complete API surface.</p>
+    <p>Everything you need to ship image-stitch in production: quick scripts, browser bundles, streaming pipelines, canvas helpers, and the complete API surface.</p>
     <nav>
       <a href="index.html">🏠 Overview</a>
       <a href="examples.html">🎛️ Interactive Examples</a>
@@ -125,10 +125,10 @@
 
     <section>
       <h2>Quick start (Node.js)</h2>
-      <pre><code>import { concat } from "image-stitch";
+      <pre><code>import { concatToBuffer } from "image-stitch";
 import { readFileSync, writeFileSync } from "node:fs";
 
-const stitched = await concat({
+const stitched = await concatToBuffer({
   inputs: [
     readFileSync("./pngsuite/png/basi0g08.png"),
     readFileSync("./pngsuite/png/basi2c08.png")
@@ -142,16 +142,20 @@ writeFileSync("spritesheet.png", stitched);
     </section>
 
     <section>
-      <h2>Browser usage</h2>
-      <p>Use dynamic imports to fetch the ESM bundle from a CDN when prototyping. The following snippet wires the result into an <code>&lt;img&gt;</code>.</p>
-      <pre><code>const { concat } = await import("https://cdn.jsdelivr.net/npm/image-stitch/dist/bundles/image-stitch.esm.js");
+      <h2>Modern browser usage</h2>
+      <p>Use dynamic imports to fetch the ESM bundle from a CDN when prototyping. The library automatically normalizes <code>Blob</code>, <code>File</code>, <code>ArrayBuffer</code>, and <code>HTMLCanvasElement</code> inputs before stitching.</p>
+      <pre><code>const { concatToBuffer } = await import("https://cdn.jsdelivr.net/npm/image-stitch/dist/bundles/image-stitch.esm.js");
 
-const buffers = await Promise.all([
-  fetch("./images/basi0g08.png").then(r =&gt; r.arrayBuffer()),
-  fetch("./images/basi2c08.png").then(r =&gt; r.arrayBuffer())
-]);
+const files = Array.from(document.querySelector("input[type=file]").files ?? []);
 
-const stitched = await concat({ inputs: buffers, layout: { columns: 2 } });
+const stitched = await concatToBuffer({
+  inputs: files,
+  layout: { columns: 3 },
+  onProgress(current, total) {
+    console.log(`Decoded ${current}/${total}`);
+  }
+});
+
 const blob = new Blob([stitched], { type: "image/png" });
 document.querySelector("img.preview").src = URL.createObjectURL(blob);
 </code></pre>
@@ -159,11 +163,66 @@ document.querySelector("img.preview").src = URL.createObjectURL(blob);
     </section>
 
     <section>
+      <h2>Canvas helper</h2>
+      <p>The browser bundle exposes <code>concatCanvases</code> so you can stitch existing canvases without converting to blobs yourself. Choose whether to receive a <code>Blob</code> or render into a canvas.</p>
+      <pre><code>import { concatCanvases } from "image-stitch/browser";
+
+const stitchedCanvas = await concatCanvases({
+  canvases: [topLeft, topRight, bottomLeft, bottomRight],
+  layout: { rows: 2, columns: 2 },
+  output: "canvas",
+  onProgress(current, total) {
+    progressBar.value = current / total;
+  }
+});
+
+document.body.appendChild(stitchedCanvas);
+</code></pre>
+      <p>Switch <code>output</code> to <code>"blob"</code> to receive a downloadable <code>Blob</code> (PNG by default, configurable via <code>mimeType</code>).</p>
+    </section>
+
+    <section>
+      <h2>Streaming &amp; pipelines</h2>
+      <h3><code>concatStreaming(options)</code> (async generator)</h3>
+      <pre><code>import { concatStreaming } from "image-stitch";
+
+for await (const chunk of concatStreaming({
+  inputs,
+  layout: { width: 2048 }
+})) {
+  await writeChunkSomewhere(chunk);
+}
+</code></pre>
+      <h3><code>concatToStream(options)</code> (Node.js Readable)</h3>
+      <pre><code>import { concatToStream } from "image-stitch";
+import { pipeline } from "node:stream/promises";
+import { createWriteStream } from "node:fs";
+
+await pipeline(
+  concatToStream({
+    inputs,
+    layout: { columns: 4 },
+    onProgress(current, total) {
+      console.info(`Completed ${current}/${total}`);
+    }
+  }),
+  createWriteStream("spritesheet.png")
+);
+</code></pre>
+      <p>The async generator works everywhere (Node, Deno, browsers). The Node.js helper wraps it in a <code>Readable</code> instance for easy piping.</p>
+    </section>
+
+    <section>
       <h2>API reference</h2>
-      <h3><code>concat(options)</code></h3>
-      <p>Concatenate input images and return a <code>Promise&lt;Uint8Array&gt;</code>. All options are required unless marked optional.</p>
-      <pre><code>interface ConcatOptions {
-  inputs: Array&lt;Uint8Array | ArrayBuffer | string&gt;;
+      <h3><code>concatToBuffer(options)</code></h3>
+      <p>Concatenate input images and return a <code>Promise&lt;Uint8Array&gt;</code>. A deprecated <code>concat</code> alias remains for backwards compatibility.</p>
+      <pre><code>type IterableInput<T> =
+  | T[]
+  | Iterable<T>
+  | AsyncIterable<T>;
+
+interface ConcatOptions {
+  inputs: IterableInput&lt;string | Uint8Array | ArrayBuffer | ImageDecoder&gt;;
   layout: {
     columns?: number;
     rows?: number;
@@ -171,40 +230,52 @@ document.querySelector("img.preview").src = URL.createObjectURL(blob);
     height?: number;
     wrapBehavior?: "wrap" | "truncate";
   };
+  decoderOptions?: DecoderOptions;
+  decoders?: DecoderPlugin[];
+  outputFormat?: "png";
+  onProgress?: (completed: number, total: number) =&gt; void;
 }
 </code></pre>
       <ul>
-        <li><strong>inputs</strong> — Buffers, typed arrays, or Node.js file paths.</li>
-        <li><strong>layout.columns</strong> — Fixed number of images per row.</li>
-        <li><strong>layout.rows</strong> — Fixed number of images per column.</li>
-        <li><strong>layout.width</strong> — Maximum pixel width; wraps when exceeded.</li>
-        <li><strong>layout.height</strong> — Maximum pixel height; truncates or wraps based on <code>wrapBehavior</code>.</li>
+        <li><strong>inputs</strong> — Accepts arrays, iterables, or async iterables of Node-friendly sources. In browsers, the <code>BrowserConcatOptions</code> wrapper also accepts <code>Blob</code> and <code>HTMLCanvasElement</code> values.</li>
+        <li><strong>layout</strong> — Choose fixed rows/columns or constrain the output width/height. Use <code>wrapBehavior</code> to control overflow when hitting a limit.</li>
+        <li><strong>onProgress</strong> — Callback receiving <code>(current, total)</code> whenever an input tile finishes streaming.</li>
       </ul>
+      <p>The supporting typings (<code>ImageDecoder</code>, <code>DecoderOptions</code>, <code>DecoderPlugin</code>, and <code>BrowserConcatOptions</code>) are exported from the package for projects that want full TypeScript coverage.</p>
 
-      <h3><code>concatStream(options)</code></h3>
-      <p>Returns an async generator of <code>Uint8Array</code> chunks. Perfect for HTTP responses.</p>
-      <pre><code>import { concatStream } from "image-stitch";
+      <h3><code>concatStreaming(options)</code></h3>
+      <p>Returns an async generator of <code>Uint8Array</code> chunks. Works in both Node.js and browsers.</p>
 
-const stream = concatStream({ inputs, layout: { width: 2048 } });
-for await (const chunk of stream) {
-  response.write(chunk);
+      <h3><code>concatToStream(options)</code></h3>
+      <p>Node.js convenience wrapper that exposes the streaming concatenator as a <code>Readable</code> stream.</p>
+
+      <h3><code>concatCanvases(options)</code> (browser bundle)</h3>
+      <pre><code>interface ConcatCanvasesOptions extends Omit&lt;BrowserConcatOptions, "inputs"&gt; {
+  canvases: IterableInput&lt;HTMLCanvasElement&gt;;
+  output?: "blob" | "canvas";
+  mimeType?: string; // Blob mode only
+  targetCanvas?: HTMLCanvasElement; // Canvas mode only
 }
 </code></pre>
+      <p>Returns a <code>Promise&lt;Blob | HTMLCanvasElement&gt;</code> depending on <code>output</code>. When rendering to a canvas, you can provide <code>targetCanvas</code> to reuse an existing element.</p>
     </section>
 
     <section>
       <h2>Best practices</h2>
       <ul>
         <li>Use inputs with matching bit depth and color type to avoid implicit conversions.</li>
-        <li>Combine sprites that share transparency for consistent padding.</li>
-        <li>Prefer <code>concatStream</code> for large or user-submitted assets.</li>
-        <li>Defer heavy work to a worker thread when running inside a browser UI.</li>
+        <li>Progress callbacks fire per decoded tile—pipe them into loaders or telemetry for large grids.</li>
+        <li>Tree-shake optional formats by providing explicit decoder plugins when bundling for browsers.</li>
+        <li>Prefer <code>concatCanvases</code> when working with <code>&lt;canvas&gt;</code> content; it saves extra blob allocations.</li>
       </ul>
     </section>
   </main>
 
   <footer>
-    Looking for more? Browse the <a href="https://github.com/jburnhams/Png-concat">GitHub repository</a> for changelogs, issues, and contribution guidelines.
+    <p>
+      Still have questions? Check the interactive examples, browse the source on
+      <a href="https://github.com/jburnhams/Png-concat">GitHub</a>, or file an issue for help.
+    </p>
   </footer>
 </body>
 </html>

@@ -7,7 +7,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert';
 import '../decoders/index.js';
-import { concat } from '../image-concat.js';
+import { concatToBuffer, concatToStream } from '../image-concat.js';
 import { createTestPng, createTestJpeg } from '../test-utils/image-fixtures.js';
 import { PNG } from 'pngjs';
 
@@ -30,7 +30,7 @@ describe('Mixed Formats - PNG + JPEG', () => {
     const pngImage = await createTestPng(10, 10, new Uint8Array([255, 0, 0, 255])); // Red
     const jpegImage = await createTestJpeg(10, 10, new Uint8Array([0, 255, 0, 255])); // Green
 
-    const result = await concat({
+    const result = await concatToBuffer({
       inputs: [pngImage, jpegImage],
       layout: { columns: 2 }
     });
@@ -49,7 +49,7 @@ describe('Mixed Formats - PNG + JPEG', () => {
     const png2 = await createTestPng(8, 8, new Uint8Array([0, 0, 255, 255])); // Blue
     const jpeg2 = await createTestJpeg(8, 8, new Uint8Array([255, 255, 0, 255])); // Yellow
 
-    const result = await concat({
+    const result = await concatToBuffer({
       inputs: [png1, jpeg1, png2, jpeg2],
       layout: { columns: 2 } // 2x2 grid
     });
@@ -64,7 +64,7 @@ describe('Mixed Formats - PNG + JPEG', () => {
     const largeJpeg = await createTestJpeg(10, 8, new Uint8Array([0, 255, 0, 255]));
     const mediumPng = await createTestPng(7, 6, new Uint8Array([0, 0, 255, 255]));
 
-    const result = await concat({
+    const result = await concatToBuffer({
       inputs: [smallPng, largeJpeg, mediumPng],
       layout: { columns: 3 }
     });
@@ -81,7 +81,7 @@ describe('Mixed Formats - All PNG vs All JPEG', () => {
     const png2 = await createTestPng(12, 12, new Uint8Array([0, 255, 0, 255]));
     const png3 = await createTestPng(12, 12, new Uint8Array([0, 0, 255, 255]));
 
-    const result = await concat({
+    const result = await concatToBuffer({
       inputs: [png1, png2, png3],
       layout: { columns: 3 }
     });
@@ -94,7 +94,7 @@ describe('Mixed Formats - All PNG vs All JPEG', () => {
     const jpeg2 = await createTestJpeg(12, 12, new Uint8Array([0, 255, 0, 255]));
     const jpeg3 = await createTestJpeg(12, 12, new Uint8Array([0, 0, 255, 255]));
 
-    const result = await concat({
+    const result = await concatToBuffer({
       inputs: [jpeg1, jpeg2, jpeg3],
       layout: { columns: 3 }
     });
@@ -108,7 +108,7 @@ describe('Mixed Formats - Layout Options', () => {
     const pngImage = await createTestPng(10, 5, new Uint8Array([255, 0, 0, 255]));
     const jpegImage = await createTestJpeg(10, 8, new Uint8Array([0, 255, 0, 255]));
 
-    const result = await concat({
+    const result = await concatToBuffer({
       inputs: [pngImage, jpegImage],
       layout: { rows: 2 }
     });
@@ -128,7 +128,7 @@ describe('Mixed Formats - Layout Options', () => {
       await createTestJpeg(8, 8, new Uint8Array([0, 255, 255, 255]))
     ];
 
-    const result = await concat({
+    const result = await concatToBuffer({
       inputs: imgs,
       layout: { columns: 3 } // 3 columns, 2 rows
     });
@@ -144,10 +144,9 @@ describe('Mixed Formats - Streaming Output', () => {
     const pngImage = await createTestPng(16, 16, new Uint8Array([200, 100, 50, 255]));
     const jpegImage = await createTestJpeg(16, 16, new Uint8Array([50, 100, 200, 255]));
 
-    const stream = await concat({
+    const stream = concatToStream({
       inputs: [pngImage, jpegImage],
-      layout: { columns: 2 },
-      stream: true
+      layout: { columns: 2 }
     });
 
     assert.ok(stream, 'Should return stream');
@@ -168,7 +167,7 @@ describe('Mixed Formats - Edge Cases', () => {
   test('single JPEG image', async () => {
     const jpegImage = await createTestJpeg(20, 15, new Uint8Array([128, 64, 192, 255]));
 
-    const result = await concat({
+    const result = await concatToBuffer({
       inputs: [jpegImage],
       layout: { columns: 1 }
     });
@@ -187,7 +186,7 @@ describe('Mixed Formats - Edge Cases', () => {
       }
     }
 
-    const result = await concat({
+    const result = await concatToBuffer({
       inputs,
       layout: { columns: 3 }
     });
@@ -208,7 +207,7 @@ describe('Mixed Formats - Edge Cases', () => {
       }
     }
 
-    const result = await concat({
+    const result = await concatToBuffer({
       inputs,
       layout: { columns: 5 }
     });
@@ -224,7 +223,7 @@ describe('Mixed Formats - Decoder Options', () => {
     const pngImage = await createTestPng(8, 8, new Uint8Array([255, 0, 0, 255]));
     const jpegImage = await createTestJpeg(8, 8, new Uint8Array([0, 255, 0, 255]));
 
-    const result = await concat({
+    const result = await concatToBuffer({
       inputs: [pngImage, jpegImage],
       layout: { columns: 2 },
       decoderOptions: {
@@ -242,7 +241,7 @@ describe('Mixed Formats - Decoder Options', () => {
     const pngImage = await createTestPng(8, 8, new Uint8Array([255, 0, 0, 255]));
     const jpegImage = await createTestJpeg(8, 8, new Uint8Array([0, 255, 0, 255]));
 
-    const result = await concat({
+    const result = await concatToBuffer({
       inputs: [pngImage, jpegImage],
       layout: { columns: 2 }
     });
@@ -258,7 +257,7 @@ describe('Mixed Formats - ArrayBuffer Input', () => {
 
     const jpegBytes = await createTestJpeg(10, 10, new Uint8Array([0, 255, 0, 255]));
 
-    const result = await concat({
+    const result = await concatToBuffer({
       inputs: [pngBuffer, jpegBytes],
       layout: { columns: 2 }
     });

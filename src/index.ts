@@ -14,10 +14,10 @@
  * - Variable image sizes with padding
  *
  * @example
- * import { concat } from 'image-stitch';
+ * import { concatToBuffer } from 'image-stitch';
  *
  * // Mix different formats
- * const result = await concat({
+ * const result = await concatToBuffer({
  *   inputs: ['photo.jpg', 'image.png', 'pic.heic'],
  *   layout: { columns: 3 }
  * });
@@ -31,8 +31,13 @@ import { heicDecoder } from './decoders/heic-decoder.js';
 setDefaultDecoderPlugins([pngDecoder, jpegDecoder, heicDecoder]);
 
 // Main API - use this!
-export { concat, concatToFile, concatStreaming, concatToStream } from './image-concat.js';
-export type { UnifiedConcatOptions } from './image-concat.js';
+export {
+  concat,
+  concatToBuffer,
+  concatToFile,
+  concatStreaming,
+  concatToStream
+} from './image-concat.js';
 
 // Multi-format decoder system (NEW - supports PNG, JPEG, HEIC)
 export type {

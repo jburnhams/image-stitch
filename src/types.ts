@@ -76,6 +76,12 @@ export interface ConcatOptions {
    * Output format (currently only PNG supported, future: JPEG, WebP)
    */
   outputFormat?: 'png';
+
+  /**
+   * Optional progress callback invoked when each input image finishes streaming.
+   * Receives the number of completed inputs and the total inputs to process.
+   */
+  onProgress?: (completed: number, total: number) => void;
 }
 
 /**

@@ -3,8 +3,22 @@ import { pngDecoder } from './decoders/png-decoder.js';
 
 setDefaultDecoderPlugins([pngDecoder]);
 
-export { concat, concatStreaming, concatToStream, concatToFile, StreamingConcatenator } from './image-concat.js';
-export type { UnifiedConcatOptions } from './image-concat.js';
+export {
+  concat,
+  concatToBuffer,
+  concatToFile,
+  concatStreaming,
+  StreamingConcatenator,
+  concatCanvases
+} from './image-concat-browser.js';
+export type {
+  BrowserConcatOptions,
+  BrowserImageInput,
+  BrowserImageInputSource,
+  ConcatCanvasesOptions,
+  ConcatCanvasesBlobOptions,
+  ConcatCanvasesCanvasOptions
+} from './image-concat-browser.js';
 export type { ConcatOptions } from './types.js';
 export { createDecoder, createDecoders, createDecodersFromAsyncIterable, createDecodersFromIterable } from './decoders/decoder-factory.js';
 export type { DecoderPlugin, DecoderOptions, ImageInput } from './decoders/types.js';
