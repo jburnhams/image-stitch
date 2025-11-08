@@ -116,6 +116,28 @@
       margin-bottom: 1.5rem;
     }
 
+    .toggle-group {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.5rem 0.75rem;
+      border-radius: 12px;
+      background: rgba(79, 70, 229, 0.12);
+      color: #4338ca;
+      font-weight: 600;
+    }
+
+    .toggle-group label {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      cursor: pointer;
+    }
+
+    .toggle-group input[type="radio"] {
+      accent-color: #7c3aed;
+    }
+
     button {
       background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
       color: #fff;
@@ -159,15 +181,45 @@
       color: #4c1d95;
     }
 
-    .result img {
+    .result img,
+    .canvas-slot canvas {
       max-width: 100%;
       border-radius: 12px;
       border: 1px solid rgba(148, 163, 184, 0.35);
     }
 
+    .canvas-slot[hidden] {
+      display: none;
+    }
+
+    .result img[hidden] {
+      display: none;
+    }
+
     .status {
       color: #4338ca;
       font-weight: 600;
+    }
+
+    .progress-row {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 0.95rem;
+      color: #4338ca;
+    }
+
+    .progress-row[hidden] {
+      display: none;
+    }
+
+    progress {
+      width: clamp(160px, 25vw, 220px);
+      height: 12px;
+      accent-color: #7c3aed;
+      background-color: rgba(148, 163, 184, 0.35);
+      border-radius: 999px;
+      overflow: hidden;
     }
 
     footer {
@@ -182,7 +234,7 @@
   <div class="container">
     <header>
       <h1>Interactive PNG Stitching</h1>
-      <p>Experiment with horizontal strips, vertical reels, and responsive grids powered by image-stitch. Each demo shows the exact code you can drop into your own app.</p>
+      <p>Experiment with modern browser helpers, progress callbacks, and canvas-aware workflows powered by image-stitch. Each demo shows the exact code you can drop into your own app.</p>
       <nav>
         <a href="index.html">🏠 Overview</a>
         <a href="streaming.html">⚡ Streaming demo</a>
@@ -245,24 +297,26 @@ const output = await concatToBuffer({
       </section>
 
       <section class="example" id="grid">
-        <h2>Auto-wrapping grid</h2>
-        <p>Limit the maximum width to let image-stitch wrap rows automatically. Perfect for responsive contact sheets.</p>
+        <h2>Auto-wrapping grid with progress</h2>
+        <p>Limit the maximum width to wrap rows automatically. The <code>onProgress</code> callback fires after each tile finishes decoding so you can power loading indicators.</p>
         <div class="code-block" data-code>
 import { concatToBuffer } from "image-stitch";
 
-const names = ["basi0g08.png", "basi2c08.png", "basi4a16.png", "basi0g08.png"];
-const buffers = await Promise.all(
-  names.map((name) => fetch(`images/${name}`).then((res) => res.arrayBuffer()))
-);
 const output = await concatToBuffer({
-  inputs: buffers,
-  layout: { width: 256 }
+  inputs: imageBuffers,
+  layout: { width: 256 },
+  onProgress(current, total) {
+    console.log(`Decoded ${current} of ${total} tiles`);
+  }
 });
         </div>
-        <p><strong>Tip:</strong> Provide an <code>onProgress</code> callback to update loaders as each tile finishes streaming.</p>
         <div class="controls">
           <button data-run="grid">Run example</button>
           <span class="status" data-status="grid"></span>
+        </div>
+        <div class="progress-row" data-progress-wrapper="grid" hidden>
+          <progress value="0" max="1" data-progress="grid"></progress>
+          <span data-progress-label="grid">0 / 0</span>
         </div>
         <div class="result" data-result="grid">
           <h3>Result</h3>
@@ -271,16 +325,54 @@ const output = await concatToBuffer({
         </div>
       </section>
 
+      <section class="example" id="canvas">
+        <h2>Canvas collage helper</h2>
+        <p>Use <code>concatCanvases</code> to stitch existing <code>&lt;canvas&gt;</code> elements directly. Choose a Blob for downloads or render into another canvas for on-screen previews.</p>
+        <div class="code-block" data-code>
+import { concatCanvases } from "image-stitch/browser";
+
+const stitched = await concatCanvases({
+  canvases,
+  layout: { rows: 2, columns: 2 },
+  output: "canvas",
+  onProgress(current, total) {
+    console.log(`Rendered ${current}/${total}`);
+  }
+});
+        </div>
+        <div class="controls">
+          <div class="toggle-group">
+            <label>
+              <input type="radio" name="canvas-output" value="blob" checked /> Blob preview
+            </label>
+            <label>
+              <input type="radio" name="canvas-output" value="canvas" /> Canvas preview
+            </label>
+          </div>
+          <button data-run="canvas">Stitch sample canvases</button>
+          <span class="status" data-status="canvas"></span>
+        </div>
+        <div class="progress-row" data-progress-wrapper="canvas" hidden>
+          <progress value="0" max="1" data-progress="canvas"></progress>
+          <span data-progress-label="canvas">0 / 0</span>
+        </div>
+        <div class="result" data-result="canvas">
+          <h3>Result</h3>
+          <img alt="Canvas stitched output" hidden />
+          <div class="canvas-slot" data-canvas-slot="canvas" hidden></div>
+          <div class="meta" data-meta="canvas"></div>
+        </div>
+      </section>
+
       <section class="example" id="custom">
-        <h2>Bring your own PNGs</h2>
-        <p>Drop in up to eight PNG files (16-bit color is supported!) and stitch them in your browser. No uploads—everything runs locally.</p>
+        <h2>Bring your own PNGs &amp; blobs</h2>
+        <p>Drop in up to eight PNG files (16-bit color is supported!) and stitch them in your browser. Files are handled as <code>Blob</code> inputs—no need to convert to ArrayBuffers manually.</p>
         <div class="code-block" data-code>
 import { concatToBuffer } from "image-stitch";
 
 const files = Array.from(fileInput.files ?? []);
-const buffers = await Promise.all(files.map(file => file.arrayBuffer()));
 const output = await concatToBuffer({
-  inputs: buffers,
+  inputs: files,
   layout: { columns: 4, wrapBehavior: "wrap" }
 });
         </div>
@@ -294,6 +386,28 @@ const output = await concatToBuffer({
           <img alt="Custom stitched output" />
           <div class="meta" data-meta="custom"></div>
         </div>
+      </section>
+
+      <section class="example" id="node-stream">
+        <h2>Streaming output in Node.js</h2>
+        <p>Need a back-end friendly flow? Use <code>concatToStream</code> to pipe stitched PNG data straight into HTTP responses or file writers without buffering everything in memory.</p>
+        <div class="code-block" data-code>
+import { concatToStream } from "image-stitch";
+import { createWriteStream } from "node:fs";
+import { pipeline } from "node:stream/promises";
+
+await pipeline(
+  concatToStream({
+    inputs: spriteParts,
+    layout: { columns: 4 },
+    onProgress(current, total) {
+      console.info(`Completed ${current}/${total} tiles`);
+    }
+  }),
+  createWriteStream("spritesheet.png")
+);
+        </div>
+        <p>The async generator variant <code>concatStreaming(options)</code> works in any runtime that understands <code>for await...of</code>.</p>
       </section>
     </main>
 
@@ -309,29 +423,27 @@ const output = await concatToBuffer({
     const SAMPLE_MAP = {
       horizontal: ["basi0g08.png", "basi2c08.png", "basi4a16.png"],
       vertical: ["basi2c08.png", "basi0g08.png"],
-      grid: ["basi0g08.png", "basi2c08.png", "basi4a16.png", "basi0g08.png"]
+      grid: ["basi0g08.png", "basi2c08.png", "basi4a16.png", "basi0g08.png"],
+      canvas: ["basi0g08.png", "basi2c08.png", "basi4a16.png", "basi0g08.png"]
     };
 
     const LAYOUTS = {
       horizontal: { columns: 3 },
       vertical: { rows: 2 },
-      grid: { width: 256 }
+      grid: { width: 256 },
+      canvas: { rows: 2, columns: 2 }
     };
 
-    let moduleCache;
-    let concat;
+    let modulePromise;
+
+    async function ensureModule() {
+      if (!modulePromise) {
+        modulePromise = import(BUNDLE_URL);
+      }
+      return modulePromise;
+    }
 
     const bufferCache = new Map();
-
-    async function ensureConcat() {
-      if (!moduleCache) {
-        moduleCache = await import(BUNDLE_URL);
-      }
-      if (!concat) {
-        concat = moduleCache.concat;
-      }
-      return concat;
-    }
 
     async function loadSampleBuffers(keys) {
       return Promise.all(
@@ -348,46 +460,240 @@ const output = await concatToBuffer({
       );
     }
 
+    async function bufferToCanvas(buffer) {
+      const blob = new Blob([buffer], { type: "image/png" });
+
+      if (typeof createImageBitmap === "function") {
+        const bitmap = await createImageBitmap(blob);
+        const canvas = document.createElement("canvas");
+        canvas.width = bitmap.width;
+        canvas.height = bitmap.height;
+        const ctx = canvas.getContext("2d");
+        ctx?.drawImage(bitmap, 0, 0);
+        bitmap.close?.();
+        return canvas;
+      }
+
+      const url = URL.createObjectURL(blob);
+      try {
+        const img = await new Promise((resolve, reject) => {
+          const image = new Image();
+          image.onload = () => resolve(image);
+          image.onerror = (error) => reject(error);
+          image.src = url;
+        });
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext("2d");
+        ctx?.drawImage(img, 0, 0);
+        return canvas;
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    }
+
+    async function loadSampleCanvases(keys) {
+      const buffers = await loadSampleBuffers(keys);
+      return Promise.all(buffers.map(bufferToCanvas));
+    }
+
     function formatNumber(value) {
       return new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(value);
     }
 
+    function formatKilobytes(bytes) {
+      return `${(bytes / 1024).toFixed(2)} KB`;
+    }
+
+    function clearPreview(id) {
+      const image = document.querySelector(`[data-result="${id}"] img`);
+      if (image?.dataset.url) {
+        URL.revokeObjectURL(image.dataset.url);
+        delete image.dataset.url;
+      }
+      if (image) {
+        image.removeAttribute("src");
+        image.hidden = false;
+      }
+      const canvasSlot = document.querySelector(`[data-canvas-slot="${id}"]`);
+      if (canvasSlot) {
+        canvasSlot.innerHTML = "";
+        canvasSlot.hidden = true;
+      }
+    }
+
+    function showBlob(id, blob, meta) {
+      const image = document.querySelector(`[data-result="${id}"] img`);
+      const canvasSlot = document.querySelector(`[data-canvas-slot="${id}"]`);
+      if (!image) {
+        return;
+      }
+      if (image.dataset.url) {
+        URL.revokeObjectURL(image.dataset.url);
+      }
+      const url = URL.createObjectURL(blob);
+      image.src = url;
+      image.dataset.url = url;
+      image.hidden = false;
+      if (canvasSlot) {
+        canvasSlot.innerHTML = "";
+        canvasSlot.hidden = true;
+      }
+      const metaEl = document.querySelector(`[data-meta="${id}"]`);
+      if (metaEl) {
+        metaEl.textContent = meta;
+      }
+    }
+
+    function showCanvas(id, canvas, meta) {
+      const image = document.querySelector(`[data-result="${id}"] img`);
+      const canvasSlot = document.querySelector(`[data-canvas-slot="${id}"]`);
+      if (image?.dataset.url) {
+        URL.revokeObjectURL(image.dataset.url);
+        delete image.dataset.url;
+      }
+      if (image) {
+        image.hidden = true;
+      }
+      if (canvasSlot) {
+        canvasSlot.innerHTML = "";
+        canvasSlot.hidden = false;
+        canvasSlot.appendChild(canvas);
+      }
+      const metaEl = document.querySelector(`[data-meta="${id}"]`);
+      if (metaEl) {
+        metaEl.textContent = meta;
+      }
+    }
+
+    function resetMeta(id) {
+      const meta = document.querySelector(`[data-meta="${id}"]`);
+      if (meta) {
+        meta.textContent = "";
+      }
+    }
+
+    function createProgressReporter(id, initialTotal) {
+      const wrapper = document.querySelector(`[data-progress-wrapper="${id}"]`);
+      const progress = document.querySelector(`[data-progress="${id}"]`);
+      const label = document.querySelector(`[data-progress-label="${id}"]`);
+      if (!progress) {
+        return undefined;
+      }
+      if (wrapper instanceof HTMLElement) {
+        wrapper.hidden = false;
+      }
+      progress.value = 0;
+      progress.max = initialTotal ?? 1;
+      progress.dataset.total = String(initialTotal ?? 1);
+      if (label) {
+        label.textContent = `0 / ${initialTotal ?? 1}`;
+      }
+      return (current, total) => {
+        progress.max = total;
+        progress.value = current;
+        progress.dataset.total = String(total);
+        if (label) {
+          label.textContent = `${current} / ${total}`;
+        }
+      };
+    }
+
+    function finalizeProgress(id) {
+      const progress = document.querySelector(`[data-progress="${id}"]`);
+      const label = document.querySelector(`[data-progress-label="${id}"]`);
+      if (!progress) {
+        return;
+      }
+      const total = Number(progress.dataset.total ?? progress.max ?? 0);
+      if (total > 0) {
+        progress.value = total;
+        if (label) {
+          label.textContent = `${total} / ${total}`;
+        }
+      }
+    }
+
     async function runExample(id) {
       const status = document.querySelector(`[data-status="${id}"]`);
-      const resultEl = document.querySelector(`[data-result="${id}"] img`);
-      const meta = document.querySelector(`[data-meta="${id}"]`);
-      if (!status || !resultEl || !meta) return;
+      if (!status) return;
+      const module = await ensureModule();
+      const { concatToBuffer, concatCanvases } = module;
+
+      status.textContent = "Preparing…";
+      resetMeta(id);
+      clearPreview(id);
 
       try {
-        status.textContent = "Preparing…";
-        meta.textContent = "";
-        const concat = await ensureConcat();
-        status.textContent = "Loading samples…";
-        let buffers;
         if (id === "custom") {
           const input = document.getElementById("custom-files");
-          const files = Array.from(input.files || []).slice(0, 8);
+          const files = Array.from((input?.files || [])).slice(0, 8);
           if (!files.length) {
             status.textContent = "Select one or more PNG files.";
             return;
           }
           status.textContent = `Processing ${files.length} file${files.length === 1 ? "" : "s"}…`;
-          buffers = await Promise.all(files.map((file) => file.arrayBuffer()));
-        } else {
-          buffers = await loadSampleBuffers(SAMPLE_MAP[id]);
+          const stitched = await concatToBuffer({
+            inputs: files,
+            layout: { columns: 4, wrapBehavior: "wrap" }
+          });
+          status.textContent = "Rendering result…";
+          const blob = new Blob([stitched], { type: "image/png" });
+          showBlob(id, blob, `Output size: ${formatKilobytes(stitched.byteLength)}`);
+          status.textContent = "Done!";
+          return;
         }
 
-        status.textContent = "Stitching…";
-        const layout = id === "custom" ? { columns: 4, wrapBehavior: "wrap" } : LAYOUTS[id];
-        const stitched = await concatToBuffer({ inputs: buffers, layout });
-        const blob = new Blob([stitched], { type: "image/png" });
-        const url = URL.createObjectURL(blob);
-        if (resultEl.dataset.url) {
-          URL.revokeObjectURL(resultEl.dataset.url);
+        status.textContent = "Loading samples…";
+
+        if (id === "canvas") {
+          const canvases = await loadSampleCanvases(SAMPLE_MAP.canvas);
+          const outputControl = document.querySelector('input[name="canvas-output"]:checked');
+          const outputMode = outputControl?.value === "canvas" ? "canvas" : "blob";
+          status.textContent = "Stitching canvases…";
+          const onProgress = createProgressReporter(id, canvases.length);
+          const result = await concatCanvases({
+            canvases,
+            layout: LAYOUTS.canvas,
+            output: outputMode,
+            ...(onProgress ? { onProgress } : {})
+          });
+          if (outputMode === "canvas") {
+            finalizeProgress(id);
+            status.textContent = "Done!";
+            showCanvas(
+              id,
+              result,
+              `Canvas size: ${formatNumber(result.width)} × ${formatNumber(result.height)}`
+            );
+          } else {
+            finalizeProgress(id);
+            status.textContent = "Rendering Blob…";
+            const blob = result;
+            showBlob(id, blob, `Blob size: ${formatKilobytes(blob.size)}`);
+            status.textContent = "Done!";
+          }
+          return;
         }
-        resultEl.src = url;
-        resultEl.dataset.url = url;
-        meta.textContent = `Output size: ${(stitched.byteLength / 1024).toFixed(2)} KB`;
+
+        const sampleKeys = SAMPLE_MAP[id];
+        if (!sampleKeys) {
+          status.textContent = "Unknown example.";
+          return;
+        }
+        const buffers = await loadSampleBuffers(sampleKeys);
+        status.textContent = "Stitching…";
+        const onProgress = id === "grid" ? createProgressReporter(id, buffers.length) : undefined;
+        const stitched = await concatToBuffer({
+          inputs: buffers,
+          layout: LAYOUTS[id],
+          ...(onProgress ? { onProgress } : {})
+        });
+        finalizeProgress(id);
+        status.textContent = "Rendering result…";
+        const blob = new Blob([stitched], { type: "image/png" });
+        showBlob(id, blob, `Output size: ${formatKilobytes(stitched.byteLength)}`);
         status.textContent = "Done!";
       } catch (error) {
         console.error(error);
