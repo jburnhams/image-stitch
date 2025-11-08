@@ -15,6 +15,7 @@ import { compressImageData, extractPixelData } from './png-decompress.js';
 import { PngHeader, ColorType } from './types.js';
 import { Readable } from 'node:stream';
 import { writeFileSync, unlinkSync } from 'node:fs';
+import type { ImageDecoder } from './decoders/types.js';
 
 /**
  * Create a simple test PNG with solid color
@@ -72,6 +73,39 @@ function toArrayBuffer(view: Uint8Array): ArrayBuffer {
   return buffer;
 }
 
+function createStubDecoder({
+  width,
+  height,
+  rowsProvided = height,
+  scanlineWidth = width
+}: {
+  width: number;
+  height: number;
+  rowsProvided?: number;
+  scanlineWidth?: number;
+}): ImageDecoder {
+  return {
+    async getHeader() {
+      return {
+        width,
+        height,
+        channels: 4,
+        bitDepth: 8,
+        format: 'png' as const
+      };
+    },
+    async *scanlines() {
+      const bytesPerRow = Math.max(0, scanlineWidth) * 4;
+      for (let index = 0; index < rowsProvided; index++) {
+        const row = new Uint8Array(bytesPerRow);
+        row.fill(255);
+        yield row;
+      }
+    },
+    async close() {}
+  };
+}
+
 // ===== BASIC FUNCTIONALITY TESTS =====
 
 test('concat throws on empty inputs', async () => {
@@ -93,6 +127,52 @@ test('concat throws on missing layout', async () => {
       await collectChunks(gen);
     },
     /Must specify layout/
+  );
+});
+
+test('concatToBuffer surfaces descriptive error when decoder ends early', async () => {
+  const stubDecoder = createStubDecoder({ width: 4, height: 3, rowsProvided: 2 });
+
+  await assert.rejects(
+    async () => {
+      await concatToBuffer({
+        inputs: [stubDecoder],
+        layout: { columns: 1 }
+      });
+    },
+    (error: unknown) => {
+      assert(error instanceof Error);
+      assert.match(
+        error.message,
+        /Failed to stitch images: dimension mismatch for input #1 while assembling row 1, column 1/i
+      );
+      assert.match(error.message, /Expected 3px tall image/);
+      assert.match(error.message, /after 2px/);
+      return true;
+    }
+  );
+});
+
+test('concatToBuffer surfaces descriptive error when scanline width mismatches header', async () => {
+  const stubDecoder = createStubDecoder({ width: 4, height: 2, scanlineWidth: 3 });
+
+  await assert.rejects(
+    async () => {
+      await concatToBuffer({
+        inputs: [stubDecoder],
+        layout: { columns: 1 }
+      });
+    },
+    (error: unknown) => {
+      assert(error instanceof Error);
+      assert.match(
+        error.message,
+        /Failed to stitch images: dimension mismatch for input #1 while assembling row 1, column 1/i
+      );
+      assert.match(error.message, /Expected 4px wide scanline/);
+      assert.match(error.message, /produced 3px/);
+      return true;
+    }
   );
 });
 

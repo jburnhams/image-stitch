@@ -7,7 +7,7 @@
  */
 
 import { ConcatOptions, PngHeader } from './types.js';
-import { PNG_SIGNATURE } from './utils.js';
+import { PNG_SIGNATURE, getSamplesPerPixel } from './utils.js';
 import { filterScanline, getBytesPerPixel } from './png-filter.js';
 import { createIHDR, createIEND, serializeChunk, createChunk } from './png-writer.js';
 import { createDecodersFromIterable } from './decoders/decoder-factory.js';
@@ -15,6 +15,19 @@ import { getDefaultDecoderPlugins } from './decoders/plugin-registry.js';
 import type { ImageHeader } from './decoders/types.js';
 import { determineCommonFormat, convertScanline, getTransparentColor } from './pixel-ops.js';
 import { StreamingDeflator } from './streaming-deflate.js';
+
+function createStitchError(message: string, cause?: unknown): Error {
+  const baseMessage = `Failed to stitch images: ${message}`;
+  if (cause instanceof Error) {
+    return new Error(baseMessage, { cause });
+  }
+
+  return new Error(baseMessage);
+}
+
+function formatPixels(value: number): string {
+  return Number.isInteger(value) ? `${value}px` : `${value.toFixed(2)}px`;
+}
 
 /**
  * Convert ImageHeader to PngHeader for internal PNG processing
@@ -396,10 +409,35 @@ export class StreamingConcatenator {
 
             if (localY < imageHeight) {
               // Read scanline from this image
-              const { value, done } = await iterators[imageIdx].next();
-              if (!done) {
-                // Convert scanline to target format if needed
-                const convertedScanline = convertScanline(
+              const iterator = iterators[imageIdx];
+              const { value, done } = await iterator.next();
+
+              if (done || value === undefined) {
+                const producedRows = localY;
+                throw createStitchError(
+                  `dimension mismatch for input #${imageIdx + 1} while assembling row ${row + 1}, column ${col + 1}. ` +
+                    `Expected ${formatPixels(imageHeight)} tall image but decoder ended after ${formatPixels(producedRows)}.`
+                );
+              }
+
+              const samplesPerPixel = getSamplesPerPixel(imageHeader.colorType);
+              const expectedSourceLength = Math.ceil(
+                (imageWidth * imageHeader.bitDepth * samplesPerPixel) / 8
+              );
+
+              if (value.length !== expectedSourceLength) {
+                const bitsPerPixel = imageHeader.bitDepth * samplesPerPixel;
+                const actualWidth = bitsPerPixel === 0 ? 0 : (value.length * 8) / bitsPerPixel;
+                throw createStitchError(
+                  `dimension mismatch for input #${imageIdx + 1} while assembling row ${row + 1}, column ${col + 1}. ` +
+                    `Expected ${formatPixels(imageWidth)} wide scanline (${expectedSourceLength} raw bytes) but decoder produced ` +
+                    `${formatPixels(actualWidth)} (${value.length} raw bytes).`
+                );
+              }
+
+              let convertedScanline: Uint8Array;
+              try {
+                convertedScanline = convertScanline(
                   value,
                   imageWidth,
                   imageHeader.bitDepth,
@@ -407,20 +445,31 @@ export class StreamingConcatenator {
                   outputHeader.bitDepth,
                   outputHeader.colorType
                 );
-
-                // Pad scanline if image is narrower than column
-                const paddedScanline = padScanline(
-                  convertedScanline,
-                  imageWidth,
-                  colWidth,
-                  bytesPerPixel,
-                  transparentColor
+              } catch (error) {
+                throw createStitchError(
+                  `unable to normalize input #${imageIdx + 1} at row ${row + 1}, column ${col + 1}`,
+                  error
                 );
-                scanlines.push(paddedScanline);
-              } else {
-                // Shouldn't happen, but handle gracefully
-                scanlines.push(createTransparentScanline(colWidth, bytesPerPixel, transparentColor));
               }
+
+              const expectedScanlineLength = imageWidth * bytesPerPixel;
+              if (convertedScanline.length !== expectedScanlineLength) {
+                const actualWidth = convertedScanline.length / bytesPerPixel;
+                throw createStitchError(
+                  `dimension mismatch for input #${imageIdx + 1} while assembling row ${row + 1}, column ${col + 1}. ` +
+                    `Expected ${formatPixels(imageWidth)} wide scanline but decoder produced ${formatPixels(actualWidth)}.`
+                );
+              }
+
+              // Pad scanline if image is narrower than column
+              const paddedScanline = padScanline(
+                convertedScanline,
+                imageWidth,
+                colWidth,
+                bytesPerPixel,
+                transparentColor
+              );
+              scanlines.push(paddedScanline);
             } else {
               // Below image - use transparent scanline
               scanlines.push(createTransparentScanline(colWidth, bytesPerPixel, transparentColor));
@@ -433,6 +482,15 @@ export class StreamingConcatenator {
 
         // Combine scanlines horizontally
         let outputScanline = combineScanlines(scanlines, rowColWidths, bytesPerPixel);
+
+        const expectedRowWidth = rowColWidths.reduce((sum, width) => sum + width, 0);
+        const expectedRowLength = expectedRowWidth * bytesPerPixel;
+        if (outputScanline.length !== expectedRowLength) {
+          const actualWidth = outputScanline.length / bytesPerPixel;
+          throw createStitchError(
+            `dimension mismatch while assembling row ${row + 1}. Expected ${formatPixels(expectedRowWidth)} but assembled ${formatPixels(actualWidth)}.`
+          );
+        }
 
         // Pad scanline to totalWidth if this row is narrower
         const rowWidth = rowColWidths.reduce((sum, w) => sum + w, 0);
