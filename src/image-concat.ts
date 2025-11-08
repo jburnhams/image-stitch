@@ -29,27 +29,22 @@ export class StreamingConcatenator extends CoreStreamingConcatenator {
 
 export { concatStreamingCore as concatStreaming };
 
+export function concatToBuffer(options: ConcatOptions): Promise<Uint8Array> {
+  return concatUint8Array(options);
+}
+
 export function concatToStream(options: ConcatOptions): Readable {
   const concatenator = new StreamingConcatenator(options);
   return concatenator.toReadableStream();
 }
 
-export interface UnifiedConcatOptions extends ConcatOptions {
-  stream?: boolean;
-}
-
-export function concat(options: UnifiedConcatOptions & { stream: true }): Promise<Readable>;
-export function concat(options: UnifiedConcatOptions): Promise<Uint8Array>;
-export function concat(options: UnifiedConcatOptions): Promise<Uint8Array | Readable> {
-  return (async () => {
-    if (options.stream) {
-      return concatToStream(options);
-    }
-
-    return concatUint8Array(options);
-  })();
-}
-
 export async function concatToFile(options: ConcatOptions): Promise<Readable> {
-  return concat({ ...options, stream: true }) as Promise<Readable>;
+  return concatToStream(options);
+}
+
+/**
+ * @deprecated Use {@link concatToBuffer} instead.
+ */
+export function concat(options: ConcatOptions): Promise<Uint8Array> {
+  return concatToBuffer(options);
 }

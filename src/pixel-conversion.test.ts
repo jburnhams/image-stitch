@@ -5,7 +5,7 @@ import { convertPixelFormat, determineCommonFormat } from './pixel-ops.js';
 import { PngHeader, ColorType } from './types.js';
 import { parsePngHeader, parsePngChunks } from './png-parser.js';
 import { extractPixelData } from './png-decompress.js';
-import { concat } from './image-concat.js';
+import { concatToBuffer } from './image-concat.js';
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -302,7 +302,7 @@ describe('PngSuite Tests: Verify pixel values at expected coordinates', () => {
     const pixel2 = getPixelAt(pixels2, header2, 0, 0);
 
     // Concatenate horizontally
-    const result = await concat({
+    const result = await concatToBuffer({
       inputs: [png1, png2],
       layout: { columns: 2 }
     });
@@ -348,7 +348,7 @@ describe('PngSuite Tests: Verify pixel values at expected coordinates', () => {
     const grayBottomRight = getPixelAt(pixelsGray, headerGray, headerGray.width - 1, headerGray.height - 1);
 
     // Concatenate horizontally: [RGB | Gray]
-    const result = await concat({
+    const result = await concatToBuffer({
       inputs: [pngRGB, pngGray],
       layout: { columns: 2 }
     });
@@ -399,7 +399,7 @@ describe('PngSuite Tests: Verify pixel values at expected coordinates', () => {
     const gaPixel = getPixelAt(pixelsGA, headerGA, 5, 5);
 
     // Concatenate vertically
-    const result = await concat({
+    const result = await concatToBuffer({
       inputs: [pngRGBA, pngGA],
       layout: { rows: 2 }
     });
@@ -436,7 +436,7 @@ describe('PngSuite Tests: Verify pixel values at expected coordinates', () => {
     const pixel16 = getPixelAt(pixels16, header16, 10, 10);
 
     // Concatenate
-    const result = await concat({
+    const result = await concatToBuffer({
       inputs: [png8, png16],
       layout: { columns: 2 }
     });
@@ -476,7 +476,7 @@ describe('PngSuite Tests: Verify pixel values at expected coordinates', () => {
     const header8 = parsePngHeader(png8bit);
 
     // Concatenate
-    const result = await concat({
+    const result = await concatToBuffer({
       inputs: [png1bit, png8bit],
       layout: { columns: 2 }
     });
@@ -498,7 +498,7 @@ describe('PngSuite Tests: Verify pixel values at expected coordinates', () => {
     const png4bit = loadPngSuite('basn0g04.png');
     const png16bit = loadPngSuite('basn0g16.png');
 
-    const result = await concat({
+    const result = await concatToBuffer({
       inputs: [png4bit, png16bit],
       layout: { columns: 2 }
     });
@@ -537,7 +537,7 @@ describe('PngSuite Tests: Verify pixel values at expected coordinates', () => {
     const pixel4 = getPixelAt(pixels4, header4, 0, 0);
 
     // Concatenate in 2x2 grid
-    const result = await concat({
+    const result = await concatToBuffer({
       inputs: [png1, png2, png3, png4],
       layout: { columns: 2 }
     });
@@ -580,7 +580,7 @@ describe('Property Tests: Verify concatenation properties', () => {
     const header1 = parsePngHeader(png1);
     const header2 = parsePngHeader(png2);
 
-    const result = await concat({
+    const result = await concatToBuffer({
       inputs: [png1, png2],
       layout: { columns: 2 }
     });
@@ -600,7 +600,7 @@ describe('Property Tests: Verify concatenation properties', () => {
     const header1 = parsePngHeader(png1);
     const header2 = parsePngHeader(png2);
 
-    const result = await concat({
+    const result = await concatToBuffer({
       inputs: [png1, png2],
       layout: { rows: 2 }
     });
@@ -614,7 +614,7 @@ describe('Property Tests: Verify concatenation properties', () => {
   test('Output is valid PNG with correct structure', async () => {
     if (!canLoadPngSuite('basn2c08.png') || !canLoadPngSuite('basn0g08.png')) return;
 
-    const result = await concat({
+    const result = await concatToBuffer({
       inputs: [
         loadPngSuite('basn2c08.png'),
         loadPngSuite('basn0g08.png')
@@ -692,7 +692,7 @@ describe('Comprehensive Format Combination Tests', () => {
       const header1 = parsePngHeader(png1);
       const header2 = parsePngHeader(png2);
 
-      const result = await concat({
+      const result = await concatToBuffer({
         inputs: [png1, png2],
         layout: { columns: 2 }
       });

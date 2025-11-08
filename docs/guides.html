@@ -125,10 +125,10 @@
 
     <section>
       <h2>Quick start (Node.js)</h2>
-      <pre><code>import { concat } from "image-stitch";
+      <pre><code>import { concatToBuffer } from "image-stitch";
 import { readFileSync, writeFileSync } from "node:fs";
 
-const stitched = await concat({
+const stitched = await concatToBuffer({
   inputs: [
     readFileSync("./pngsuite/png/basi0g08.png"),
     readFileSync("./pngsuite/png/basi2c08.png")
@@ -151,7 +151,7 @@ const buffers = await Promise.all([
   fetch("./images/basi2c08.png").then(r =&gt; r.arrayBuffer())
 ]);
 
-const stitched = await concat({ inputs: buffers, layout: { columns: 2 } });
+const stitched = await concatToBuffer({ inputs: buffers, layout: { columns: 2 } });
 const blob = new Blob([stitched], { type: "image/png" });
 document.querySelector("img.preview").src = URL.createObjectURL(blob);
 </code></pre>
@@ -160,8 +160,8 @@ document.querySelector("img.preview").src = URL.createObjectURL(blob);
 
     <section>
       <h2>API reference</h2>
-      <h3><code>concat(options)</code></h3>
-      <p>Concatenate input images and return a <code>Promise&lt;Uint8Array&gt;</code>. All options are required unless marked optional.</p>
+      <h3><code>concatToBuffer(options)</code></h3>
+      <p>Concatenate input images and return a <code>Promise&lt;Uint8Array&gt;</code>. All options are required unless marked optional. A deprecated <code>concat</code> alias remains for backwards compatibility.</p>
       <pre><code>interface ConcatOptions {
   inputs: Array&lt;Uint8Array | ArrayBuffer | string&gt;;
   layout: {

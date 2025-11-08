@@ -1,7 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 import './decoders/index.js';
-import { concatStreaming, concatToStream, concat, concatToFile, StreamingConcatenator } from './image-concat.js';
+import {
+  concat,
+  concatStreaming,
+  concatToBuffer,
+  concatToStream,
+  concatToFile,
+  StreamingConcatenator
+} from './image-concat.js';
 import { parsePngHeader, parsePngChunks } from './png-parser.js';
 import { createIHDR, createIEND, createChunk, buildPng } from './png-writer.js';
 import { compressImageData, extractPixelData } from './png-decompress.js';
@@ -549,7 +556,7 @@ test('concat accepts async iterable inputs', async () => {
     yield png2;
   }
 
-  const result = await concat({
+  const result = await concatToBuffer({
     inputs: inputStream(),
     layout: { columns: 2 }
   });
@@ -603,7 +610,7 @@ test('concat (unified API) returns Uint8Array by default', async () => {
   const png1 = await createTestPng(10, 10, new Uint8Array([255, 0, 0, 255]));
   const png2 = await createTestPng(10, 10, new Uint8Array([0, 255, 0, 255]));
 
-  const result = await concat({
+  const result = await concatToBuffer({
     inputs: [png1, png2],
     layout: { columns: 2 }
   });
@@ -615,14 +622,13 @@ test('concat (unified API) returns Uint8Array by default', async () => {
   assert.strictEqual(header.height, 10);
 });
 
-test('concat (unified API) returns stream when requested', async () => {
+test('concatToStream returns Node readable stream', async () => {
   const png1 = await createTestPng(10, 10, new Uint8Array([255, 0, 0, 255]));
   const png2 = await createTestPng(10, 10, new Uint8Array([0, 255, 0, 255]));
 
-  const result = await concat({
+  const result = concatToStream({
     inputs: [png1, png2],
-    layout: { columns: 2 },
-    stream: true
+    layout: { columns: 2 }
   });
 
   assert.ok(result instanceof Readable);
@@ -632,7 +638,7 @@ test('concat (unified API) with small images', async () => {
   const png1 = await createTestPng(50, 50, new Uint8Array([255, 0, 0, 255]));
   const png2 = await createTestPng(50, 50, new Uint8Array([0, 255, 0, 255]));
 
-  const result = await concat({
+  const result = await concatToBuffer({
     inputs: [png1, png2],
     layout: { columns: 2 }
   });
@@ -654,7 +660,7 @@ test('concat (unified API) with file paths', async () => {
   writeFileSync(tempFile2, png2);
 
   try {
-    const result = await concat({
+    const result = await concatToBuffer({
       inputs: [tempFile1, tempFile2],
       layout: { columns: 2 }
     });
@@ -674,7 +680,7 @@ test('concat (unified API) accepts ArrayBuffer inputs', async () => {
   const png1 = await createTestPng(16, 8, new Uint8Array([5, 100, 200, 255]));
   const png2 = await createTestPng(16, 8, new Uint8Array([200, 5, 100, 255]));
 
-  const result = await concat({
+  const result = await concatToBuffer({
     inputs: [toArrayBuffer(png1), toArrayBuffer(png2)],
     layout: { columns: 2 }
   });
@@ -701,7 +707,7 @@ test('concat (unified API) handles vertical layout', async () => {
   const png1 = await createTestPng(10, 10, new Uint8Array([255, 0, 0, 255]));
   const png2 = await createTestPng(10, 10, new Uint8Array([0, 255, 0, 255]));
 
-  const result = await concat({
+  const result = await concatToBuffer({
     inputs: [png1, png2],
     layout: { rows: 2 }
   });
@@ -722,7 +728,7 @@ test('concat with width limit wrapping produces valid PNG', async () => {
   // Row 1: png1 (40) + png2 (40) = 80 pixels
   // Row 2: png3 (40) + png4 (40) = 80 pixels
   // But if the next image would exceed 100, it wraps
-  const result = await concat({
+  const result = await concatToBuffer({
     inputs: [png1, png2, png3, png4],
     layout: { width: 100 }
   });
@@ -753,7 +759,7 @@ test('concat with width limit - different row widths', async () => {
   // Row 3: png3 (30)
   // This creates rows with widths: 50, 50, 30
   // totalWidth should be 50 (the max)
-  const result = await concat({
+  const result = await concatToBuffer({
     inputs: [png1, png2, png3],
     layout: { width: 80 }
   });
@@ -780,7 +786,7 @@ test('concat with width limit - single image per row', async () => {
   // Row 2: png2 (70) > 65, but it's the first in the row so it still fits
   // Row 3: png3 (50)
   // totalWidth should be 70 (the max)
-  const result = await concat({
+  const result = await concatToBuffer({
     inputs: [png1, png2, png3],
     layout: { width: 65 }
   });
@@ -803,7 +809,7 @@ test('concat with width limit - extreme size differences', async () => {
   // Width limit of 150 should create:
   // Row 1: png1 (100) + png2 (10) + png3 (10) = 120
   // totalWidth = 120
-  const result = await concat({
+  const result = await concatToBuffer({
     inputs: [png1, png2, png3],
     layout: { width: 150 }
   });
@@ -828,7 +834,7 @@ test('concat with width limit - last row much narrower', async () => {
   // Row 2: png2 (80), then try adding png3 (5): 80 + 5 = 85 <= 100, so yes
   // Final layout: Row 1 = [png1] (80px), Row 2 = [png2, png3] (85px)
   // totalWidth = 85 (max of 80 and 85)
-  const result = await concat({
+  const result = await concatToBuffer({
     inputs: [png1, png2, png3],
     layout: { width: 100 }
   });
@@ -853,7 +859,7 @@ test('concat with width and height limits', async () => {
   // Row 1: png1 (40) + png2 (40) = 80 > 70, so only png1, height = 30
   // Row 2: png2 (40), height = 30, total = 60 > 50
   // So only row 1 fits
-  const result = await concat({
+  const result = await concatToBuffer({
     inputs: [png1, png2, png3, png4],
     layout: { width: 70, height: 50 }
   });
@@ -865,4 +871,16 @@ test('concat with width and height limits', async () => {
   assert.ok(header.width <= 70, 'Width should respect limit');
   assert.ok(header.height <= 50, 'Height should respect limit');
   assert.strictEqual(pixelData.length, header.width * header.height * 4);
+});
+
+test('deprecated concat alias resolves to Uint8Array', async () => {
+  const png = await createTestPng(10, 10, new Uint8Array([255, 0, 0, 255]));
+
+  const result = await concat({
+    inputs: [png],
+    layout: { columns: 1 }
+  });
+
+  assert.ok(result instanceof Uint8Array);
+  assert.strictEqual(result.byteLength > 0, true);
 });

@@ -177,8 +177,15 @@ export async function* concatStreaming(
   yield* concatenator.stream();
 }
 
-export function concat(options: BrowserConcatOptions): Promise<Uint8Array> {
+export function concatToBuffer(options: BrowserConcatOptions): Promise<Uint8Array> {
   return concatUint8Array(normalizeOptions(options));
+}
+
+/**
+ * @deprecated Use {@link concatToBuffer} instead.
+ */
+export function concat(options: BrowserConcatOptions): Promise<Uint8Array> {
+  return concatToBuffer(options);
 }
 
 async function renderPngToCanvas(
@@ -288,7 +295,7 @@ export async function concatCanvases(
     throw new Error('At least one canvas is required to stitch.');
   }
 
-  const pngBytes = await concat({
+  const pngBytes = await concatToBuffer({
     ...(forwardOptions as Omit<BrowserConcatOptions, 'inputs'>),
     inputs: normalizedInputs
   });

@@ -196,13 +196,13 @@
         <h2>Horizontal sprite strip</h2>
         <p>Combine three pngsuite samples into a single row. Useful for spritesheets and UI icon strips.</p>
         <div class="code-block" data-code>
-import { concat } from "image-stitch";
+import { concatToBuffer } from "image-stitch";
 
 const names = ["basi0g08.png", "basi2c08.png", "basi4a16.png"];
 const buffers = await Promise.all(
   names.map((name) => fetch(`images/${name}`).then((res) => res.arrayBuffer()))
 );
-const output = await concat({
+const output = await concatToBuffer({
   inputs: buffers,
   layout: { columns: 3 }
 });
@@ -222,13 +222,13 @@ const output = await concat({
         <h2>Vertical film strip</h2>
         <p>Let image-stitch handle varying heights automatically. Smaller inputs are padded with transparent pixels.</p>
         <div class="code-block" data-code>
-import { concat } from "image-stitch";
+import { concatToBuffer } from "image-stitch";
 
 const names = ["basi2c08.png", "basi0g08.png"];
 const buffers = await Promise.all(
   names.map((name) => fetch(`images/${name}`).then((res) => res.arrayBuffer()))
 );
-const output = await concat({
+const output = await concatToBuffer({
   inputs: buffers,
   layout: { rows: 2 }
 });
@@ -248,13 +248,13 @@ const output = await concat({
         <h2>Auto-wrapping grid</h2>
         <p>Limit the maximum width to let image-stitch wrap rows automatically. Perfect for responsive contact sheets.</p>
         <div class="code-block" data-code>
-import { concat } from "image-stitch";
+import { concatToBuffer } from "image-stitch";
 
 const names = ["basi0g08.png", "basi2c08.png", "basi4a16.png", "basi0g08.png"];
 const buffers = await Promise.all(
   names.map((name) => fetch(`images/${name}`).then((res) => res.arrayBuffer()))
 );
-const output = await concat({
+const output = await concatToBuffer({
   inputs: buffers,
   layout: { width: 256 }
 });
@@ -274,11 +274,11 @@ const output = await concat({
         <h2>Bring your own PNGs</h2>
         <p>Drop in up to eight PNG files (16-bit color is supported!) and stitch them in your browser. No uploads—everything runs locally.</p>
         <div class="code-block" data-code>
-import { concat } from "image-stitch";
+import { concatToBuffer } from "image-stitch";
 
 const files = Array.from(fileInput.files ?? []);
 const buffers = await Promise.all(files.map(file => file.arrayBuffer()));
-const output = await concat({
+const output = await concatToBuffer({
   inputs: buffers,
   layout: { columns: 4, wrapBehavior: "wrap" }
 });
@@ -378,7 +378,7 @@ const output = await concat({
 
         status.textContent = "Stitching…";
         const layout = id === "custom" ? { columns: 4, wrapBehavior: "wrap" } : LAYOUTS[id];
-        const stitched = await concat({ inputs: buffers, layout });
+        const stitched = await concatToBuffer({ inputs: buffers, layout });
         const blob = new Blob([stitched], { type: "image/png" });
         const url = URL.createObjectURL(blob);
         if (resultEl.dataset.url) {
