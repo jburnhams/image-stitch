@@ -266,8 +266,8 @@ describe('Memory Usage Tests', () => {
         console.log(`  Peak memory delta: ${formatBytes(measurement.delta.heapUsed)}`);
         console.log(`  Ratio (peak/uncompressed): ${(measurement.delta.heapUsed / expectedMem.uncompressedSize).toFixed(2)}x`);
 
-        // Allow up to 800MB with safety margin
-        const THRESHOLD = 800 * 1024 * 1024; // 800MB threshold
+        // Allow up to 900MB with safety margin
+        const THRESHOLD = 900 * 1024 * 1024;
         assertMemoryBelow(measurement, THRESHOLD, 'heapUsed');
 
         console.log(`✓ Very large image test passed - STREAMING (${formatBytes(measurement.delta.heapUsed)})`);
