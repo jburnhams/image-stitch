@@ -12,8 +12,13 @@ import {
   PngBufferDecoder,
   JpegBufferDecoder,
   pngDecoder,
-  jpegDecoder
+  jpegDecoder,
+  heicDecoder
 } from '../decoders/index.js';
+import {
+  clearDefaultDecoderPlugins,
+  setDefaultDecoderPlugins
+} from '../decoders/plugin-registry.js';
 import { createTestPng, createTestJpeg } from '../test-utils/image-fixtures.js';
 
 describe('Decoder Factory - createDecoder', () => {
@@ -60,6 +65,21 @@ describe('Decoder Factory - createDecoder', () => {
     assert.strictEqual(header.height, 15);
 
     await decoder.close();
+  });
+
+  test('auto-registers PNG decoder when defaults are cleared', async () => {
+    clearDefaultDecoderPlugins();
+
+    try {
+      const pngBytes = await createTestPng(6, 4, new Uint8Array([255, 255, 255, 255]));
+      const decoder = await createDecoder(pngBytes);
+
+      assert.ok(decoder instanceof PngBufferDecoder);
+
+      await decoder.close();
+    } finally {
+      setDefaultDecoderPlugins([pngDecoder, jpegDecoder, heicDecoder]);
+    }
   });
 
   test('returns existing decoder instance as-is', async () => {
