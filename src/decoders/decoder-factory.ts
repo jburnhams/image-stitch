@@ -5,11 +5,9 @@
  * Supports PNG, JPEG, and HEIC formats with automatic fallback strategies.
  */
 
-import type { ImageDecoder, ImageInput, DecoderOptions } from './types.js';
+import type { ImageDecoder, ImageInput, DecoderOptions, DecoderPlugin } from './types.js';
 import { detectFormat, validateFormat } from './format-detection.js';
-import { PngFileDecoder, PngBufferDecoder } from './png-decoder.js';
-import { JpegFileDecoder, JpegBufferDecoder } from './jpeg-decoder.js';
-import { HeicFileDecoder, HeicBufferDecoder } from './heic-decoder.js';
+import { getDefaultDecoderPlugins } from './plugin-registry.js';
 
 /**
  * Create appropriate decoder for any image input
@@ -33,7 +31,11 @@ import { HeicFileDecoder, HeicBufferDecoder } from './heic-decoder.js';
  *   heic: { useNativeIfAvailable: true }
  * });
  */
-export async function createDecoder(input: ImageInput, options: DecoderOptions = {}): Promise<ImageDecoder> {
+export async function createDecoder(
+  input: ImageInput,
+  options: DecoderOptions = {},
+  plugins: DecoderPlugin[] = getDefaultDecoderPlugins()
+): Promise<ImageDecoder> {
   // If already a decoder, return as-is
   if (
     typeof input === 'object' &&
@@ -45,21 +47,21 @@ export async function createDecoder(input: ImageInput, options: DecoderOptions =
     return input as ImageDecoder;
   }
 
+  const availablePlugins = plugins.length > 0 ? plugins : getDefaultDecoderPlugins();
+
   // For file paths
   if (typeof input === 'string') {
     const format = await detectFormat(input);
     validateFormat(format);
 
-    switch (format) {
-      case 'png':
-        return new PngFileDecoder(input);
-      case 'jpeg':
-        return new JpegFileDecoder(input, options.jpeg);
-      case 'heic':
-        return new HeicFileDecoder(input, options.heic);
-      default:
-        throw new Error(`Unsupported format: ${format}`);
+    const plugin = availablePlugins.find(candidate => candidate.format === format);
+    if (!plugin) {
+      throw new Error(
+        `No decoder registered for format "${format}". Provide a matching plugin via options.decoders.`
+      );
     }
+
+    return plugin.create(input, options);
   }
 
   // For ArrayBuffer, convert to Uint8Array
@@ -74,16 +76,14 @@ export async function createDecoder(input: ImageInput, options: DecoderOptions =
     const format = await detectFormat(magicBytes);
     validateFormat(format);
 
-    switch (format) {
-      case 'png':
-        return new PngBufferDecoder(input);
-      case 'jpeg':
-        return new JpegBufferDecoder(input, options.jpeg);
-      case 'heic':
-        return new HeicBufferDecoder(input, options.heic);
-      default:
-        throw new Error(`Unsupported format: ${format}`);
+    const plugin = availablePlugins.find(candidate => candidate.format === format);
+    if (!plugin) {
+      throw new Error(
+        `No decoder registered for format "${format}". Provide a matching plugin via options.decoders.`
+      );
     }
+
+    return plugin.create(input, options);
   }
 
   throw new Error(
@@ -107,9 +107,13 @@ export async function createDecoder(input: ImageInput, options: DecoderOptions =
  *   heicBytes
  * ]);
  */
-export async function createDecoders(inputs: ImageInput[], options: DecoderOptions = {}): Promise<ImageDecoder[]> {
+export async function createDecoders(
+  inputs: ImageInput[],
+  options: DecoderOptions = {},
+  plugins: DecoderPlugin[] = getDefaultDecoderPlugins()
+): Promise<ImageDecoder[]> {
   // Create all decoders in parallel
-  return Promise.all(inputs.map((input) => createDecoder(input, options)));
+  return Promise.all(inputs.map((input) => createDecoder(input, options, plugins)));
 }
 
 /**
@@ -132,12 +136,13 @@ export async function createDecoders(inputs: ImageInput[], options: DecoderOptio
  */
 export async function createDecodersFromAsyncIterable(
   inputs: AsyncIterable<ImageInput>,
-  options: DecoderOptions = {}
+  options: DecoderOptions = {},
+  plugins: DecoderPlugin[] = getDefaultDecoderPlugins()
 ): Promise<ImageDecoder[]> {
   const decoders: ImageDecoder[] = [];
 
   for await (const input of inputs) {
-    decoders.push(await createDecoder(input, options));
+    decoders.push(await createDecoder(input, options, plugins));
   }
 
   return decoders;
@@ -154,15 +159,16 @@ export async function createDecodersFromAsyncIterable(
  */
 export async function createDecodersFromIterable(
   inputs: Iterable<ImageInput> | AsyncIterable<ImageInput>,
-  options: DecoderOptions = {}
+  options: DecoderOptions = {},
+  plugins: DecoderPlugin[] = getDefaultDecoderPlugins()
 ): Promise<ImageDecoder[]> {
   // Check if async iterable
   const asyncIterator = (inputs as AsyncIterable<ImageInput>)[Symbol.asyncIterator];
   if (typeof asyncIterator === 'function') {
-    return createDecodersFromAsyncIterable(inputs as AsyncIterable<ImageInput>, options);
+    return createDecodersFromAsyncIterable(inputs as AsyncIterable<ImageInput>, options, plugins);
   }
 
   // Synchronous iterable
   const inputArray = Array.from(inputs as Iterable<ImageInput>);
-  return createDecoders(inputArray, options);
+  return createDecoders(inputArray, options, plugins);
 }

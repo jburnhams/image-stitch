@@ -9,7 +9,13 @@
  * then yield scanlines progressively from the decoded buffer.
  */
 
-import type { ImageDecoder, ImageHeader, JpegDecoderOptions } from './types.js';
+import type {
+  ImageDecoder,
+  ImageHeader,
+  JpegDecoderOptions,
+  DecoderPlugin,
+  DecoderOptions
+} from './types.js';
 
 /**
  * JPEG SOF (Start of Frame) marker types
@@ -349,3 +355,24 @@ export class JpegBufferDecoder extends BaseJpegDecoder {
     super(data, options);
   }
 }
+
+/**
+ * Decoder plugin for JPEG images
+ */
+export const jpegDecoder: DecoderPlugin = {
+  format: 'jpeg',
+  async create(input, options?: DecoderOptions) {
+    const jpegOptions = options?.jpeg;
+
+    if (typeof input === 'string') {
+      return new JpegFileDecoder(input, jpegOptions);
+    }
+    if (input instanceof Uint8Array) {
+      return new JpegBufferDecoder(input, jpegOptions);
+    }
+    if (input instanceof ArrayBuffer) {
+      return new JpegBufferDecoder(new Uint8Array(input), jpegOptions);
+    }
+    throw new Error('Unsupported JPEG input type for decoder plugin');
+  }
+};

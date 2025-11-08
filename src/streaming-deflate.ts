@@ -1,14 +1,22 @@
 /**
- * TRUE Streaming Deflate Compression using pako's onData callback
+ * TRUE Streaming Deflate Compression with native CompressionStream fallback
  *
- * This achieves constant memory usage by:
- * 1. Using pako's onData callback to receive compressed chunks immediately
- * 2. Batching input scanlines to control flush frequency
- * 3. Using Z_SYNC_FLUSH to maintain deflate state across batches
- * 4. NO accumulation of compressed output
+ * Uses the modern CompressionStream API in supported environments to avoid
+ * bundling heavy dependencies. Falls back to pako in Node.js environments
+ * lacking native compression streams.
  */
 
-import pako from 'pako';
+import type { Deflate, DeflateOptions } from 'pako';
+
+type PakoModule = typeof import('pako');
+
+let pakoPromise: Promise<PakoModule> | null = null;
+async function loadPako(): Promise<PakoModule> {
+  if (!pakoPromise) {
+    pakoPromise = import('pako');
+  }
+  return pakoPromise;
+}
 
 export interface StreamingDeflatorOptions {
   /**
@@ -18,50 +26,81 @@ export interface StreamingDeflatorOptions {
   level?: number;
 
   /**
-   * Maximum bytes to accumulate before flushing
+   * Maximum bytes to accumulate before flushing (pako fallback only)
    * Default: 10MB
    */
   maxBatchSize?: number;
 }
 
+type OnDataCallback = (chunk: Uint8Array) => void;
+
 /**
- * True streaming deflate compressor using pako's onData callback
- *
- * Key insight: pako's onData callback receives compressed chunks as they're
- * produced, WITHOUT accumulating them in the result property!
+ * True streaming deflate compressor that prefers native CompressionStream
+ * and falls back to pako when unavailable (older Node.js builds).
  */
 export class StreamingDeflator {
-  private deflator: pako.Deflate | null = null;
+  private deflator: Deflate | null = null;
+  private pakoModule: PakoModule | null = null;
   private pendingBytes = 0;
   private readonly maxBatchSize: number;
-  private readonly level: pako.DeflateOptions['level'];
+  private readonly level: DeflateOptions['level'];
   private finished = false;
+  private readonly useNative: boolean;
+  private nativeWriter: WritableStreamDefaultWriter<Uint8Array> | null = null;
+  private nativeReadLoop: Promise<void> | null = null;
+  private writeChain: Promise<void> = Promise.resolve();
+  private nativeError: Error | null = null;
 
   constructor(options: StreamingDeflatorOptions = {}) {
-    this.level = (options.level ?? 6) as pako.DeflateOptions['level'];
+    this.level = (options.level ?? 6) as DeflateOptions['level'];
     this.maxBatchSize = options.maxBatchSize ?? 10 * 1024 * 1024; // 10MB
+    this.useNative = typeof CompressionStream !== 'undefined';
   }
 
   /**
-   * Initialize the deflator with a callback to receive compressed chunks
-   * This MUST be called before push()
+   * Initialize the deflator with a callback to receive compressed chunks.
+   * This MUST be called before push().
    */
-  initialize(onData: (chunk: Uint8Array) => void): void {
-    // Create deflator
+  async initialize(onData: OnDataCallback): Promise<void> {
+    if (this.useNative) {
+      const compressor = new CompressionStream('deflate');
+      this.nativeWriter = compressor.writable.getWriter() as WritableStreamDefaultWriter<Uint8Array>;
+      const reader = compressor.readable.getReader();
+
+      this.nativeReadLoop = (async () => {
+        try {
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) {
+              break;
+            }
+            if (value && value.length > 0) {
+              onData(value instanceof Uint8Array ? value : new Uint8Array(value));
+            }
+          }
+        } catch (err) {
+          this.nativeError = err instanceof Error ? err : new Error(String(err));
+          throw this.nativeError;
+        } finally {
+          reader.releaseLock();
+        }
+      })();
+      return;
+    }
+
+    const pako = await loadPako();
+    this.pakoModule = pako;
     this.deflator = new pako.Deflate({
       level: this.level,
       chunkSize: 64 * 1024 // 64KB internal chunks
     });
 
-    // Override onData method - this is the key to true streaming!
-    // pako calls this for each compressed chunk WITHOUT accumulating
     this.deflator.onData = (chunk: Uint8Array) => {
       if (chunk && chunk.length > 0) {
         onData(chunk);
       }
     };
 
-    // Override onEnd to catch compression completion
     this.deflator.onEnd = (status: number) => {
       if (status !== 0) {
         console.warn(`Deflate ended with status: ${status}`);
@@ -69,24 +108,54 @@ export class StreamingDeflator {
     };
   }
 
-  /**
-   * Push uncompressed data
-   * Returns true if batch was flushed
-   */
-  push(data: Uint8Array): boolean {
+  private ensureInitialized(): void {
+    if (this.useNative) {
+      if (!this.nativeWriter) {
+        throw new Error('Must call initialize() before push()');
+      }
+      if (this.nativeError) {
+        throw this.nativeError;
+      }
+      return;
+    }
+
     if (!this.deflator) {
       throw new Error('Must call initialize() before push()');
     }
+  }
+
+  /**
+   * Push uncompressed data. Returns true if a flush occurred (pako fallback).
+   */
+  async push(data: Uint8Array): Promise<boolean> {
+    this.ensureInitialized();
     if (this.finished) {
       throw new Error('Cannot push after finish()');
     }
 
-    this.deflator.push(data, false);
+    if (this.useNative) {
+      this.pendingBytes += data.length;
+      this.writeChain = this.writeChain.then(async () => {
+        if (!this.nativeWriter) {
+          throw new Error('Native writer not available');
+        }
+        await this.nativeWriter.write(data);
+      }).catch((err) => {
+        this.nativeError = err instanceof Error ? err : new Error(String(err));
+      });
+
+      await this.writeChain;
+      if (this.nativeError) {
+        throw this.nativeError;
+      }
+      return false;
+    }
+
+    this.deflator!.push(data, false);
     this.pendingBytes += data.length;
 
-    // Flush batch if full
     if (this.pendingBytes >= this.maxBatchSize) {
-      this.flushInternal(false);
+      await this.flushInternal(false);
       return true;
     }
 
@@ -94,49 +163,72 @@ export class StreamingDeflator {
   }
 
   /**
-   * Force flush current batch
+   * Force flush current batch.
    */
-  flush(): void {
-    this.flushInternal(false);
+  async flush(): Promise<void> {
+    this.ensureInitialized();
+
+    if (this.useNative) {
+      await this.writeChain;
+      if (this.nativeError) {
+        throw this.nativeError;
+      }
+      return;
+    }
+
+    await this.flushInternal(false);
   }
 
   /**
-   * Finish compression
-   * Flushes any remaining data and finalizes the stream
+   * Finish compression, flushing remaining data and finalizing the stream.
    */
-  finish(): void {
-    if (!this.deflator) {
-      throw new Error('Must call initialize() before finish()');
-    }
+  async finish(): Promise<void> {
+    this.ensureInitialized();
     if (this.finished) {
       return;
     }
 
     this.finished = true;
 
-    // Flush remaining data
-    if (this.pendingBytes > 0) {
-      this.flushInternal(true);
-    } else {
-      // Just finalize
-      this.deflator.push(new Uint8Array(0), true);
+    if (this.useNative) {
+      await this.writeChain;
+      if (!this.nativeWriter) {
+        throw new Error('Native writer not available');
+      }
+      await this.nativeWriter.close();
+      if (this.nativeReadLoop) {
+        try {
+          await this.nativeReadLoop;
+        } catch (err) {
+          this.nativeError = err instanceof Error ? err : new Error(String(err));
+        }
+      }
+      if (this.nativeError) {
+        throw this.nativeError;
+      }
+      return;
     }
 
-    if (this.deflator.err) {
-      throw new Error(`Deflate error: ${this.deflator.msg}`);
+    if (this.pendingBytes > 0) {
+      await this.flushInternal(true);
+    } else {
+      this.deflator!.push(new Uint8Array(0), true);
+    }
+
+    if (this.deflator!.err) {
+      throw new Error(`Deflate error: ${this.deflator!.msg}`);
     }
   }
 
-  /**
-   * Internal helper to flush pending bytes
-   */
-  private flushInternal(final: boolean): void {
-    if (!this.deflator) return;
+  private async flushInternal(final: boolean): Promise<void> {
+    if (!this.deflator || !this.pakoModule) {
+      return;
+    }
     if (!this.pendingBytes && !final) {
       return;
     }
 
-    const mode: boolean | number = final ? true : pako.constants.Z_SYNC_FLUSH;
+    const mode: boolean | number = final ? true : this.pakoModule.constants.Z_SYNC_FLUSH;
     this.deflator.push(new Uint8Array(0), mode);
     this.pendingBytes = 0;
 
@@ -156,23 +248,19 @@ export async function* compressStreaming(
   const outputChunks: Uint8Array[] = [];
   const deflator = new StreamingDeflator(options);
 
-  // Initialize with callback that collects chunks
-  deflator.initialize((chunk) => {
+  await deflator.initialize((chunk) => {
     outputChunks.push(chunk);
   });
 
-  // Process input data
   for await (const data of dataGenerator) {
-    deflator.push(data);
+    await deflator.push(data);
 
-    // Yield any accumulated output
     while (outputChunks.length > 0) {
       yield outputChunks.shift()!;
     }
   }
 
-  // Finish and yield final chunks
-  deflator.finish();
+  await deflator.finish();
   while (outputChunks.length > 0) {
     yield outputChunks.shift()!;
   }

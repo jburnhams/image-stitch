@@ -3,6 +3,7 @@ import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parsePngHeader, parsePngChunks } from './png-parser.js';
+import './decoders/index.js';
 import { concat } from './image-concat.js';
 import { ColorType } from './types.js';
 

@@ -12,6 +12,7 @@ import { PNG_SIGNATURE } from './utils.js';
 import { filterScanline, getBytesPerPixel } from './png-filter.js';
 import { createIHDR, createIEND, serializeChunk, createChunk } from './png-writer.js';
 import { createDecodersFromIterable } from './decoders/decoder-factory.js';
+import { getDefaultDecoderPlugins } from './decoders/plugin-registry.js';
 import type { ImageHeader } from './decoders/types.js';
 import { determineCommonFormat, convertScanline, getTransparentColor } from './pixel-ops.js';
 import { StreamingDeflator } from './streaming-deflate.js';
@@ -323,7 +324,7 @@ export class StreamingConcatenator {
     const compressedChunks: Uint8Array[] = [];
 
     // Initialize deflator with callback
-    deflator.initialize((compressedData) => {
+    await deflator.initialize((compressedData) => {
       // onData callback - receives compressed chunks immediately!
       if (compressedData && compressedData.length > 0) {
         compressedChunks.push(compressedData);
@@ -334,12 +335,12 @@ export class StreamingConcatenator {
 
     // Process scanlines
     for await (const scanline of scanlineGenerator) {
-      deflator.push(scanline);
+      await deflator.push(scanline);
       scanlineCount++;
 
       // Periodic flush for progressive output
       if (scanlineCount % MAX_BATCH_SCANLINES === 0) {
-        deflator.flush();
+        await deflator.flush();
       }
 
       // Yield any compressed chunks that were produced
@@ -350,7 +351,7 @@ export class StreamingConcatenator {
     }
 
     // Finish compression
-    deflator.finish();
+    await deflator.finish();
 
     // Yield remaining compressed chunks
     while (compressedChunks.length > 0) {
@@ -471,7 +472,12 @@ export class StreamingConcatenator {
    */
   async *stream(): AsyncGenerator<Uint8Array> {
     // PASS 1: Create decoders and read headers (supports PNG, JPEG, HEIC)
-    const decoders = await createDecodersFromIterable(this.options.inputs, this.options.decoderOptions);
+    const decoderPlugins = this.options.decoders ?? getDefaultDecoderPlugins();
+    const decoders = await createDecodersFromIterable(
+      this.options.inputs,
+      this.options.decoderOptions ?? {},
+      decoderPlugins
+    );
     if (decoders.length === 0) {
       throw new Error('At least one input image is required');
     }
@@ -664,6 +670,17 @@ export interface UnifiedConcatOptions extends ConcatOptions {
  *     jpeg: { useImageDecoderAPI: true },
  *     heic: { useNativeIfAvailable: true }
  *   }
+ * });
+ *
+ * @example
+ * // Browser bundle with optional decoders
+ * import { concat } from 'image-stitch/bundle';
+ * import { heicDecoder } from 'image-stitch/decoders/heic';
+ *
+ * await concat({
+ *   inputs: [heicBytes],
+ *   layout: { columns: 1 },
+ *   decoders: [heicDecoder]
  * });
  */
 export function concat(options: UnifiedConcatOptions & { stream: true }): Promise<Readable>;

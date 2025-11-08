@@ -23,6 +23,13 @@
  * });
  */
 
+import { setDefaultDecoderPlugins } from './decoders/plugin-registry.js';
+import { pngDecoder } from './decoders/png-decoder.js';
+import { jpegDecoder } from './decoders/jpeg-decoder.js';
+import { heicDecoder } from './decoders/heic-decoder.js';
+
+setDefaultDecoderPlugins([pngDecoder, jpegDecoder, heicDecoder]);
+
 // Main API - use this!
 export { concat, concatToFile, concatStreaming, concatToStream } from './image-concat.js';
 export type { UnifiedConcatOptions } from './image-concat.js';

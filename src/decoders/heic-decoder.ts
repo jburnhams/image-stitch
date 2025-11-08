@@ -9,7 +9,13 @@
  * then yield scanlines progressively from the decoded buffer.
  */
 
-import type { ImageDecoder, ImageHeader, HeicDecoderOptions } from './types.js';
+import type {
+  ImageDecoder,
+  ImageHeader,
+  HeicDecoderOptions,
+  DecoderPlugin,
+  DecoderOptions
+} from './types.js';
 
 /**
  * Check if native HEIC support is available (Safari/iOS)
@@ -347,3 +353,24 @@ export class HeicBufferDecoder extends BaseHeicDecoder {
     super(data, options);
   }
 }
+
+/**
+ * Decoder plugin for HEIC/HEIF images
+ */
+export const heicDecoder: DecoderPlugin = {
+  format: 'heic',
+  async create(input, options?: DecoderOptions) {
+    const heicOptions = options?.heic;
+
+    if (typeof input === 'string') {
+      return new HeicFileDecoder(input, heicOptions);
+    }
+    if (input instanceof Uint8Array) {
+      return new HeicBufferDecoder(input, heicOptions);
+    }
+    if (input instanceof ArrayBuffer) {
+      return new HeicBufferDecoder(new Uint8Array(input), heicOptions);
+    }
+    throw new Error('Unsupported HEIC input type for decoder plugin');
+  }
+};
