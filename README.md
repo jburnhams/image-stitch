@@ -36,6 +36,21 @@ const result = await concatToBuffer({
 writeFileSync('stitched.png', result);
 ```
 
+### Track progress
+
+Pass an `onProgress` callback to receive a counter whenever an input tile finishes streaming. The callback receives the number of
+completed inputs and the total inputs in the operation, making it easy to update loading indicators while large grids process.
+
+```ts
+await concatToBuffer({
+  inputs: tiles,
+  layout: { rows: 4, columns: 4 },
+  onProgress(current, total) {
+    console.log(`Stitched ${current}/${total}`);
+  }
+});
+```
+
 👉 Read the full guides, API docs, and interactive demos at [image-stitch GitHub Pages](https://jburnhams.github.io/Png-concat/).
 
 ## Browser bundle & optional decoders

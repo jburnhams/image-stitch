@@ -176,6 +176,30 @@ test('concatToBuffer surfaces descriptive error when scanline width mismatches h
   );
 });
 
+test('concatToBuffer reports progress after each input completes', async () => {
+  const decoders = [
+    createStubDecoder({ width: 2, height: 2 }),
+    createStubDecoder({ width: 2, height: 3 }),
+    createStubDecoder({ width: 2, height: 1 })
+  ];
+
+  const progress: Array<[number, number]> = [];
+
+  await concatToBuffer({
+    inputs: decoders,
+    layout: { columns: 2 },
+    onProgress(current, total) {
+      progress.push([current, total]);
+    }
+  });
+
+  assert.deepStrictEqual(progress, [
+    [1, 3],
+    [2, 3],
+    [3, 3]
+  ]);
+});
+
 test('concat concatenates single image (Uint8Array)', async () => {
   const testPng = await createTestPng(10, 10, new Uint8Array([255, 0, 0, 255]));
 

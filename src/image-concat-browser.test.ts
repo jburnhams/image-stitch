@@ -77,3 +77,48 @@ test('concatCanvases stitches canvas inputs into a PNG blob', async () => {
 
   await window.close();
 });
+
+test('concatCanvases forwards progress updates from the underlying stitcher', async () => {
+  const window = new Window();
+
+  const globalAny = globalThis as Record<string, unknown>;
+  if (typeof globalAny.HTMLCanvasElement === 'undefined') {
+    globalAny.HTMLCanvasElement = window.HTMLCanvasElement;
+  }
+
+  const red = await createTestPng(4, 4, new Uint8Array([255, 0, 0, 255]));
+  const green = await createTestPng(4, 4, new Uint8Array([0, 255, 0, 255]));
+  const blue = await createTestPng(4, 4, new Uint8Array([0, 0, 255, 255]));
+
+  const canvases = [red, green, blue].map((png) => {
+    const canvas = window.document.createElement('canvas');
+    canvas.width = 4;
+    canvas.height = 4;
+    Object.defineProperty(canvas, 'toBlob', {
+      value: (callback: BlobCallback) => {
+        const copy = new Uint8Array(png.length);
+        copy.set(png);
+        callback(new Blob([copy.buffer], { type: 'image/png' }));
+      }
+    });
+    return canvas as unknown as HTMLCanvasElement;
+  });
+
+  const progress: Array<[number, number]> = [];
+
+  await concatCanvases({
+    canvases,
+    layout: { columns: 2 },
+    onProgress(current, total) {
+      progress.push([current, total]);
+    }
+  });
+
+  assert.deepStrictEqual(progress, [
+    [1, 3],
+    [2, 3],
+    [3, 3]
+  ]);
+
+  await window.close();
+});

@@ -171,6 +171,7 @@ document.querySelector("img.preview").src = URL.createObjectURL(blob);
     height?: number;
     wrapBehavior?: "wrap" | "truncate";
   };
+  onProgress?: (current: number, total: number) =&gt; void;
 }
 </code></pre>
       <ul>
@@ -179,6 +180,7 @@ document.querySelector("img.preview").src = URL.createObjectURL(blob);
         <li><strong>layout.rows</strong> — Fixed number of images per column.</li>
         <li><strong>layout.width</strong> — Maximum pixel width; wraps when exceeded.</li>
         <li><strong>layout.height</strong> — Maximum pixel height; truncates or wraps based on <code>wrapBehavior</code>.</li>
+        <li><strong>onProgress</strong> — Callback receiving <code>(current, total)</code> whenever an input tile finishes streaming.</li>
       </ul>
 
       <h3><code>concatStream(options)</code></h3>

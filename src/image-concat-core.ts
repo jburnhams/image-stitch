@@ -25,6 +25,15 @@ function createStitchError(message: string, cause?: unknown): Error {
   return new Error(baseMessage);
 }
 
+type ProgressCallback = (completed: number, total: number) => void;
+
+interface ProgressTracker {
+  callback: ProgressCallback;
+  remainingScanlines: number[];
+  completed: number;
+  total: number;
+}
+
 function formatPixels(value: number): string {
   return Number.isInteger(value) ? `${value}px` : `${value.toFixed(2)}px`;
 }
@@ -306,7 +315,8 @@ export class StreamingConcatenator {
     iterators: AsyncGenerator<Uint8Array>[],
     outputHeader: PngHeader,
     bytesPerPixel: number,
-    transparentColor: Uint8Array
+    transparentColor: Uint8Array,
+    progress?: ProgressTracker
   ): AsyncGenerator<Uint8Array> {
     // Create scanline generator
     const scanlineGenerator = this.generateFilteredScanlines(
@@ -318,7 +328,8 @@ export class StreamingConcatenator {
       iterators,
       outputHeader,
       bytesPerPixel,
-      transparentColor
+      transparentColor,
+      progress
     );
 
     // Calculate batch size
@@ -384,7 +395,8 @@ export class StreamingConcatenator {
     iterators: AsyncGenerator<Uint8Array>[],
     outputHeader: PngHeader,
     bytesPerPixel: number,
-    transparentColor: Uint8Array
+    transparentColor: Uint8Array,
+    progress?: ProgressTracker
   ): AsyncGenerator<Uint8Array> {
     let previousOutputScanline: Uint8Array | null = null;
 
@@ -470,6 +482,14 @@ export class StreamingConcatenator {
                 transparentColor
               );
               scanlines.push(paddedScanline);
+
+              if (progress && progress.remainingScanlines[imageIdx] > 0) {
+                progress.remainingScanlines[imageIdx] -= 1;
+                if (progress.remainingScanlines[imageIdx] === 0) {
+                  progress.completed += 1;
+                  progress.callback(progress.completed, progress.total);
+                }
+              }
             } else {
               // Below image - use transparent scanline
               scanlines.push(createTransparentScanline(colWidth, bytesPerPixel, transparentColor));
@@ -578,6 +598,7 @@ export class StreamingConcatenator {
       const iterators = decoders.map(decoder => decoder.scanlines());
       const bytesPerPixel = getBytesPerPixel(outputHeader.bitDepth, outputHeader.colorType);
       const transparentColor = getTransparentColor(outputHeader.colorType, outputHeader.bitDepth);
+      const progressTracker = this.createProgressTracker(headers);
 
       // Use streaming compression - process scanlines one at a time
       yield* this.streamCompressedData(
@@ -589,7 +610,8 @@ export class StreamingConcatenator {
         iterators,
         outputHeader,
         bytesPerPixel,
-        transparentColor
+        transparentColor,
+        progressTracker
       );
 
       // Yield IEND
@@ -602,6 +624,34 @@ export class StreamingConcatenator {
     }
   }
 
+  private createProgressTracker(headers: PngHeader[]): ProgressTracker | undefined {
+    if (typeof this.options.onProgress !== 'function') {
+      return undefined;
+    }
+
+    const tracker: ProgressTracker = {
+      callback: this.options.onProgress,
+      remainingScanlines: headers.map(header => Math.max(0, header.height)),
+      completed: 0,
+      total: headers.length
+    };
+
+    if (tracker.total === 0) {
+      return tracker;
+    }
+
+    for (let index = 0; index < tracker.remainingScanlines.length; index++) {
+      if (tracker.remainingScanlines[index] === 0) {
+        tracker.completed += 1;
+      }
+    }
+
+    if (tracker.completed > 0) {
+      tracker.callback(tracker.completed, tracker.total);
+    }
+
+    return tracker;
+  }
 }
 
 /**
