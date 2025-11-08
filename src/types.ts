@@ -1,4 +1,4 @@
-import type { ImageInput, DecoderOptions } from './decoders/types.js';
+import type { ImageInput, DecoderOptions, DecoderPlugin } from './decoders/types.js';
 
 /**
  * PNG chunk structure
@@ -65,6 +65,12 @@ export interface ConcatOptions {
    * Format-specific decoder options
    */
   decoderOptions?: DecoderOptions;
+
+  /**
+   * Explicit decoder plugins to use. If omitted, the runtime defaults are used.
+   * Providing this enables tree-shaking optional formats out of browser bundles.
+   */
+  decoders?: DecoderPlugin[];
 
   /**
    * Output format (currently only PNG supported, future: JPEG, WebP)

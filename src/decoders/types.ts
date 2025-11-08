@@ -108,3 +108,19 @@ export interface HeicDecoderOptions {
  * Type for image input sources
  */
 export type ImageInput = string | Uint8Array | ArrayBuffer | ImageDecoder;
+
+/**
+ * Plugin interface for registering decoder implementations.
+ *
+ * Plugins allow optional formats (like JPEG/HEIC) to be tree-shaken from
+ * browser-focused bundles while remaining available for Node.js usage.
+ */
+export interface DecoderPlugin {
+  /** Image format handled by this plugin */
+  format: Exclude<ImageFormat, 'unknown'>;
+  /**
+   * Create a decoder for the provided input.
+   * Implementations should throw when the input type is unsupported.
+   */
+  create(input: ImageInput, options?: DecoderOptions): Promise<ImageDecoder>;
+}

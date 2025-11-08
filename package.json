@@ -28,6 +28,18 @@
     "./browser": {
       "default": "./dist/browser/image-stitch.min.js"
     },
+    "./decoders/png": {
+      "types": "./dist/types/decoders/png.d.ts",
+      "default": "./dist/esm/decoders/png.js"
+    },
+    "./decoders/jpeg": {
+      "types": "./dist/types/decoders/jpeg.d.ts",
+      "default": "./dist/esm/decoders/jpeg.js"
+    },
+    "./decoders/heic": {
+      "types": "./dist/types/decoders/heic.d.ts",
+      "default": "./dist/esm/decoders/heic.js"
+    },
     "./deno": "./deno/mod.ts",
     "./package.json": "./package.json"
   },

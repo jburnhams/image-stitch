@@ -7,7 +7,7 @@
 
 import { open, FileHandle } from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
-import type { ImageDecoder, ImageHeader } from './types.js';
+import type { ImageDecoder, ImageHeader, DecoderPlugin } from './types.js';
 import { parsePngHeader, parsePngChunks } from '../png-parser.js';
 import { unfilterScanline, getBytesPerPixel, FilterType } from '../png-filter.js';
 import { readUInt32BE, bytesToString, getSamplesPerPixel } from '../utils.js';
@@ -350,3 +350,22 @@ export class PngBufferDecoder implements ImageDecoder {
     // No resources to clean up for memory-based input
   }
 }
+
+/**
+ * Decoder plugin for PNG images (files and buffers)
+ */
+export const pngDecoder: DecoderPlugin = {
+  format: 'png',
+  async create(input) {
+    if (typeof input === 'string') {
+      return new PngFileDecoder(input);
+    }
+    if (input instanceof Uint8Array) {
+      return new PngBufferDecoder(input);
+    }
+    if (input instanceof ArrayBuffer) {
+      return new PngBufferDecoder(new Uint8Array(input));
+    }
+    throw new Error('Unsupported PNG input type for decoder plugin');
+  }
+};

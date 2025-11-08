@@ -275,7 +275,7 @@ function generateIdentityMap(code, fileName, sourceLabel = fileName, sourceConte
 }
 
 function buildBundles() {
-  const entryPath = path.join(esmDir, 'index.js');
+  const entryPath = path.join(esmDir, 'bundle.js');
   const order = collectModules(entryPath);
   if (order.length === 0) {
     throw new Error('No modules found. Did the ESM build succeed?');

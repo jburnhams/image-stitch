@@ -10,8 +10,15 @@ import {
   createDecoder,
   createDecoders,
   PngBufferDecoder,
-  JpegBufferDecoder
+  JpegBufferDecoder,
+  pngDecoder,
+  jpegDecoder,
+  heicDecoder
 } from '../decoders/index.js';
+import {
+  clearDefaultDecoderPlugins,
+  setDefaultDecoderPlugins
+} from '../decoders/plugin-registry.js';
 import { createTestPng, createTestJpeg } from '../test-utils/image-fixtures.js';
 
 describe('Decoder Factory - createDecoder', () => {
@@ -60,6 +67,21 @@ describe('Decoder Factory - createDecoder', () => {
     await decoder.close();
   });
 
+  test('auto-registers PNG decoder when defaults are cleared', async () => {
+    clearDefaultDecoderPlugins();
+
+    try {
+      const pngBytes = await createTestPng(6, 4, new Uint8Array([255, 255, 255, 255]));
+      const decoder = await createDecoder(pngBytes);
+
+      assert.ok(decoder instanceof PngBufferDecoder);
+
+      await decoder.close();
+    } finally {
+      setDefaultDecoderPlugins([pngDecoder, jpegDecoder, heicDecoder]);
+    }
+  });
+
   test('returns existing decoder instance as-is', async () => {
     const pngBytes = await createTestPng(10, 10, new Uint8Array([255, 0, 0, 255]));
     const originalDecoder = await createDecoder(pngBytes);
@@ -86,6 +108,26 @@ describe('Decoder Factory - createDecoder', () => {
       async () => await createDecoder(123 as any),
       /Unsupported input type/,
       'Should throw for invalid input'
+    );
+  });
+
+  test('supports explicit decoder plugin list', async () => {
+    const jpegBytes = await createTestJpeg(12, 12, new Uint8Array([255, 255, 0, 255]));
+    const decoder = await createDecoder(jpegBytes, {}, [jpegDecoder]);
+
+    const header = await decoder.getHeader();
+    assert.strictEqual(header.format, 'jpeg');
+
+    await decoder.close();
+  });
+
+  test('throws when plugin for format is missing', async () => {
+    const jpegBytes = await createTestJpeg(8, 8, new Uint8Array([0, 0, 0, 255]));
+
+    await assert.rejects(
+      async () => await createDecoder(jpegBytes, {}, [pngDecoder]),
+      /No decoder registered for format/,
+      'Should throw when decoder plugin is unavailable'
     );
   });
 });

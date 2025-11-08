@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
+import './decoders/index.js';
 import { concatStreaming, concatToStream, concat, concatToFile, StreamingConcatenator } from './image-concat.js';
 import { parsePngHeader, parsePngChunks } from './png-parser.js';
 import { createIHDR, createIEND, createChunk, buildPng } from './png-writer.js';

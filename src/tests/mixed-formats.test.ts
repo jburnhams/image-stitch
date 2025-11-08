@@ -6,6 +6,7 @@
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert';
+import '../decoders/index.js';
 import { concat } from '../image-concat.js';
 import { createTestPng, createTestJpeg } from '../test-utils/image-fixtures.js';
 import { PNG } from 'pngjs';
