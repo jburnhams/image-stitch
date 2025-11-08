@@ -1,12 +1,12 @@
 import { Readable } from 'node:stream';
 import { ConcatOptions } from './types.js';
 import {
-  StreamingConcatenator as CoreStreamingConcatenator,
+  CoreStreamingConcatenator,
   concat as concatUint8Array,
   concatStreaming as concatStreamingCore
 } from './image-concat-core.js';
 
-export class StreamingConcatenator extends CoreStreamingConcatenator {
+class NodeStreamingConcatenator extends CoreStreamingConcatenator {
   toReadableStream(): Readable {
     const generator = this.stream();
 
@@ -27,6 +27,8 @@ export class StreamingConcatenator extends CoreStreamingConcatenator {
   }
 }
 
+export { NodeStreamingConcatenator as StreamingConcatenator };
+
 export { concatStreamingCore as concatStreaming };
 
 export function concatToBuffer(options: ConcatOptions): Promise<Uint8Array> {
@@ -34,7 +36,7 @@ export function concatToBuffer(options: ConcatOptions): Promise<Uint8Array> {
 }
 
 export function concatToStream(options: ConcatOptions): Readable {
-  const concatenator = new StreamingConcatenator(options);
+  const concatenator = new NodeStreamingConcatenator(options);
   return concatenator.toReadableStream();
 }
 

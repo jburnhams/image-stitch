@@ -120,20 +120,24 @@ describe('Browser Bundle Tests', () => {
     const { window, document } = await loadDocument(examplesPath);
 
     const exampleSections = Array.from(document.querySelectorAll('section.example'));
-    assert.strictEqual(exampleSections.length, 4, 'Examples page should render four demos');
+    assert.strictEqual(exampleSections.length, 6, 'Examples page should render six demos');
 
     const runTargets = exampleSections
       .flatMap((section) => Array.from(section.querySelectorAll('button[data-run]')))
       .map((button) => button.getAttribute('data-run'))
       .filter(Boolean)
       .sort();
-    assert.deepStrictEqual(runTargets, ['custom', 'grid', 'horizontal', 'vertical'], 'Each demo should expose a run button');
+    assert.deepStrictEqual(
+      runTargets,
+      ['canvas', 'custom', 'grid', 'horizontal', 'vertical'],
+      'Interactive demos should expose run buttons'
+    );
 
     const customInput = document.getElementById('custom-files');
     assert.ok(customInput, 'Custom demo should expose file input');
 
     const resultContainers = document.querySelectorAll('[data-result]');
-    assert.strictEqual(resultContainers.length, 4, 'Each example should render a result container');
+    assert.strictEqual(resultContainers.length, 5, 'Each interactive example should render a result container');
     resultContainers.forEach((container) => {
       const img = container.querySelector('img');
       assert.ok(img, 'Result containers should include an image element');
@@ -240,7 +244,11 @@ describe('Browser Bundle Tests', () => {
     const { window, document } = await loadDocument(examplesPath);
 
     const codeBlocks = Array.from(document.querySelectorAll('section.example .code-block[data-code]'));
-    assert.strictEqual(codeBlocks.length, 4, 'Each example should provide a runnable snippet');
+    assert.strictEqual(
+      codeBlocks.length,
+      6,
+      'Examples should provide runnable snippets for each demo'
+    );
 
     await window.close();
   });

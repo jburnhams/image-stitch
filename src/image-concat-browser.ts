@@ -1,9 +1,6 @@
 import { ConcatOptions } from './types.js';
 import type { ImageInput } from './decoders/types.js';
-import {
-  StreamingConcatenator as CoreStreamingConcatenator,
-  concat as concatUint8Array
-} from './image-concat-core.js';
+import { CoreStreamingConcatenator } from './image-concat-core.js';
 
 type AsyncOrSyncIterable<T> = Iterable<T> | AsyncIterable<T>;
 
@@ -164,28 +161,55 @@ function normalizeOptions(options: BrowserConcatOptions): ConcatOptions {
   } satisfies ConcatOptions;
 }
 
-export class StreamingConcatenator extends CoreStreamingConcatenator {
+class BrowserStreamingConcatenator extends CoreStreamingConcatenator {
   constructor(options: BrowserConcatOptions) {
     super(normalizeOptions(options));
   }
 }
 
-export async function* concatStreaming(
+export { BrowserStreamingConcatenator as StreamingConcatenator };
+
+async function* browserConcatStreaming(
   options: BrowserConcatOptions
 ): AsyncGenerator<Uint8Array> {
-  const concatenator = new StreamingConcatenator(options);
+  const concatenator = new BrowserStreamingConcatenator(options);
   yield* concatenator.stream();
 }
 
-export function concatToBuffer(options: BrowserConcatOptions): Promise<Uint8Array> {
-  return concatUint8Array(normalizeOptions(options));
+export async function concatToBuffer(
+  options: BrowserConcatOptions
+): Promise<Uint8Array> {
+  const chunks: Uint8Array[] = [];
+  let totalLength = 0;
+
+  for await (const chunk of browserConcatStreaming(options)) {
+    chunks.push(chunk);
+    totalLength += chunk.length;
+  }
+
+  const result = new Uint8Array(totalLength);
+  let offset = 0;
+  for (let i = 0; i < chunks.length; i++) {
+    const chunk = chunks[i];
+    result.set(chunk, offset);
+    offset += chunk.length;
+    chunks[i] = null as unknown as Uint8Array;
+  }
+
+  return result;
 }
 
 /**
  * @deprecated Use {@link concatToBuffer} instead.
  */
-export function concat(options: BrowserConcatOptions): Promise<Uint8Array> {
+function concatBrowser(options: BrowserConcatOptions): Promise<Uint8Array> {
   return concatToBuffer(options);
+}
+
+export { browserConcatStreaming as concatStreaming, concatBrowser as concat };
+
+export async function concatToFile(): Promise<never> {
+  throw new Error('concatToFile is not available in browser environments.');
 }
 
 async function renderPngToCanvas(

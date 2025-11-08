@@ -6,6 +6,7 @@ setDefaultDecoderPlugins([pngDecoder]);
 export {
   concat,
   concatToBuffer,
+  concatToFile,
   concatStreaming,
   StreamingConcatenator,
   concatCanvases

@@ -274,7 +274,7 @@ function calculatePixelBasedLayout(
  * - Custom PngInputAdapter implementations
  * - Mixed input types in the same operation
  */
-export class StreamingConcatenator {
+class CoreStreamingConcatenator {
   private options: ConcatOptions;
 
   constructor(options: ConcatOptions) {
@@ -683,20 +683,20 @@ export class StreamingConcatenator {
  *   // Process chunk
  * }
  */
-export async function* concatStreaming(
+async function* coreConcatStreaming(
   options: ConcatOptions
 ): AsyncGenerator<Uint8Array> {
-  const concatenator = new StreamingConcatenator(options);
+  const concatenator = new CoreStreamingConcatenator(options);
   yield* concatenator.stream();
 }
 /**
  * Concatenate images and return the PNG as a Uint8Array.
  */
-export async function concat(options: ConcatOptions): Promise<Uint8Array> {
+async function concatCore(options: ConcatOptions): Promise<Uint8Array> {
   const chunks: Uint8Array[] = [];
   let totalLength = 0;
 
-  for await (const chunk of concatStreaming(options)) {
+  for await (const chunk of coreConcatStreaming(options)) {
     chunks.push(chunk);
     totalLength += chunk.length;
   }
@@ -712,3 +712,11 @@ export async function concat(options: ConcatOptions): Promise<Uint8Array> {
 
   return result;
 }
+
+const StreamingConcatenator = CoreStreamingConcatenator;
+
+export { CoreStreamingConcatenator, StreamingConcatenator };
+
+export { coreConcatStreaming as concatStreaming };
+
+export { concatCore as concat };

@@ -387,8 +387,8 @@ test('concat alias delegates to concatToBuffer', async () => {
   assert.strictEqual(header.height, 2);
 });
 
-test('concatToBuffer rejects unsupported input sources', () => {
-  assert.throws(
+test('concatToBuffer rejects unsupported input sources', async () => {
+  await assert.rejects(
     () =>
       concatToBuffer({
         inputs: 123 as unknown as BrowserConcatOptions['inputs'],
