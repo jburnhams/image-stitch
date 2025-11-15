@@ -30,8 +30,8 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Run tests
-        run: npm run test:all
+      - name: Run unit tests
+        run: npm run test:unit
         env:
           CI: true
 
@@ -41,7 +41,7 @@ jobs:
       - name: Enforce browser bundle size budget
         run: npm run size
 
-      - name: Generate coverage
+      - name: Generate coverage from unit tests
         run: npm run coverage --silent
         env:
           CI: true

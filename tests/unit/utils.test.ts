@@ -9,7 +9,7 @@ import {
   bytesToString,
   isPngSignature,
   PNG_SIGNATURE
-} from './utils.js';
+} from '../../src/utils.js';
 
 test('pngCrc32 calculates correct checksum', () => {
   // Test with known CRC values

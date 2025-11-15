@@ -6,9 +6,9 @@
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert';
-import '../decoders/index.js';
-import { concatToBuffer, concatToStream } from '../image-concat.js';
-import { createTestPng, createTestJpeg } from '../test-utils/image-fixtures.js';
+import '../../src/decoders/index.js';
+import { concatToBuffer, concatToStream } from '../../src/image-concat.js';
+import { createTestPng, createTestJpeg } from '../utils/image-fixtures.js';
 import { PNG } from 'pngjs';
 
 /**

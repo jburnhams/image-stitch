@@ -11,8 +11,8 @@ import {
   detectFormat,
   validateFormat,
   readMagicBytes
-} from '../decoders/format-detection.js';
-import { createMagicBytesTest, createTestPng, createTestJpeg } from '../test-utils/image-fixtures.js';
+} from '../../src/decoders/format-detection.js';
+import { createMagicBytesTest, createTestPng, createTestJpeg } from '../utils/image-fixtures.js';
 
 describe('Format Detection - Magic Bytes', () => {
   test('detects PNG format from signature', () => {

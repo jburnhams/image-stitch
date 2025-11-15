@@ -9,8 +9,8 @@
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert';
-import { HeicBufferDecoder } from '../decoders/index.js';
-import { createMagicBytesTest } from '../test-utils/image-fixtures.js';
+import { HeicBufferDecoder } from '../../src/decoders/index.js';
+import { createMagicBytesTest } from '../utils/image-fixtures.js';
 
 // Check if HEIC support is available
 let heicSupported = false;
