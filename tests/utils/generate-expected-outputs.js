@@ -8,13 +8,13 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { concatToBuffer } from './image-concat.js';
+import { concatToBuffer } from '../../src/image-concat.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const fixturesDir = path.join(__dirname, 'fixtures', 'expected-outputs');
-const pngsuiteDir = path.join(__dirname, '..', 'pngsuite', 'png');
+const pngsuiteDir = path.join(__dirname, '..', '..', 'pngsuite', 'png');
 
 // Create fixtures directory
 fs.mkdirSync(fixturesDir, { recursive: true });

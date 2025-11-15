@@ -1,11 +1,11 @@
 import { describe, test } from 'node:test';
 import * as assert from 'node:assert';
-import './decoders/index.js';
-import { convertPixelFormat, determineCommonFormat } from './pixel-ops.js';
-import { PngHeader, ColorType } from './types.js';
-import { parsePngHeader, parsePngChunks } from './png-parser.js';
-import { extractPixelData } from './png-decompress.js';
-import { concatToBuffer } from './image-concat.js';
+import '../../src/decoders/index.js';
+import { convertPixelFormat, determineCommonFormat } from '../../src/pixel-ops.js';
+import { PngHeader, ColorType } from '../../src/types.js';
+import { parsePngHeader, parsePngChunks } from '../../src/png-parser.js';
+import { extractPixelData } from '../../src/png-decompress.js';
+import { concatToBuffer } from '../../src/image-concat.js';
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 

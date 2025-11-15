@@ -2,10 +2,10 @@ import { test } from 'node:test';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { parsePngHeader, parsePngChunks } from './png-parser.js';
-import './decoders/index.js';
-import { concatToBuffer } from './image-concat.js';
-import { ColorType } from './types.js';
+import { parsePngHeader, parsePngChunks } from '../../src/png-parser.js';
+import '../../src/decoders/index.js';
+import { concatToBuffer } from '../../src/image-concat.js';
+import { ColorType } from '../../src/types.js';
 
 /**
  * PngSuite Integration Tests

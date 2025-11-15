@@ -5,8 +5,8 @@ import {
   filterScanline,
   getBytesPerPixel,
   FilterType
-} from './png-filter.js';
-import { ColorType } from './types.js';
+} from '../../src/png-filter.js';
+import { ColorType } from '../../src/types.js';
 
 test('getBytesPerPixel calculates correct values', () => {
   assert.strictEqual(getBytesPerPixel(8, ColorType.GRAYSCALE), 1);

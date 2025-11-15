@@ -6,12 +6,12 @@ import {
   concatToBuffer,
   concatStreaming,
   concat as deprecatedConcat
-} from './image-concat-browser.js';
-import type { BrowserConcatOptions } from './image-concat-browser.js';
-import { parsePngHeader } from './png-parser.js';
-import { createIHDR, createIEND, createChunk, buildPng } from './png-writer.js';
-import { compressImageData } from './png-decompress.js';
-import { ColorType, PngHeader } from './types.js';
+} from '../../src/image-concat-browser.js';
+import type { BrowserConcatOptions } from '../../src/image-concat-browser.js';
+import { parsePngHeader } from '../../src/png-parser.js';
+import { createIHDR, createIEND, createChunk, buildPng } from '../../src/png-writer.js';
+import { compressImageData } from '../../src/png-decompress.js';
+import { ColorType, PngHeader } from '../../src/types.js';
 
 async function createTestPng(
   width: number,
