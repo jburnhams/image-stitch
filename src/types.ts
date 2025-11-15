@@ -73,9 +73,9 @@ export interface ConcatOptions {
   decoders?: DecoderPlugin[];
 
   /**
-   * Output format (currently only PNG supported, future: JPEG, WebP)
+   * Output format for the stitched image. Defaults to `png`.
    */
-  outputFormat?: 'png';
+  outputFormat?: 'png' | 'jpeg';
 
   /**
    * Optional progress callback invoked when each input image finishes streaming.

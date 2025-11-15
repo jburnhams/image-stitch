@@ -1,6 +1,6 @@
 # image-stitch
 
-image-stitch combines PNG images into a single output without relying on Canvas APIs. It works in Node.js and modern browsers, including streaming scenarios for large images.
+image-stitch combines PNG, JPEG, and HEIC images into a single PNG or JPEG output without relying on Canvas APIs. It works in Node.js and modern browsers, including streaming scenarios for large images.
 
 ## Install
 
@@ -34,6 +34,21 @@ const result = await concatToBuffer({
 });
 
 writeFileSync('stitched.png', result);
+```
+
+Want a JPEG instead? Set `outputFormat: 'jpeg'`—the API shape stays the same and the bytes stream out as a JPEG file:
+
+```ts
+const jpegResult = await concatToBuffer({
+  inputs: [
+    readFileSync('left.png'),
+    readFileSync('right.png')
+  ],
+  layout: { columns: 2 },
+  outputFormat: 'jpeg'
+});
+
+writeFileSync('stitched.jpg', jpegResult);
 ```
 
 ### Track progress
