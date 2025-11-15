@@ -125,3 +125,185 @@ The class will be responsible for generating all JPEG marker segments.
 *   A pool of Web Workers should be used to parallelize the processing of strips.
 *   The pixel data `ArrayBuffer` for each strip must be *transferred* to the worker (not copied) for maximum performance.
 *   The main thread will collect the compressed `Uint8Array` chunks returned from the workers in order. The final blob is created only after the last chunk is received.
+
+
+### **Implementation Guide: Monorepo with npm, Rust, and JavaScript**
+
+#### **1. Core Tooling**
+
+You will need the following installed:
+*   Node.js and npm (v7+ for workspace support)
+*   The Rust toolchain (via `rustup`)
+*   `wasm-pack`: The essential tool for building and packaging Rust-generated Wasm for the npm ecosystem. (`cargo install wasm-pack`)
+*   A modern JS bundler. **Vite** is highly recommended for its speed and excellent out-of-the-box Wasm support.
+
+#### **2. Directory Structure**
+
+We will use **npm workspaces** to manage our two sub-packages within a single git repository.
+
+
+jpeg-encoder-project/
+├── .gitignore
+├── package.json               # <-- The ROOT package.json, orchestrates everything.
+└── packages/
+    ├── wasm-engine/           # <-- The Rust/Wasm project (a self-contained package).
+    │   ├── Cargo.toml
+    │   ├── package.json       # <-- Defines this as an npm package.
+    │   └── src/
+    │       └── lib.rs
+    └── js-orchestrator/       # <-- The JavaScript/Vite project (a self-contained package).
+        ├── index.html
+        ├── package.json       # <-- Depends on wasm-engine.
+        ├── vite.config.js
+        └── src/
+            ├── main.js
+            └── encoder.js
+
+
+#### **3. Step-by-Step Setup**
+
+**Step 1: Initialize the Root Project**
+
+1.  Create the root folder and initialize npm.
+    
+
+    mkdir jpeg-encoder-project
+    cd jpeg-encoder-project
+    npm init -y
+    
+
+2.  Edit the root `jpeg-encoder-project/package.json` to define the workspaces:
+    
+
+    {
+      "name": "jpeg-encoder-monorepo",
+      "version": "1.0.0",
+      "private": true, // This root package won't be published
+      "workspaces": [
+        "packages/*"
+      ],
+      "scripts": {
+        // We will fill these in later
+      }
+    }
+    
+
+
+**Step 2: Create the `wasm-engine` Package**
+
+1.  Create the Rust library.
+    
+
+    mkdir -p packages/wasm-engine/src
+    cd packages/wasm-engine
+    cargo init --lib
+    
+
+2.  Edit `packages/wasm-engine/Cargo.toml` to configure it for Wasm.
+    
+
+    [package]
+    name = "wasm-engine"
+    version = "0.1.0"
+    edition = "2021"
+
+    [lib]
+    crate-type = ["cdylib"] # Critical for Wasm modules
+
+    [dependencies]
+    wasm-bindgen = "0.2"
+    
+
+3.  Create a `packages/wasm-engine/package.json`. `wasm-pack` will use this as a template for the final package it builds.
+    
+
+    {
+      "name": "wasm-engine",
+      "version": "0.1.0",
+      "files": [
+        "wasm_engine_bg.wasm",
+        "wasm_engine.js",
+        "wasm_engine.d.ts"
+      ],
+      "main": "wasm_engine.js",
+      "types": "wasm_engine.d.ts"
+    }
+    
+
+4.  Write your Rust code in `src/lib.rs`, exposing the `process_strip` function with `#[wasm_bindgen]`.
+
+**Step 3: Create the `js-orchestrator` Package**
+
+1.  Use Vite to scaffold the JS project.
+    
+
+    cd packages
+    npm create vite@latest js-orchestrator -- --template vanilla # or react, vue, etc.
+    cd js-orchestrator
+    
+
+2.  Edit `packages/js-orchestrator/package.json` to add the dependency on our local Wasm package.
+    
+
+    {
+      "name": "js-orchestrator",
+      "private": true,
+      "version": "0.0.0",
+      "type": "module",
+      "scripts": {
+        "dev": "vite",
+        "build": "vite build",
+        "preview": "vite preview"
+      },
+      "dependencies": {
+        "wasm-engine": "workspace:*" // <-- This is the magic!
+      },
+      "devDependencies": {
+        "vite": "^4.3.9"
+      }
+    }
+    
+
+    The `workspace:*` protocol tells npm to link the local `packages/wasm-engine` folder instead of looking for it on the npm registry.
+
+**Step 4: Wire Everything Together with npm Scripts**
+
+Now, go back to the **root `package.json`** and add the master scripts.
+
+
+// In jpeg-encoder-project/package.json
+"scripts": {
+  "install:all": "npm install", // This will install dependencies for all workspaces
+  "build:wasm": "wasm-pack build ./packages/wasm-engine --target web --out-dir ./packages/wasm-engine/pkg",
+  "build:js": "npm run build -w js-orchestrator", // The -w flag runs a script in a specific workspace
+  "build": "npm run build:wasm && npm run build:js",
+  "dev": "npm run watch:wasm & npm run dev:js", // Concurrently run wasm watch and js dev server
+  "dev:js": "npm run dev -w js-orchestrator",
+  "watch:wasm": "cargo watch -s 'npm run build:wasm' -w ./packages/wasm-engine/src"
+}
+
+*To use `cargo watch`, you'll need to install it: `cargo install cargo-watch`.*
+
+#### **4. The Development Workflow**
+
+1.  **First-time setup:** From the root directory, run `npm run install:all`. This installs Vite and links the workspaces correctly.
+2.  **Start the dev server:** From the root directory, run `npm run dev`.
+    *   This kicks off two processes in parallel:
+        *   `cargo watch` will monitor your `.rs` files. Any time you save a change in `packages/wasm-engine/src/`, it will automatically re-run `wasm-pack build`.
+        *   Vite's dev server will start for the `js-orchestrator` package.
+3.  **Code!**
+    *   When you change Rust code, `cargo watch` rebuilds the Wasm package in `packages/wasm-engine/pkg`.
+    *   Vite's server detects the change in the `node_modules/wasm-engine` dependency (which is a symlink to the `pkg` directory) and will automatically hot-reload the page.
+    *   When you change JS code, Vite's HMR (Hot Module Replacement) updates the browser instantly.
+
+#### **5. Production Build**
+
+From the root directory, run one command:
+
+npm run build
+
+This will:
+1.  Execute `wasm-pack build` with release optimizations (if you add `--release` to the `build:wasm` script).
+2.  Execute `vite build`, which will bundle all your JS and the Wasm module into a highly optimized, static set of files in `packages/js-orchestrator/dist/`. This `dist` folder is what you deploy.
+
+This monorepo structure provides a professional, scalable, and highly ergonomic development experience, keeping all related code in one repository while maintaining a clean separation of concerns.
