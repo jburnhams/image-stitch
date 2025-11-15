@@ -25,12 +25,12 @@ import assert from 'node:assert';
 import { createWriteStream } from 'node:fs';
 import { unlink } from 'node:fs/promises';
 import { pipeline } from 'node:stream/promises';
-import { concatToStream } from '../src/image-concat.js';
-import { createIHDR, createIEND, createChunk, buildPng } from '../src/png-writer.js';
-import { compressImageData } from '../src/png-decompress.js';
-import { PngHeader, ColorType, PngInputSource } from '../src/types.js';
+import { concatToStream } from '../../src/image-concat.js';
+import { createIHDR, createIEND, createChunk, buildPng } from '../../src/png-writer.js';
+import { compressImageData } from '../../src/png-decompress.js';
+import { PngHeader, ColorType, PngInputSource } from '../../src/types.js';
 
-import { enableInputCache } from '../src/png-input-adapter.js';
+import { enableInputCache } from '../../src/png-input-adapter.js';
 // Enable caching for tiling/grid scenarios to minimize duplicate decoding
 enableInputCache();
 
@@ -40,7 +40,7 @@ import {
   calculateExpectedMemory,
   formatBytes,
   isGCAvailable
-} from '../src/test-utils/memory-monitor.js';
+} from '../utils/memory-monitor.js';
 
 /**
  * Create a simple test PNG with solid color

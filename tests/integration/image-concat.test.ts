@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import './decoders/index.js';
+import '../../src/decoders/index.js';
 import {
   concat,
   concatStreaming,
@@ -8,14 +8,14 @@ import {
   concatToStream,
   concatToFile,
   StreamingConcatenator
-} from './image-concat.js';
-import { parsePngHeader, parsePngChunks } from './png-parser.js';
-import { createIHDR, createIEND, createChunk, buildPng } from './png-writer.js';
-import { compressImageData, extractPixelData } from './png-decompress.js';
-import { PngHeader, ColorType } from './types.js';
+} from '../../src/image-concat.js';
+import { parsePngHeader, parsePngChunks } from '../../src/png-parser.js';
+import { createIHDR, createIEND, createChunk, buildPng } from '../../src/png-writer.js';
+import { compressImageData, extractPixelData } from '../../src/png-decompress.js';
+import { PngHeader, ColorType } from '../../src/types.js';
 import { Readable } from 'node:stream';
 import { writeFileSync, unlinkSync } from 'node:fs';
-import type { ImageDecoder } from './decoders/types.js';
+import type { ImageDecoder } from '../../src/decoders/types.js';
 
 /**
  * Create a simple test PNG with solid color

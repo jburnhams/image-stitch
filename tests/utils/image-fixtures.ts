@@ -4,9 +4,9 @@
  * Creates simple test images in various formats for testing.
  */
 
-import { createIHDR, createIEND, createChunk, buildPng } from '../png-writer.js';
-import { compressImageData } from '../png-decompress.js';
-import { PngHeader, ColorType } from '../types.js';
+import { createIHDR, createIEND, createChunk, buildPng } from '../../src/png-writer.js';
+import { compressImageData } from '../../src/png-decompress.js';
+import { PngHeader, ColorType } from '../../src/types.js';
 
 /**
  * Create a simple solid-color PNG for testing

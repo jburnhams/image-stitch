@@ -14,12 +14,12 @@ import {
   pngDecoder,
   jpegDecoder,
   heicDecoder
-} from '../decoders/index.js';
+} from '../../src/decoders/index.js';
 import {
   clearDefaultDecoderPlugins,
   setDefaultDecoderPlugins
-} from '../decoders/plugin-registry.js';
-import { createTestPng, createTestJpeg } from '../test-utils/image-fixtures.js';
+} from '../../src/decoders/plugin-registry.js';
+import { createTestPng, createTestJpeg } from '../utils/image-fixtures.js';
 
 describe('Decoder Factory - createDecoder', () => {
   test('creates PNG decoder from PNG bytes', async () => {
