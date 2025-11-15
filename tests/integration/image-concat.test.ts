@@ -67,6 +67,11 @@ async function collectChunks(generator: AsyncGenerator<Uint8Array>): Promise<Uin
   return result;
 }
 
+async function decodeJpeg(bytes: Uint8Array) {
+  const jpegJs = await import('jpeg-js');
+  return jpegJs.decode(bytes, { useTArray: true });
+}
+
 function toArrayBuffer(view: Uint8Array): ArrayBuffer {
   const buffer = new ArrayBuffer(view.byteLength);
   new Uint8Array(buffer).set(view);
@@ -987,4 +992,126 @@ test('deprecated concat alias resolves to Uint8Array', async () => {
 
   assert.ok(result instanceof Uint8Array);
   assert.strictEqual(result.byteLength > 0, true);
+});
+
+test('concatStreaming can output JPEG when requested', async () => {
+  const red = await createTestPng(2, 2, new Uint8Array([255, 0, 0, 255]));
+  const blue = await createTestPng(2, 2, new Uint8Array([0, 0, 255, 255]));
+
+  const generator = concatStreaming({
+    inputs: [red, blue],
+    layout: { columns: 2 },
+    outputFormat: 'jpeg'
+  });
+
+  const jpegBytes = await collectChunks(generator);
+  assert.strictEqual(jpegBytes[0], 0xff);
+  assert.strictEqual(jpegBytes[1], 0xd8);
+
+  const jpegJs = await import('jpeg-js');
+  const decoded = jpegJs.decode(jpegBytes, { useTArray: true });
+  assert.strictEqual(decoded.width, 4);
+  assert.strictEqual(decoded.height, 2);
+});
+
+test('concatToBuffer outputs JPEG when requested, including odd dimensions', async () => {
+  const tallOdd = await createTestPng(3, 5, new Uint8Array([255, 0, 255, 255]));
+  const shortOdd = await createTestPng(3, 4, new Uint8Array([0, 255, 255, 255]));
+
+  const jpegBytes = await concatToBuffer({
+    inputs: [tallOdd, shortOdd],
+    layout: { columns: 1 },
+    outputFormat: 'jpeg'
+  });
+
+  assert.strictEqual(jpegBytes[0], 0xff);
+  assert.strictEqual(jpegBytes[1], 0xd8);
+
+  const decoded = await decodeJpeg(jpegBytes);
+  assert.strictEqual(decoded.width, 3);
+  assert.strictEqual(decoded.height, 9);
+});
+
+test('concatToStream outputs JPEG when requested', async () => {
+  const red = await createTestPng(2, 3, new Uint8Array([255, 0, 0, 255]));
+  const green = await createTestPng(2, 3, new Uint8Array([0, 255, 0, 255]));
+
+  const stream = concatToStream({
+    inputs: [red, green],
+    layout: { columns: 2 },
+    outputFormat: 'jpeg'
+  });
+
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+
+  const jpegBytes = new Uint8Array(Buffer.concat(chunks));
+  assert.strictEqual(jpegBytes[0], 0xff);
+  assert.strictEqual(jpegBytes[1], 0xd8);
+
+  const decoded = await decodeJpeg(jpegBytes);
+  assert.strictEqual(decoded.width, 4);
+  assert.strictEqual(decoded.height, 3);
+});
+
+test('concatToFile outputs JPEG when requested', async () => {
+  const cyan = await createTestPng(4, 2, new Uint8Array([0, 255, 255, 255]));
+  const magenta = await createTestPng(4, 2, new Uint8Array([255, 0, 255, 255]));
+
+  const stream = await concatToFile({
+    inputs: [cyan, magenta],
+    layout: { rows: 2 },
+    outputFormat: 'jpeg'
+  });
+
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+
+  const jpegBytes = new Uint8Array(Buffer.concat(chunks));
+  assert.strictEqual(jpegBytes[0], 0xff);
+  assert.strictEqual(jpegBytes[1], 0xd8);
+
+  const decoded = await decodeJpeg(jpegBytes);
+  assert.strictEqual(decoded.width, 4);
+  assert.strictEqual(decoded.height, 4);
+});
+
+test('concat alias outputs JPEG when requested', async () => {
+  const yellow = await createTestPng(3, 3, new Uint8Array([255, 255, 0, 255]));
+
+  const jpegBytes = await concat({
+    inputs: [yellow],
+    layout: { columns: 1 },
+    outputFormat: 'jpeg'
+  });
+
+  assert.strictEqual(jpegBytes[0], 0xff);
+  assert.strictEqual(jpegBytes[1], 0xd8);
+
+  const decoded = await decodeJpeg(jpegBytes);
+  assert.strictEqual(decoded.width, 3);
+  assert.strictEqual(decoded.height, 3);
+});
+
+test('StreamingConcatenator outputs JPEG when requested', async () => {
+  const red = await createTestPng(2, 2, new Uint8Array([255, 0, 0, 255]));
+  const blue = await createTestPng(2, 2, new Uint8Array([0, 0, 255, 255]));
+
+  const concatenator = new StreamingConcatenator({
+    inputs: [red, blue],
+    layout: { columns: 2 },
+    outputFormat: 'jpeg'
+  });
+
+  const jpegBytes = await collectChunks(concatenator.stream());
+  assert.strictEqual(jpegBytes[0], 0xff);
+  assert.strictEqual(jpegBytes[1], 0xd8);
+
+  const decoded = await decodeJpeg(jpegBytes);
+  assert.strictEqual(decoded.width, 4);
+  assert.strictEqual(decoded.height, 2);
 });

@@ -6,7 +6,7 @@
  * Processes one output row at a time using the decoder architecture.
  */
 
-import { ConcatOptions, PngHeader } from './types.js';
+import { ColorType, ConcatOptions, PngHeader } from './types.js';
 import { PNG_SIGNATURE, getSamplesPerPixel } from './utils.js';
 import { filterScanline, getBytesPerPixel } from './png-filter.js';
 import { createIHDR, createIEND, serializeChunk, createChunk } from './png-writer.js';
@@ -86,6 +86,35 @@ function combineScanlines(
   }
 
   return output;
+}
+
+function rgbaToRgb(rgba: Uint8Array): Uint8Array {
+  const pixelCount = Math.floor(rgba.length / 4);
+  const rgb = new Uint8Array(pixelCount * 3);
+
+  for (let i = 0, j = 0; i < rgba.length; i += 4, j += 3) {
+    const r = rgba[i];
+    const g = rgba[i + 1];
+    const b = rgba[i + 2];
+    const a = rgba[i + 3];
+
+    if (a === 255) {
+      rgb[j] = r;
+      rgb[j + 1] = g;
+      rgb[j + 2] = b;
+    } else if (a === 0) {
+      rgb[j] = 0;
+      rgb[j + 1] = 0;
+      rgb[j + 2] = 0;
+    } else {
+      const alpha = a / 255;
+      rgb[j] = Math.round(r * alpha);
+      rgb[j + 1] = Math.round(g * alpha);
+      rgb[j + 2] = Math.round(b * alpha);
+    }
+  }
+
+  return rgb;
 }
 
 /**
@@ -307,31 +336,10 @@ class CoreStreamingConcatenator {
    * - Memory usage: O(batch_size) ~10-20MB regardless of total image size!
    */
   private async *streamCompressedData(
-    grid: number[][],
-    rowHeights: number[],
-    colWidths: number[][],
+    filteredScanlines: AsyncGenerator<Uint8Array>,
     totalWidth: number,
-    headers: PngHeader[],
-    iterators: AsyncGenerator<Uint8Array>[],
-    outputHeader: PngHeader,
-    bytesPerPixel: number,
-    transparentColor: Uint8Array,
-    progress?: ProgressTracker
+    bytesPerPixel: number
   ): AsyncGenerator<Uint8Array> {
-    // Create scanline generator
-    const scanlineGenerator = this.generateFilteredScanlines(
-      grid,
-      rowHeights,
-      colWidths,
-      totalWidth,
-      headers,
-      iterators,
-      outputHeader,
-      bytesPerPixel,
-      transparentColor,
-      progress
-    );
-
     // Calculate batch size
     const scanlineSize = totalWidth * bytesPerPixel + 1;
     const MAX_BATCH_BYTES = 1 * 1024 * 1024; // 1MB
@@ -357,7 +365,7 @@ class CoreStreamingConcatenator {
     let scanlineCount = 0;
 
     // Process scanlines
-    for await (const scanline of scanlineGenerator) {
+    for await (const scanline of filteredScanlines) {
       await deflator.push(scanline);
       scanlineCount++;
 
@@ -383,33 +391,99 @@ class CoreStreamingConcatenator {
     }
   }
 
+  private async *streamJpeg(
+    grid: number[][],
+    rowHeights: number[],
+    colWidths: number[][],
+    totalWidth: number,
+    totalHeight: number,
+    headers: PngHeader[],
+    iterators: AsyncGenerator<Uint8Array>[],
+    progress?: ProgressTracker
+  ): AsyncGenerator<Uint8Array> {
+    const targetBitDepth = 8;
+    const targetColorType = ColorType.RGBA;
+    const bytesPerPixel = getBytesPerPixel(targetBitDepth, targetColorType);
+    const transparentColor = getTransparentColor(targetColorType, targetBitDepth);
+
+    const normalizedScanlines = this.generateNormalizedScanlines(
+      grid,
+      rowHeights,
+      colWidths,
+      totalWidth,
+      headers,
+      iterators,
+      targetBitDepth,
+      targetColorType,
+      bytesPerPixel,
+      transparentColor,
+      progress
+    );
+
+    const rgbaData = new Uint8Array(totalWidth * totalHeight * bytesPerPixel);
+    let rowIndex = 0;
+    const rowStride = totalWidth * bytesPerPixel;
+
+    for await (const scanline of normalizedScanlines) {
+      if (rowIndex >= totalHeight) {
+        throw createStitchError('Produced more scanlines than expected for JPEG output.');
+      }
+      rgbaData.set(scanline, rowIndex * rowStride);
+      rowIndex += 1;
+    }
+
+    if (rowIndex !== totalHeight) {
+      throw createStitchError(
+        `Incomplete image data for JPEG output. Expected ${formatPixels(totalHeight)} but received ${formatPixels(rowIndex)}.`
+      );
+    }
+
+    const rgbData = rgbaToRgb(rgbaData);
+    const jpegJs = await import('jpeg-js');
+    const encoded = jpegJs.encode(
+      {
+        data: rgbData,
+        width: totalWidth,
+        height: totalHeight
+      },
+      90
+    );
+
+    const encodedView = encoded.data as Uint8Array;
+    const jpegBytes = new Uint8Array(encodedView.length);
+    jpegBytes.set(encodedView);
+
+    const CHUNK_SIZE = 32 * 1024;
+    for (let offset = 0; offset < jpegBytes.length; offset += CHUNK_SIZE) {
+      const end = Math.min(offset + CHUNK_SIZE, jpegBytes.length);
+      yield jpegBytes.subarray(offset, end);
+    }
+  }
+
   /**
-   * Generate filtered scanlines one at a time
+   * Generate normalized (unfiltered) scanlines one at a time.
    */
-  private async *generateFilteredScanlines(
+  private async *generateNormalizedScanlines(
     grid: number[][],
     rowHeights: number[],
     colWidths: number[][],
     totalWidth: number,
     headers: PngHeader[],
     iterators: AsyncGenerator<Uint8Array>[],
-    outputHeader: PngHeader,
+    targetBitDepth: number,
+    targetColorType: number,
     bytesPerPixel: number,
     transparentColor: Uint8Array,
     progress?: ProgressTracker
   ): AsyncGenerator<Uint8Array> {
-    let previousOutputScanline: Uint8Array | null = null;
-
     // Process each output scanline
     for (let row = 0; row < grid.length; row++) {
       const rowHeight = rowHeights[row];
       const rowColWidths = colWidths[row];
 
-      // Process each scanline in this row
       for (let localY = 0; localY < rowHeight; localY++) {
         const scanlines: Uint8Array[] = [];
 
-        // Collect scanlines from all images in this row
         for (let col = 0; col < grid[row].length; col++) {
           const imageIdx = grid[row][col];
           const colWidth = rowColWidths[col];
@@ -420,7 +494,6 @@ class CoreStreamingConcatenator {
             const imageWidth = imageHeader.width;
 
             if (localY < imageHeight) {
-              // Read scanline from this image
               const iterator = iterators[imageIdx];
               const { value, done } = await iterator.next();
 
@@ -454,8 +527,8 @@ class CoreStreamingConcatenator {
                   imageWidth,
                   imageHeader.bitDepth,
                   imageHeader.colorType,
-                  outputHeader.bitDepth,
-                  outputHeader.colorType
+                  targetBitDepth,
+                  targetColorType
                 );
               } catch (error) {
                 throw createStitchError(
@@ -473,7 +546,6 @@ class CoreStreamingConcatenator {
                 );
               }
 
-              // Pad scanline if image is narrower than column
               const paddedScanline = padScanline(
                 convertedScanline,
                 imageWidth,
@@ -491,16 +563,13 @@ class CoreStreamingConcatenator {
                 }
               }
             } else {
-              // Below image - use transparent scanline
               scanlines.push(createTransparentScanline(colWidth, bytesPerPixel, transparentColor));
             }
           } else {
-            // Empty cell - use transparent scanline
             scanlines.push(createTransparentScanline(colWidth, bytesPerPixel, transparentColor));
           }
         }
 
-        // Combine scanlines horizontally
         let outputScanline = combineScanlines(scanlines, rowColWidths, bytesPerPixel);
 
         const expectedRowWidth = rowColWidths.reduce((sum, width) => sum + width, 0);
@@ -512,40 +581,46 @@ class CoreStreamingConcatenator {
           );
         }
 
-        // Pad scanline to totalWidth if this row is narrower
         const rowWidth = rowColWidths.reduce((sum, w) => sum + w, 0);
         if (rowWidth < totalWidth) {
           const paddedScanline = new Uint8Array(totalWidth * bytesPerPixel);
           paddedScanline.set(outputScanline, 0);
-          // Fill the rest with transparent pixels
           for (let x = rowWidth; x < totalWidth; x++) {
             paddedScanline.set(transparentColor, x * bytesPerPixel);
           }
           outputScanline = paddedScanline;
         }
 
-        // Filter the scanline
-        const { filterType, filtered } = filterScanline(
-          outputScanline,
-          previousOutputScanline,
-          bytesPerPixel
-        );
-
-        // Create scanline with filter byte
-        const scanlineWithFilter = new Uint8Array(1 + filtered.length);
-        scanlineWithFilter[0] = filterType;
-        scanlineWithFilter.set(filtered, 1);
-
-        // Yield this scanline - only one at a time!
-        yield scanlineWithFilter;
-
-        previousOutputScanline = outputScanline;
+        yield outputScanline;
       }
     }
   }
 
+  private async *filterScanlines(
+    scanlines: AsyncGenerator<Uint8Array>,
+    bytesPerPixel: number
+  ): AsyncGenerator<Uint8Array> {
+    let previousOutputScanline: Uint8Array | null = null;
+
+    for await (const outputScanline of scanlines) {
+      const { filterType, filtered } = filterScanline(
+        outputScanline,
+        previousOutputScanline,
+        bytesPerPixel
+      );
+
+      const scanlineWithFilter = new Uint8Array(1 + filtered.length);
+      scanlineWithFilter[0] = filterType;
+      scanlineWithFilter.set(filtered, 1);
+
+      yield scanlineWithFilter;
+
+      previousOutputScanline = outputScanline;
+    }
+  }
+
   /**
-   * Stream concatenated PNG output scanline-by-scanline
+   * Stream concatenated output scanline-by-scanline.
    */
   async *stream(): AsyncGenerator<Uint8Array> {
     // PASS 1: Create decoders and read headers (supports PNG, JPEG, HEIC)
@@ -569,53 +644,59 @@ class CoreStreamingConcatenator {
     const headers: PngHeader[] = imageHeaders.map(imageHeaderToPngHeader);
 
     try {
-      // Determine common format that can represent all images
-      const { bitDepth: targetBitDepth, colorType: targetColorType } = determineCommonFormat(headers);
-
-      // Calculate layout with variable image sizes
       const layout = calculateLayout(headers, this.options);
       const { grid, rowHeights, colWidths, totalWidth, totalHeight } = layout;
-
-      // Create output header using common format
-      const outputHeader: PngHeader = {
-        width: totalWidth,
-        height: totalHeight,
-        bitDepth: targetBitDepth,
-        colorType: targetColorType,
-        compressionMethod: 0,
-        filterMethod: 0,
-        interlaceMethod: 0
-      };
-
-      // Yield PNG signature
-      yield PNG_SIGNATURE;
-
-      // Yield IHDR
-      yield serializeChunk(createIHDR(outputHeader));
-
-      // PASS 2: Stream scanlines with true streaming compression
-      // Create iterators for each input decoder
-      const iterators = decoders.map(decoder => decoder.scanlines());
-      const bytesPerPixel = getBytesPerPixel(outputHeader.bitDepth, outputHeader.colorType);
-      const transparentColor = getTransparentColor(outputHeader.colorType, outputHeader.bitDepth);
       const progressTracker = this.createProgressTracker(headers);
+      const format = this.options.outputFormat ?? 'png';
 
-      // Use streaming compression - process scanlines one at a time
-      yield* this.streamCompressedData(
-        grid,
-        rowHeights,
-        colWidths,
-        totalWidth,
-        headers,
-        iterators,
-        outputHeader,
-        bytesPerPixel,
-        transparentColor,
-        progressTracker
-      );
+      if (format === 'jpeg') {
+        const iterators = decoders.map(decoder => decoder.scanlines());
+        yield* this.streamJpeg(
+          grid,
+          rowHeights,
+          colWidths,
+          totalWidth,
+          totalHeight,
+          headers,
+          iterators,
+          progressTracker
+        );
+      } else {
+        const { bitDepth: targetBitDepth, colorType: targetColorType } = determineCommonFormat(headers);
+        const outputHeader: PngHeader = {
+          width: totalWidth,
+          height: totalHeight,
+          bitDepth: targetBitDepth,
+          colorType: targetColorType,
+          compressionMethod: 0,
+          filterMethod: 0,
+          interlaceMethod: 0
+        };
 
-      // Yield IEND
-      yield serializeChunk(createIEND());
+        yield PNG_SIGNATURE;
+        yield serializeChunk(createIHDR(outputHeader));
+
+        const bytesPerPixel = getBytesPerPixel(outputHeader.bitDepth, outputHeader.colorType);
+        const transparentColor = getTransparentColor(outputHeader.colorType, outputHeader.bitDepth);
+        const iterators = decoders.map(decoder => decoder.scanlines());
+        const normalizedScanlines = this.generateNormalizedScanlines(
+          grid,
+          rowHeights,
+          colWidths,
+          totalWidth,
+          headers,
+          iterators,
+          outputHeader.bitDepth,
+          outputHeader.colorType,
+          bytesPerPixel,
+          transparentColor,
+          progressTracker
+        );
+        const filteredScanlines = this.filterScanlines(normalizedScanlines, bytesPerPixel);
+
+        yield* this.streamCompressedData(filteredScanlines, totalWidth, bytesPerPixel);
+        yield serializeChunk(createIEND());
+      }
     } finally {
       // Clean up all decoders and release resources
       for (const decoder of decoders) {
@@ -659,7 +740,7 @@ class CoreStreamingConcatenator {
  *
  * Supports PNG, JPEG, and HEIC input formats with automatic format detection.
  * Processes images scanline-by-scanline, keeping only a few rows in memory at a time.
- * Output is always PNG format.
+ * Output defaults to PNG format and can be switched to JPEG via {@link ConcatOptions.outputFormat}.
  *
  * Supported input formats:
  * - PNG (all color types, bit depths, interlaced)
@@ -690,7 +771,7 @@ async function* coreConcatStreaming(
   yield* concatenator.stream();
 }
 /**
- * Concatenate images and return the PNG as a Uint8Array.
+ * Concatenate images and return the encoded bytes as a Uint8Array.
  */
 async function concatCore(options: ConcatOptions): Promise<Uint8Array> {
   const chunks: Uint8Array[] = [];
