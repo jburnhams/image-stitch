@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { PngParser, parsePngHeader, parsePngChunks } from './png-parser.js';
-import { createIHDR, createIEND, buildPng } from './png-writer.js';
-import { PngHeader, ColorType } from './types.js';
+import { PngParser, parsePngHeader, parsePngChunks } from '../../src/png-parser.js';
+import { createIHDR, createIEND, buildPng } from '../../src/png-writer.js';
+import { PngHeader, ColorType } from '../../src/types.js';
 
 // Helper to create a minimal valid PNG
 function createMinimalPng(header: PngHeader): Uint8Array {

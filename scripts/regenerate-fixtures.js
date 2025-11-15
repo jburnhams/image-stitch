@@ -13,7 +13,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const pngsuiteDir = path.join(__dirname, '..', 'pngsuite', 'png');
-const fixturesDir = path.join(__dirname, '..', 'tests', 'fixtures', 'expected-outputs');
+const fixturesDir = path.join(__dirname, '..', 'tests', 'utils', 'fixtures', 'expected-outputs');
 
 function loadImage(filename) {
   return fs.readFileSync(path.join(pngsuiteDir, filename));

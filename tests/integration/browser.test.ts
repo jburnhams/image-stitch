@@ -11,7 +11,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Path to the generated docs
-const docsDistDir = path.resolve(__dirname, '..', '..', 'docs-dist');
+const repoRoot = path.resolve(__dirname, '../../../../');
+const docsDistDir = path.join(repoRoot, 'docs-dist');
 const iifeBundlePath = path.join(docsDistDir, 'image-stitch.min.js');
 const esmBundlePath = path.join(docsDistDir, 'image-stitch.esm.js');
 const indexPath = path.join(docsDistDir, 'index.html');
@@ -267,8 +268,8 @@ describe('Browser Bundle Tests', () => {
 });
 
 describe('Functional Tests - Verify Examples Work Correctly', () => {
-  const pngsuiteDir = path.resolve(__dirname, '..', '..', 'pngsuite', 'png');
-  const fixturesDir = path.resolve(__dirname, '..', '..', 'tests', 'fixtures', 'expected-outputs');
+  const pngsuiteDir = path.join(repoRoot, 'pngsuite', 'png');
+  const fixturesDir = path.join(repoRoot, 'tests', 'utils', 'fixtures', 'expected-outputs');
 
   // Helper to load the bundle and get its exports exactly as the browser does
   async function loadBundleModule() {

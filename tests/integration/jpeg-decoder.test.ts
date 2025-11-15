@@ -6,8 +6,8 @@
 
 import { describe, test } from 'node:test';
 import assert from 'node:assert';
-import { JpegBufferDecoder, JpegFileDecoder } from '../decoders/index.js';
-import { createTestJpeg } from '../test-utils/image-fixtures.js';
+import { JpegBufferDecoder, JpegFileDecoder } from '../../src/decoders/index.js';
+import { createTestJpeg } from '../utils/image-fixtures.js';
 import { writeFile, unlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';

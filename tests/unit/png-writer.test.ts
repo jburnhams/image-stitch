@@ -6,9 +6,9 @@ import {
   createIHDR,
   createIEND,
   buildPng
-} from './png-writer.js';
-import { PngHeader, ColorType } from './types.js';
-import { stringToBytes, isPngSignature, pngCrc32 } from './utils.js';
+} from '../../src/png-writer.js';
+import { PngHeader, ColorType } from '../../src/types.js';
+import { stringToBytes, isPngSignature, pngCrc32 } from '../../src/utils.js';
 
 test('createChunk creates valid chunk structure', () => {
   const data = new Uint8Array([1, 2, 3, 4]);
