@@ -124,7 +124,7 @@ describe('Browser Bundle Tests', () => {
     const { window, document } = await loadDocument(examplesPath);
 
     const exampleSections = Array.from(document.querySelectorAll('section.example'));
-    assert.strictEqual(exampleSections.length, 6, 'Examples page should render six demos');
+    assert.strictEqual(exampleSections.length, 7, 'Examples page should render seven demos');
 
     const runTargets = exampleSections
       .flatMap((section) => Array.from(section.querySelectorAll('button[data-run]')))
