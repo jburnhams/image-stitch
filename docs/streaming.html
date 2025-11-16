@@ -250,11 +250,11 @@
 <body>
   <div class="container">
     <header>
-      <h1>Streaming PNG generation</h1>
+      <h1>Streaming Image Generation</h1>
       <p>
-        Stream tens of thousands of PNG tiles into a single output without ever buffering the final file in memory. This demo
+        Stream tens of thousands of tiles into a single PNG or JPEG output without ever buffering the final file in memory. This demo
         wires image-stitch's <strong>StreamingConcatenator</strong> directly to the browser so you can preview or save massive
-        images instantly.
+        images instantly in your preferred format.
       </p>
       <nav>
         <a href="index.html">🏠 Overview</a>
@@ -268,13 +268,13 @@
       <section class="highlight-box">
         <h2>Memory-efficient streaming</h2>
         <p>
-          image-stitch processes PNG scanlines incrementally, emitting deflated chunks as soon as they are encoded. Unlike
-          canvas-based approaches that copy entire bitmaps, this pipeline keeps memory usage nearly constant no matter how
-          large the output grows.
+          image-stitch processes scanlines incrementally, emitting compressed chunks as soon as they are encoded. PNG output uses
+          deflate compression, while JPEG output uses DCT-based compression with configurable quality. Unlike canvas-based approaches
+          that copy entire bitmaps, this pipeline keeps memory usage nearly constant no matter how large the output grows.
         </p>
         <p>
-          <strong>Try it:</strong> Select your source tiles, set target dimensions up to 50,000&nbsp;×&nbsp;50,000 pixels, and
-          stream the result straight to disk.
+          <strong>Try it:</strong> Select your source tiles, choose PNG or JPEG output format, set target dimensions up to
+          50,000&nbsp;×&nbsp;50,000 pixels, and stream the result straight to disk.
         </p>
       </section>
 
@@ -326,6 +326,25 @@
           <div class="control-group">
             <label for="output-height">Height (pixels): <span id="height-value">1,000</span></label>
             <input type="range" id="output-height" min="32" max="50000" value="1000" step="32" />
+          </div>
+
+          <div class="control-group">
+            <label>Output format:</label>
+            <div style="display: flex; gap: 1rem; align-items: center; margin-top: 0.5rem;">
+              <label style="display: inline-flex; align-items: center; gap: 0.35rem; cursor: pointer;">
+                <input type="radio" name="output-format" value="png" checked style="accent-color: #7c3aed;" />
+                <span>PNG (lossless)</span>
+              </label>
+              <label style="display: inline-flex; align-items: center; gap: 0.35rem; cursor: pointer;">
+                <input type="radio" name="output-format" value="jpeg" style="accent-color: #7c3aed;" />
+                <span>JPEG (lossy)</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="control-group" id="jpeg-quality-control" style="display: none;">
+            <label for="jpeg-quality">JPEG Quality: <span id="quality-value">85</span></label>
+            <input type="range" id="jpeg-quality" min="1" max="100" value="85" step="1" />
           </div>
 
           <div class="stats" id="streaming-stats">
@@ -453,6 +472,23 @@
       if (estimatedSize) estimatedSize.textContent = estimateFileSize(width, height);
     }
 
+    function updateFormatControls() {
+      const formatControl = document.querySelector('input[name="output-format"]:checked');
+      const qualityControl = document.getElementById("jpeg-quality-control");
+      const qualitySlider = document.getElementById("jpeg-quality");
+      const qualityValue = document.getElementById("quality-value");
+
+      if (formatControl?.value === "jpeg") {
+        if (qualityControl) qualityControl.style.display = "grid";
+      } else {
+        if (qualityControl) qualityControl.style.display = "none";
+      }
+
+      if (qualitySlider && qualityValue) {
+        qualityValue.textContent = qualitySlider.value;
+      }
+    }
+
     function clearPreview() {
       const resultImg = document.querySelector("#streaming-result img");
       if (resultImg && resultImg.dataset.url) {
@@ -464,14 +500,15 @@
       }
     }
 
-    async function streamToBlob(generator) {
+    async function streamToBlob(generator, outputFormat = "png") {
       const chunks = [];
       let total = 0;
       for await (const chunk of generator) {
         chunks.push(chunk);
         total += chunk.length;
       }
-      return { blob: new Blob(chunks, { type: "image/png" }), bytes: total };
+      const mimeType = outputFormat === "jpeg" ? "image/jpeg" : "image/png";
+      return { blob: new Blob(chunks, { type: mimeType }), bytes: total };
     }
 
     async function streamToFile(generator, suggestedName) {
@@ -480,12 +517,15 @@
         return null;
       }
 
+      // Determine file type from extension
+      const isJpeg = suggestedName.toLowerCase().endsWith('.jpg') || suggestedName.toLowerCase().endsWith('.jpeg');
+
       const handle = await picker({
         suggestedName,
         types: [
           {
-            description: "PNG image",
-            accept: { "image/png": [".png"] }
+            description: isJpeg ? "JPEG image" : "PNG image",
+            accept: isJpeg ? { "image/jpeg": [".jpg", ".jpeg"] } : { "image/png": [".png"] }
           }
         ]
       });
@@ -520,6 +560,11 @@
         return;
       }
 
+      // Get output format and quality
+      const formatControl = document.querySelector('input[name="output-format"]:checked');
+      const outputFormat = formatControl?.value || "png";
+      const jpegQuality = getSliderValue(document.getElementById("jpeg-quality")) || 85;
+
       try {
         status.textContent = "Loading tiles…";
         meta.textContent = "";
@@ -539,20 +584,23 @@
           throw new Error("StreamingConcatenator export not found in bundle");
         }
 
-        const suggestedName = `image-stitch-${width}x${height}.png`;
+        const extension = outputFormat === "jpeg" ? "jpg" : "png";
+        const suggestedName = `image-stitch-${width}x${height}.${extension}`;
 
         if (download && typeof window.showSaveFilePicker === "function") {
           status.textContent = "Streaming directly to file…";
           const bytes = await streamToFile(
             new StreamingConcatenator({
               inputs,
-              layout: { width, wrapBehavior: "wrap" }
+              layout: { width, wrapBehavior: "wrap" },
+              outputFormat,
+              jpegQuality
             }).stream(),
             suggestedName
           );
           status.textContent = "Saved with streaming writer.";
           meta.textContent = bytes
-            ? `Wrote ${(bytes / (1024 * 1024)).toFixed(2)} MB using ${formatNumber(totalTiles)} tiles.`
+            ? `Wrote ${(bytes / (1024 * 1024)).toFixed(2)} MB using ${formatNumber(totalTiles)} tiles (${outputFormat.toUpperCase()}).`
             : `Streaming download cancelled.`;
           return;
         }
@@ -561,8 +609,11 @@
         const { blob, bytes } = await streamToBlob(
           new StreamingConcatenator({
             inputs,
-            layout: { width, wrapBehavior: "wrap" }
-          }).stream()
+            layout: { width, wrapBehavior: "wrap" },
+            outputFormat,
+            jpegQuality
+          }).stream(),
+          outputFormat
         );
 
         const url = URL.createObjectURL(blob);
@@ -576,14 +627,14 @@
           document.body.removeChild(link);
           status.textContent = "Download ready.";
           setTimeout(() => URL.revokeObjectURL(url), 1000);
-          meta.textContent = `Generated ${(bytes / (1024 * 1024)).toFixed(2)} MB via streaming.`;
+          meta.textContent = `Generated ${(bytes / (1024 * 1024)).toFixed(2)} MB via streaming (${outputFormat.toUpperCase()}).`;
           return;
         }
 
         resultImg.src = url;
         resultImg.dataset.url = url;
         status.textContent = `Rendered ${formatNumber(totalTiles)} tiles via streaming.`;
-        meta.textContent = `Output size: ${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+        meta.textContent = `Output size: ${(bytes / (1024 * 1024)).toFixed(2)} MB (${outputFormat.toUpperCase()})`;
       } catch (error) {
         console.error(error);
         status.textContent = error instanceof Error ? error.message : String(error);
@@ -594,6 +645,7 @@
     function registerHandlers() {
       const widthInput = document.getElementById("output-width");
       const heightInput = document.getElementById("output-height");
+      const qualitySlider = document.getElementById("jpeg-quality");
       const status = document.getElementById("streaming-status");
       const meta = document.getElementById("streaming-meta");
 
@@ -606,6 +658,22 @@
 
       heightInput?.addEventListener("input", () => {
         updateStreamingStats();
+        clearPreview();
+        if (status) status.textContent = "";
+        if (meta) meta.textContent = "Generate an image to view details.";
+      });
+
+      document.querySelectorAll('input[name="output-format"]').forEach((radio) => {
+        radio.addEventListener("change", () => {
+          updateFormatControls();
+          clearPreview();
+          if (status) status.textContent = "";
+          if (meta) meta.textContent = "Generate an image to view details.";
+        });
+      });
+
+      qualitySlider?.addEventListener("input", () => {
+        updateFormatControls();
         clearPreview();
         if (status) status.textContent = "";
         if (meta) meta.textContent = "Generate an image to view details.";
@@ -627,6 +695,7 @@
       });
 
       updateStreamingStats();
+      updateFormatControls();
     }
 
     registerHandlers();
