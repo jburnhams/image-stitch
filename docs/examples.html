@@ -138,6 +138,18 @@
       accent-color: #7c3aed;
     }
 
+    .quality {
+      display: grid;
+      gap: 0.35rem;
+      color: #4338ca;
+      font-weight: 600;
+      min-width: min(360px, 100%);
+    }
+
+    .quality input[type="range"] {
+      accent-color: #7c3aed;
+    }
+
     button {
       background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
       color: #fff;
@@ -233,8 +245,8 @@
 <body>
   <div class="container">
     <header>
-      <h1>Interactive PNG Stitching</h1>
-      <p>Experiment with modern browser helpers, progress callbacks, and canvas-aware workflows powered by image-stitch. Each demo shows the exact code you can drop into your own app.</p>
+      <h1>Interactive PNG &amp; JPEG Stitching</h1>
+      <p>Experiment with modern browser helpers, progress callbacks, and canvas-aware workflows powered by image-stitch. Each demo shows the exact code you can drop into your own app—now with both PNG (lossless) and JPEG (lossy) outputs.</p>
       <nav>
         <a href="index.html">🏠 Overview</a>
         <a href="streaming.html">⚡ Streaming demo</a>
@@ -244,6 +256,25 @@
     </header>
 
     <main>
+      <section class="example" id="output-settings">
+        <h2>Pick your output format</h2>
+        <p>Choose between lossless PNG or lossy JPEG for every interactive example. JPEGs support adjustable quality to balance fidelity and file size.</p>
+        <div class="controls">
+          <div class="toggle-group" aria-label="Output format">
+            <label>
+              <input type="radio" name="output-format" value="png" checked /> PNG (lossless)
+            </label>
+            <label>
+              <input type="radio" name="output-format" value="jpeg" /> JPEG (lossy)
+            </label>
+          </div>
+          <div class="quality" id="jpeg-quality-control" hidden>
+            <label for="jpeg-quality">JPEG quality: <span id="jpeg-quality-value">85</span></label>
+            <input type="range" id="jpeg-quality" min="1" max="100" value="85" />
+          </div>
+        </div>
+      </section>
+
       <section class="example" id="horizontal">
         <h2>Horizontal sprite strip</h2>
         <p>Combine three pngsuite samples into a single row. Useful for spritesheets and UI icon strips.</p>
@@ -365,8 +396,8 @@ const stitched = await concatCanvases({
       </section>
 
       <section class="example" id="custom">
-        <h2>Bring your own PNGs &amp; blobs</h2>
-        <p>Drop in up to eight PNG files (16-bit color is supported!) and stitch them in your browser. Files are handled as <code>Blob</code> inputs—no need to convert to ArrayBuffers manually.</p>
+        <h2>Bring your own images &amp; blobs</h2>
+        <p>Drop in up to eight PNG or JPEG files (16-bit PNG color is supported!) and stitch them in your browser. Files are handled as <code>Blob</code> inputs—no need to convert to ArrayBuffers manually.</p>
         <div class="code-block" data-code>
 import { concatToBuffer } from "image-stitch";
 
@@ -377,7 +408,7 @@ const output = await concatToBuffer({
 });
         </div>
         <div class="controls">
-          <input type="file" id="custom-files" accept="image/png" multiple />
+          <input type="file" id="custom-files" accept="image/png, image/jpeg" multiple />
           <button data-run="custom">Stitch selected files</button>
           <span class="status" data-status="custom"></span>
         </div>
@@ -390,7 +421,7 @@ const output = await concatToBuffer({
 
       <section class="example" id="node-stream">
         <h2>Streaming output in Node.js</h2>
-        <p>Need a back-end friendly flow? Use <code>concatToStream</code> to pipe stitched PNG data straight into HTTP responses or file writers without buffering everything in memory.</p>
+        <p>Need a back-end friendly flow? Use <code>concatToStream</code> to pipe stitched PNG or JPEG data straight into HTTP responses or file writers without buffering everything in memory.</p>
         <div class="code-block" data-code>
 import { concatToStream } from "image-stitch";
 import { createWriteStream } from "node:fs";
@@ -506,6 +537,20 @@ await pipeline(
       return `${(bytes / 1024).toFixed(2)} KB`;
     }
 
+    function getSliderValue(input) {
+      if (!input) return 0;
+      const value = Number.parseInt(input.value, 10);
+      return Number.isNaN(value) ? 0 : value;
+    }
+
+    function getOutputSettings() {
+      const formatControl = document.querySelector('input[name="output-format"]:checked');
+      const format = formatControl?.value === "jpeg" ? "jpeg" : "png";
+      const quality = format === "jpeg" ? getSliderValue(document.getElementById("jpeg-quality")) || 85 : undefined;
+      const mimeType = format === "jpeg" ? "image/jpeg" : "image/png";
+      return { format, quality, mimeType };
+    }
+
     function clearPreview(id) {
       const image = document.querySelector(`[data-result="${id}"] img`);
       if (image?.dataset.url) {
@@ -615,11 +660,29 @@ await pipeline(
       }
     }
 
+    function updateOutputControls() {
+      const qualityControl = document.getElementById("jpeg-quality-control");
+      const slider = document.getElementById("jpeg-quality");
+      const value = document.getElementById("jpeg-quality-value");
+      const format = document.querySelector('input[name="output-format"]:checked')?.value;
+
+      if (format === "jpeg") {
+        qualityControl?.removeAttribute("hidden");
+      } else if (qualityControl) {
+        qualityControl.hidden = true;
+      }
+
+      if (slider && value) {
+        value.textContent = slider.value;
+      }
+    }
+
     async function runExample(id) {
       const status = document.querySelector(`[data-status="${id}"]`);
       if (!status) return;
       const module = await ensureModule();
       const { concatToBuffer, concatCanvases } = module;
+      const { format: outputFormat, quality: jpegQuality, mimeType } = getOutputSettings();
 
       status.textContent = "Preparing…";
       resetMeta(id);
@@ -630,17 +693,19 @@ await pipeline(
           const input = document.getElementById("custom-files");
           const files = Array.from((input?.files || [])).slice(0, 8);
           if (!files.length) {
-            status.textContent = "Select one or more PNG files.";
+            status.textContent = "Select one or more PNG or JPEG files.";
             return;
           }
           status.textContent = `Processing ${files.length} file${files.length === 1 ? "" : "s"}…`;
           const stitched = await concatToBuffer({
             inputs: files,
-            layout: { columns: 4, wrapBehavior: "wrap" }
+            layout: { columns: 4, wrapBehavior: "wrap" },
+            outputFormat,
+            ...(outputFormat === "jpeg" ? { jpegQuality } : {})
           });
           status.textContent = "Rendering result…";
-          const blob = new Blob([stitched], { type: "image/png" });
-          showBlob(id, blob, `Output size: ${formatKilobytes(stitched.byteLength)}`);
+          const blob = new Blob([stitched], { type: mimeType });
+          showBlob(id, blob, `Output size: ${formatKilobytes(stitched.byteLength)} (${outputFormat.toUpperCase()})`);
           status.textContent = "Done!";
           return;
         }
@@ -653,11 +718,20 @@ await pipeline(
           const outputMode = outputControl?.value === "canvas" ? "canvas" : "blob";
           status.textContent = "Stitching canvases…";
           const onProgress = createProgressReporter(id, canvases.length);
+          const effectiveFormat = outputMode === "canvas" ? "png" : outputFormat;
+          const effectiveMime = effectiveFormat === "jpeg" ? "image/jpeg" : "image/png";
           const result = await concatCanvases({
             canvases,
             layout: LAYOUTS.canvas,
             output: outputMode,
-            ...(onProgress ? { onProgress } : {})
+            ...(onProgress ? { onProgress } : {}),
+            ...(outputMode === "blob"
+              ? {
+                  outputFormat: effectiveFormat,
+                  ...(effectiveFormat === "jpeg" ? { jpegQuality } : {}),
+                  mimeType: effectiveMime
+                }
+              : {})
           });
           if (outputMode === "canvas") {
             finalizeProgress(id);
@@ -671,7 +745,11 @@ await pipeline(
             finalizeProgress(id);
             status.textContent = "Rendering Blob…";
             const blob = result;
-            showBlob(id, blob, `Blob size: ${formatKilobytes(blob.size)}`);
+            showBlob(
+              id,
+              blob,
+              `Blob size: ${formatKilobytes(blob.size)} (${effectiveFormat.toUpperCase()})`
+            );
             status.textContent = "Done!";
           }
           return;
@@ -688,12 +766,14 @@ await pipeline(
         const stitched = await concatToBuffer({
           inputs: buffers,
           layout: LAYOUTS[id],
-          ...(onProgress ? { onProgress } : {})
+          ...(onProgress ? { onProgress } : {}),
+          outputFormat,
+          ...(outputFormat === "jpeg" ? { jpegQuality } : {})
         });
         finalizeProgress(id);
         status.textContent = "Rendering result…";
-        const blob = new Blob([stitched], { type: "image/png" });
-        showBlob(id, blob, `Output size: ${formatKilobytes(stitched.byteLength)}`);
+        const blob = new Blob([stitched], { type: mimeType });
+        showBlob(id, blob, `Output size: ${formatKilobytes(stitched.byteLength)} (${outputFormat.toUpperCase()})`);
         status.textContent = "Done!";
       } catch (error) {
         console.error(error);
@@ -701,9 +781,27 @@ await pipeline(
       }
     }
 
+    document.querySelectorAll('input[name="output-format"]').forEach((radio) => {
+      radio.addEventListener('change', () => {
+        updateOutputControls();
+        document.querySelectorAll('[data-status]').forEach((el) => (el.textContent = ''));
+        document.querySelectorAll('[data-result]').forEach((container) => {
+          const id = container.dataset.result;
+          if (id) {
+            clearPreview(id);
+            resetMeta(id);
+          }
+        });
+      });
+    });
+
+    document.getElementById('jpeg-quality')?.addEventListener('input', updateOutputControls);
+
     document.querySelectorAll('button[data-run]').forEach((button) => {
       button.addEventListener('click', () => runExample(button.dataset.run));
     });
+
+    updateOutputControls();
   </script>
 </body>
 </html>

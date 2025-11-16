@@ -504,8 +504,10 @@
       const chunks = [];
       let total = 0;
       for await (const chunk of generator) {
-        chunks.push(chunk);
-        total += chunk.length;
+        // Copy each chunk so Blob assembly isn't affected by reused buffers from the encoder
+        const copy = chunk instanceof Uint8Array ? new Uint8Array(chunk) : new Uint8Array(chunk);
+        chunks.push(copy);
+        total += copy.length;
       }
       const mimeType = outputFormat === "jpeg" ? "image/jpeg" : "image/png";
       return { blob: new Blob(chunks, { type: mimeType }), bytes: total };
