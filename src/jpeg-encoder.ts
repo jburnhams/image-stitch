@@ -9,8 +9,6 @@
  */
 
 import jpegEncoderInit, { StreamingJpegEncoder, WasmColorType } from 'jpeg-encoder/pkg/jpeg_encoder.js';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 
 let wasmInitialized = false;
 
@@ -26,6 +24,10 @@ async function initWasm(): Promise<void> {
   // In Node.js, we need to load the wasm file manually
   if (typeof process !== 'undefined' && process.versions?.node) {
     try {
+      // Dynamic imports to avoid bundler issues
+      const { readFileSync } = await import('node:fs');
+      const { join } = await import('node:path');
+
       // Try to load from node_modules using require.resolve (works in both ESM and CJS)
       let wasmPath: string;
       try {
