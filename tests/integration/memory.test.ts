@@ -82,13 +82,18 @@ async function createTestPng(
  */
 async function concatToFile(
   inputs: PngInputSource,
-  layout: any
+  layout: any,
+  outputFormat: 'png' | 'jpeg' = 'png',
+  jpegQuality = 85
 ): Promise<string> {
-  const outputPath = `/tmp/concat-test-${Date.now()}-${Math.random().toString(36).slice(2)}.png`;
+  const extension = outputFormat === 'jpeg' ? 'jpg' : 'png';
+  const outputPath = `/tmp/concat-test-${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
 
   const stream = concatToStream({
     inputs,
-    layout
+    layout,
+    outputFormat,
+    jpegQuality
   });
 
   const writeStream = createWriteStream(outputPath);
@@ -332,6 +337,233 @@ describe('Memory Usage Tests', () => {
         console.log(`✓ Extreme image (20000x20000): file created successfully`);
       } finally {
         await unlink(outputPath).catch(() => {});
+      }
+    }
+  });
+});
+
+describe('JPEG Output Memory Tests', () => {
+  test('Small JPEG (100x100) - baseline memory check', async () => {
+    const testPng = await createTestPng(100, 100, new Uint8Array([255, 0, 0, 255]));
+
+    let outputPath: string;
+
+    if (gcAvailable) {
+      const { result, measurement } = await monitorMemory(async () => {
+        return await concatToFile(
+          [testPng, testPng, testPng, testPng],
+          { columns: 2 },
+          'jpeg',
+          85
+        );
+      });
+      outputPath = result;
+
+      try {
+        // JPEG should use similar or less memory than PNG (< 30MB)
+        assertMemoryBelow(measurement, 30 * 1024 * 1024, 'heapUsed');
+        console.log(`✓ Small JPEG: ${formatBytes(measurement.delta.heapUsed)} peak memory`);
+      } finally {
+        await unlink(outputPath).catch(() => {});
+      }
+    } else {
+      outputPath = await concatToFile(
+        [testPng, testPng, testPng, testPng],
+        { columns: 2 },
+        'jpeg',
+        85
+      );
+      try {
+        const { access } = await import('node:fs/promises');
+        await access(outputPath);
+        console.log(`✓ Small JPEG: file created successfully`);
+      } finally {
+        await unlink(outputPath).catch(() => {});
+      }
+    }
+  });
+
+  test('Medium JPEG (1000x1000) - memory bounded by MCU buffer', async () => {
+    const testPng = await createTestPng(1000, 1000, new Uint8Array([0, 255, 0, 255]));
+
+    let outputPath: string;
+
+    if (gcAvailable) {
+      const { result, measurement } = await monitorMemory(async () => {
+        return await concatToFile(
+          [testPng, testPng, testPng, testPng],
+          { columns: 2 },
+          'jpeg',
+          85
+        );
+      });
+      outputPath = result;
+
+      try {
+        // JPEG uses 8-line MCU strips, should be similar or better than PNG
+        const THRESHOLD = 60 * 1024 * 1024; // 60MB (same as PNG)
+        assertMemoryBelow(measurement, THRESHOLD, 'heapUsed');
+        console.log(`✓ Medium JPEG: ${formatBytes(measurement.delta.heapUsed)} peak memory`);
+      } finally {
+        await unlink(outputPath).catch(() => {});
+      }
+    } else {
+      outputPath = await concatToFile(
+        [testPng, testPng, testPng, testPng],
+        { columns: 2 },
+        'jpeg',
+        85
+      );
+      try {
+        const { access } = await import('node:fs/promises');
+        await access(outputPath);
+        console.log(`✓ Medium JPEG: file created successfully`);
+      } finally {
+        await unlink(outputPath).catch(() => {});
+      }
+    }
+  });
+
+  test('Large JPEG (5000x5000) - constant memory streaming', async () => {
+    const smallPng = await createTestPng(32, 32, new Uint8Array([0, 0, 255, 255]));
+
+    const targetSize = 5000;
+    const tileSize = 32;
+    const tilesNeeded = Math.ceil(targetSize / tileSize) ** 2;
+
+    let outputPath: string;
+
+    if (gcAvailable) {
+      const createInputs = () => createRepeatedInputStream(smallPng, tilesNeeded);
+      const { result, measurement } = await monitorMemory(async () => {
+        return await concatToFile(createInputs(), { width: targetSize }, 'jpeg', 85);
+      }, 100);
+      outputPath = result;
+
+      try {
+        const expectedMem = calculateExpectedMemory(targetSize, targetSize, 4);
+
+        console.log(`\nLarge JPEG Memory Analysis (5000x5000):`);
+        console.log(`  Uncompressed size: ${formatBytes(expectedMem.uncompressedSize)}`);
+        console.log(`  Peak memory delta: ${formatBytes(measurement.delta.heapUsed)}`);
+        console.log(`  Ratio (peak/uncompressed): ${(measurement.delta.heapUsed / expectedMem.uncompressedSize).toFixed(2)}x`);
+
+        // JPEG should use similar or better memory than PNG (400MB threshold)
+        const THRESHOLD = 400 * 1024 * 1024;
+        assertMemoryBelow(measurement, THRESHOLD, 'heapUsed');
+
+        console.log(`✓ Large JPEG test passed - STREAMING (${formatBytes(measurement.delta.heapUsed)})`);
+      } finally {
+        await unlink(outputPath).catch(() => {});
+      }
+    } else {
+      outputPath = await concatToFile(createRepeatedInputStream(smallPng, tilesNeeded), { width: targetSize }, 'jpeg', 85);
+      try {
+        const { access } = await import('node:fs/promises');
+        await access(outputPath);
+        console.log(`✓ Large JPEG (5000x5000): file created successfully`);
+      } finally {
+        await unlink(outputPath).catch(() => {});
+      }
+    }
+  });
+
+  test('Very large JPEG (10000x10000) - constant memory streaming', async () => {
+    const smallPng = await createTestPng(32, 32, new Uint8Array([255, 255, 0, 255]));
+
+    const targetSize = 10000;
+    const tileSize = 32;
+    const tilesNeeded = Math.ceil(targetSize / tileSize) ** 2;
+
+    let outputPath: string;
+
+    if (gcAvailable) {
+      const createInputs = () => createRepeatedInputStream(smallPng, tilesNeeded);
+      const { result, measurement } = await monitorMemory(async () => {
+        return await concatToFile(createInputs(), { width: targetSize }, 'jpeg', 85);
+      }, 100);
+      outputPath = result;
+
+      try {
+        const expectedMem = calculateExpectedMemory(targetSize, targetSize, 4);
+
+        console.log(`\nVery Large JPEG Memory Analysis (10000x10000):`);
+        console.log(`  Uncompressed size: ${formatBytes(expectedMem.uncompressedSize)}`);
+        console.log(`  Peak memory delta: ${formatBytes(measurement.delta.heapUsed)}`);
+        console.log(`  Ratio (peak/uncompressed): ${(measurement.delta.heapUsed / expectedMem.uncompressedSize).toFixed(2)}x`);
+
+        // JPEG should be similar or better than PNG (900MB threshold)
+        const THRESHOLD = 900 * 1024 * 1024;
+        assertMemoryBelow(measurement, THRESHOLD, 'heapUsed');
+
+        console.log(`✓ Very large JPEG test passed - STREAMING (${formatBytes(measurement.delta.heapUsed)})`);
+      } finally {
+        await unlink(outputPath).catch(() => {});
+      }
+    } else {
+      outputPath = await concatToFile(createRepeatedInputStream(smallPng, tilesNeeded), { width: targetSize }, 'jpeg', 85);
+      try {
+        const { access } = await import('node:fs/promises');
+        await access(outputPath);
+        console.log(`✓ Very large JPEG (10000x10000): file created successfully`);
+      } finally {
+        await unlink(outputPath).catch(() => {});
+      }
+    }
+  });
+
+  test('JPEG vs PNG memory comparison (5000x5000)', async () => {
+    // This test verifies that JPEG uses no more memory than PNG
+    const smallPng = await createTestPng(32, 32, new Uint8Array([128, 64, 192, 255]));
+
+    const targetSize = 5000;
+    const tileSize = 32;
+    const tilesNeeded = Math.ceil(targetSize / tileSize) ** 2;
+
+    if (gcAvailable) {
+      // Test PNG
+      const createInputsPng = () => createRepeatedInputStream(smallPng, tilesNeeded);
+      const { result: pngPath, measurement: pngMeasurement } = await monitorMemory(async () => {
+        return await concatToFile(createInputsPng(), { width: targetSize }, 'png');
+      }, 100);
+
+      // Test JPEG
+      const createInputsJpeg = () => createRepeatedInputStream(smallPng, tilesNeeded);
+      const { result: jpegPath, measurement: jpegMeasurement } = await monitorMemory(async () => {
+        return await concatToFile(createInputsJpeg(), { width: targetSize }, 'jpeg', 85);
+      }, 100);
+
+      try {
+        console.log(`\nJPEG vs PNG Memory Comparison (5000x5000):`);
+        console.log(`  PNG peak memory:  ${formatBytes(pngMeasurement.delta.heapUsed)}`);
+        console.log(`  JPEG peak memory: ${formatBytes(jpegMeasurement.delta.heapUsed)}`);
+        console.log(`  JPEG/PNG ratio: ${(jpegMeasurement.delta.heapUsed / pngMeasurement.delta.heapUsed).toFixed(2)}x`);
+
+        // JPEG should not use significantly more memory than PNG
+        // Allow up to 1.5x for WASM overhead and MCU buffering
+        const ratio = jpegMeasurement.delta.heapUsed / pngMeasurement.delta.heapUsed;
+        assert.ok(
+          ratio <= 1.5,
+          `JPEG memory (${formatBytes(jpegMeasurement.delta.heapUsed)}) should not exceed PNG by more than 1.5x (PNG: ${formatBytes(pngMeasurement.delta.heapUsed)})`
+        );
+
+        console.log(`✓ JPEG memory is comparable to PNG (${ratio.toFixed(2)}x ratio)`);
+      } finally {
+        await unlink(pngPath).catch(() => {});
+        await unlink(jpegPath).catch(() => {});
+      }
+    } else {
+      // Just verify functional behavior
+      const pngPath = await concatToFile(createRepeatedInputStream(smallPng, tilesNeeded), { width: targetSize }, 'png');
+      const jpegPath = await concatToFile(createRepeatedInputStream(smallPng, tilesNeeded), { width: targetSize }, 'jpeg', 85);
+      try {
+        const { access } = await import('node:fs/promises');
+        await access(pngPath);
+        await access(jpegPath);
+        console.log(`✓ JPEG vs PNG comparison: both formats work correctly`);
+      } finally {
+        await unlink(pngPath).catch(() => {});
+        await unlink(jpegPath).catch(() => {});
       }
     }
   });
