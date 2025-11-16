@@ -73,9 +73,18 @@ export interface ConcatOptions {
   decoders?: DecoderPlugin[];
 
   /**
-   * Output format (currently only PNG supported, future: JPEG, WebP)
+   * Output format (PNG or JPEG)
+   * - 'png': Lossless PNG format (default)
+   * - 'jpeg': Lossy JPEG format
    */
-  outputFormat?: 'png';
+  outputFormat?: 'png' | 'jpeg';
+
+  /**
+   * JPEG quality (1-100, default: 85)
+   * Only applies when outputFormat is 'jpeg'
+   * Higher values = better quality but larger file size
+   */
+  jpegQuality?: number;
 
   /**
    * Optional progress callback invoked when each input image finishes streaming.

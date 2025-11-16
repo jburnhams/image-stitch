@@ -7,6 +7,7 @@
  *
  * Key features:
  * - Multi-format input: PNG, JPEG, HEIC
+ * - Multi-format output: PNG (lossless), JPEG (lossy)
  * - Streaming processing (O(scanline) memory, not O(image))
  * - Browser and Node.js support
  * - No canvas dependency
@@ -16,10 +17,21 @@
  * @example
  * import { concatToBuffer } from 'image-stitch';
  *
- * // Mix different formats
- * const result = await concatToBuffer({
+ * // Mix different formats, output as PNG
+ * const pngResult = await concatToBuffer({
  *   inputs: ['photo.jpg', 'image.png', 'pic.heic'],
  *   layout: { columns: 3 }
+ * });
+ *
+ * @example
+ * import { concatToBuffer } from 'image-stitch';
+ *
+ * // Output as JPEG with custom quality
+ * const jpegResult = await concatToBuffer({
+ *   inputs: ['photo1.jpg', 'photo2.jpg'],
+ *   layout: { columns: 2 },
+ *   outputFormat: 'jpeg',
+ *   jpegQuality: 90
  * });
  */
 
@@ -104,3 +116,6 @@ export {
   isPngSignature,
   PNG_SIGNATURE
 } from './utils.js';
+
+// JPEG encoder (for advanced use)
+export { JpegEncoder, encodeJpeg } from './jpeg-encoder.js';
