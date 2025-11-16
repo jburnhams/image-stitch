@@ -343,7 +343,7 @@ function buildBundles() {
   }
 
   const moduleChunks = [];
-  for (let i = 0; i < order.length - 1; i++) {
+  for (let i = 0; i < order.length; i++) {
     const info = order[i];
     const banner = `// ===== ${formatRelative(info.path)} =====`;
     const aliasLines = [];
