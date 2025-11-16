@@ -1,7 +1,8 @@
 import { setDefaultDecoderPlugins } from './decoders/plugin-registry.js';
 import { pngDecoder } from './decoders/png-decoder.js';
+import { jpegDecoder } from './decoders/jpeg-decoder.js';
 
-setDefaultDecoderPlugins([pngDecoder]);
+setDefaultDecoderPlugins([pngDecoder, jpegDecoder]);
 
 export {
   concat,

@@ -20,6 +20,7 @@ const browserDistDir = path.join(distDir, 'browser');
 const docsSourceDir = path.join(projectRoot, 'docs');
 const docsDistDir = path.join(projectRoot, 'docs-dist');
 const pngsuiteDir = path.join(projectRoot, 'pngsuite', 'png');
+const jpegWasmPath = path.join(projectRoot, 'node_modules', 'jpeg-encoder', 'pkg', 'jpeg_encoder_bg.wasm');
 
 function assertExists(targetPath, message) {
   if (!fs.existsSync(targetPath)) {
@@ -121,9 +122,20 @@ function copyEsmBundle() {
   }
 }
 
+function copyJpegWasm() {
+  if (!fs.existsSync(jpegWasmPath)) {
+    console.warn('JPEG encoder WASM not found; skipping copy.');
+    return;
+  }
+
+  const dest = path.join(docsDistDir, 'jpeg_encoder_bg.wasm');
+  fs.copyFileSync(jpegWasmPath, dest);
+}
+
 copyDocs();
 copyImages();
 copyBrowserBundles();
 copyEsmBundle();
+copyJpegWasm();
 
 console.log('Documentation assets ready in docs-dist/.');
