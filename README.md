@@ -1,6 +1,13 @@
 # image-stitch
 
-image-stitch combines PNG images into a single output without relying on Canvas APIs. It works in Node.js and modern browsers, including streaming scenarios for large images.
+image-stitch combines images into a single output without relying on Canvas APIs. It works in Node.js and modern browsers, including streaming scenarios for large images.
+
+**Features:**
+- **Multi-format input**: PNG, JPEG, HEIC with automatic format detection
+- **Multi-format output**: PNG (lossless) or JPEG (lossy with quality control)
+- **Streaming processing**: Minimal memory usage for large images
+- **No canvas dependency**: Works in Node.js and browsers
+- **Flexible layouts**: Grid, columns, rows, or custom dimensions
 
 ## Install
 
@@ -35,6 +42,31 @@ const result = await concatToBuffer({
 
 writeFileSync('stitched.png', result);
 ```
+
+### JPEG output
+
+By default, image-stitch outputs PNG (lossless). You can also output JPEG (lossy) with configurable quality:
+
+```ts
+import { concatToBuffer } from 'image-stitch';
+
+// Output as JPEG with custom quality
+const result = await concatToBuffer({
+  inputs: ['photo1.jpg', 'photo2.jpg', 'image.png'],
+  layout: { columns: 3 },
+  outputFormat: 'jpeg',  // 'png' (default) or 'jpeg'
+  jpegQuality: 90        // 1-100, default: 85
+});
+
+writeFileSync('stitched.jpg', result);
+```
+
+JPEG output features:
+- **Lossy compression** with configurable quality (1-100)
+- **Smaller file sizes** compared to PNG for photos
+- **8-bit RGBA format** (automatically converts higher bit depths)
+- **Streaming support** via `concatToStream()` and `concatStreaming()`
+- **Mixed inputs** - combine PNG, JPEG, HEIC inputs into JPEG output
 
 ### Track progress
 
