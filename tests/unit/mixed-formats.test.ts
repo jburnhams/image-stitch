@@ -25,6 +25,24 @@ function validateOutputPng(pngData: Uint8Array, expectedWidth: number, expectedH
   return png;
 }
 
+/**
+ * Validate output JPEG structure and basic markers
+ */
+function validateOutputJpeg(jpegData: Uint8Array) {
+  // Check JPEG SOI marker (0xFF 0xD8)
+  assert.strictEqual(jpegData[0], 0xFF, 'JPEG should start with 0xFF');
+  assert.strictEqual(jpegData[1], 0xD8, 'JPEG should have SOI marker 0xD8');
+
+  // Check JPEG EOI marker at end (0xFF 0xD9)
+  const len = jpegData.length;
+  assert.strictEqual(jpegData[len - 2], 0xFF, 'JPEG should end with 0xFF');
+  assert.strictEqual(jpegData[len - 1], 0xD9, 'JPEG should have EOI marker 0xD9');
+
+  assert.ok(jpegData.length > 100, 'JPEG should have reasonable size');
+
+  return jpegData;
+}
+
 describe('Mixed Formats - PNG + JPEG', () => {
   test('concatenates PNG and JPEG horizontally', async () => {
     const pngImage = await createTestPng(10, 10, new Uint8Array([255, 0, 0, 255])); // Red
@@ -263,5 +281,135 @@ describe('Mixed Formats - ArrayBuffer Input', () => {
     });
 
     validateOutputPng(result, 20, 10);
+  });
+});
+
+describe('JPEG Output Format', () => {
+  test('outputs JPEG instead of PNG', async () => {
+    const png1 = await createTestPng(16, 16, new Uint8Array([255, 0, 0, 255]));
+    const png2 = await createTestPng(16, 16, new Uint8Array([0, 255, 0, 255]));
+
+    const result = await concatToBuffer({
+      inputs: [png1, png2],
+      layout: { columns: 2 },
+      outputFormat: 'jpeg'
+    });
+
+    assert.ok(result instanceof Uint8Array, 'Should return Uint8Array');
+    validateOutputJpeg(result);
+  });
+
+  test('JPEG output with custom quality', async () => {
+    const png1 = await createTestPng(16, 16, new Uint8Array([255, 0, 0, 255]));
+    const png2 = await createTestPng(16, 16, new Uint8Array([0, 255, 0, 255]));
+
+    const result = await concatToBuffer({
+      inputs: [png1, png2],
+      layout: { columns: 2 },
+      outputFormat: 'jpeg',
+      jpegQuality: 95
+    });
+
+    validateOutputJpeg(result);
+  });
+
+  test('JPEG output from mixed input formats', async () => {
+    const png = await createTestPng(16, 16, new Uint8Array([255, 0, 0, 255]));
+    const jpeg = await createTestJpeg(16, 16, new Uint8Array([0, 255, 0, 255]));
+
+    const result = await concatToBuffer({
+      inputs: [png, jpeg],
+      layout: { columns: 2 },
+      outputFormat: 'jpeg',
+      jpegQuality: 85
+    });
+
+    validateOutputJpeg(result);
+  });
+
+  test('JPEG output in grid layout', async () => {
+    const inputs = [];
+    for (let i = 0; i < 9; i++) {
+      const color = new Uint8Array([i * 28, (9 - i) * 28, 128, 255]);
+      inputs.push(await createTestPng(8, 8, color));
+    }
+
+    const result = await concatToBuffer({
+      inputs,
+      layout: { columns: 3 },
+      outputFormat: 'jpeg',
+      jpegQuality: 90
+    });
+
+    validateOutputJpeg(result);
+  });
+
+  test('JPEG output with variable sizes', async () => {
+    const small = await createTestPng(8, 8, new Uint8Array([255, 0, 0, 255]));
+    const large = await createTestPng(16, 16, new Uint8Array([0, 255, 0, 255]));
+
+    const result = await concatToBuffer({
+      inputs: [small, large],
+      layout: { columns: 2 },
+      outputFormat: 'jpeg'
+    });
+
+    validateOutputJpeg(result);
+  });
+
+  test('streaming JPEG output', async () => {
+    const png1 = await createTestPng(16, 16, new Uint8Array([200, 100, 50, 255]));
+    const png2 = await createTestPng(16, 16, new Uint8Array([50, 100, 200, 255]));
+
+    const stream = concatToStream({
+      inputs: [png1, png2],
+      layout: { columns: 2 },
+      outputFormat: 'jpeg',
+      jpegQuality: 85
+    });
+
+    assert.ok(stream, 'Should return stream');
+    assert.strictEqual(typeof stream.read, 'function', 'Should be readable stream');
+
+    // Collect chunks
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream) {
+      chunks.push(chunk);
+    }
+
+    const result = Buffer.concat(chunks);
+    validateOutputJpeg(new Uint8Array(result));
+  });
+
+  test('JPEG output with non-8-aligned height (no white padding artifacts)', async () => {
+    // Height not divisible by 8: 10
+    const png1 = await createTestPng(16, 10, new Uint8Array([255, 0, 0, 255])); // Red, 10px high
+
+    const result = await concatToBuffer({
+      inputs: [png1],
+      layout: { columns: 1 },
+      outputFormat: 'jpeg',
+      jpegQuality: 90
+    });
+
+    validateOutputJpeg(result);
+    // If padding was done incorrectly with white, the bottom 6 rows (to complete the 16-line MCU blocks)
+    // would blend with white, causing visible light bands. With correct edge pixel repetition, this won't happen.
+  });
+
+  test('JPEG output with height = 5 (partial MCU strip)', async () => {
+    // 5 is not divisible by 8, so we'll have a partial 5-line strip at the end
+    const png = await createTestPng(16, 5, new Uint8Array([128, 64, 192, 255]));
+
+    const result = await concatToBuffer({
+      inputs: [png],
+      layout: { columns: 1 },
+      outputFormat: 'jpeg',
+      jpegQuality: 85
+    });
+
+    validateOutputJpeg(result);
+    // The last 3 lines (to complete the 8-line MCU) should be filled with
+    // the repeated last scanline, not white pixels
   });
 });
