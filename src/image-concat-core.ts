@@ -753,15 +753,17 @@ class CoreStreamingConcatenator {
     const stripSize = totalWidth * MCU_HEIGHT * 4; // RGBA
     let stripBuffer = new Uint8Array(stripSize);
     let lineInStrip = 0;
+    let lastScanline: Uint8Array | null = null;
 
     for await (const scanline of scanlineGenerator) {
       // Copy scanline into strip buffer
       stripBuffer.set(scanline, lineInStrip * totalWidth * 4);
+      lastScanline = scanline;
       lineInStrip++;
 
       // When we have 8 lines, encode the strip
       if (lineInStrip === MCU_HEIGHT) {
-        for await (const chunk of encoder.encodeStrip(stripBuffer)) {
+        for await (const chunk of encoder.encodeStrip(stripBuffer, null)) {
           yield chunk;
         }
         lineInStrip = 0;
@@ -771,11 +773,12 @@ class CoreStreamingConcatenator {
 
     // Handle remaining partial strip
     if (lineInStrip > 0) {
-      // Pad remaining lines with white/opaque
+      // Pass the partial strip with the last scanline for edge pixel repetition
+      // This prevents white blending artifacts in non-8-aligned heights
       const partialSize = lineInStrip * totalWidth * 4;
       const partialStrip = stripBuffer.subarray(0, partialSize);
 
-      for await (const chunk of encoder.encodeStrip(partialStrip)) {
+      for await (const chunk of encoder.encodeStrip(partialStrip, lastScanline)) {
         yield chunk;
       }
     }

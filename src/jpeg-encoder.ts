@@ -144,40 +144,25 @@ export class JpegEncoder {
   }
 
   /**
-   * Encode a strip of scanlines (must be 8 lines for proper MCU alignment)
+   * Encode a strip of scanlines (handles 1-8 lines)
    *
-   * @param strip - RGBA data for 8 scanlines (width * 8 * 4 bytes)
+   * @param strip - RGBA data for scanlines (width * lines * 4 bytes, lines ≤ 8)
+   * @param _lastScanline - Unused (kept for API compatibility)
    * @returns Async generator yielding JPEG data chunks
+   *
+   * Note: The WASM encoder handles partial strips internally and will pad
+   * using edge pixel repetition to avoid white blending artifacts.
    */
-  async *encodeStrip(strip: Uint8Array): AsyncGenerator<Uint8Array> {
+  async *encodeStrip(strip: Uint8Array, _lastScanline: Uint8Array | null = null): AsyncGenerator<Uint8Array> {
     if (!this.initialized || !this.encoder) {
       throw new Error('Encoder not initialized. Call header() first.');
     }
 
-    // The expected strip size is width * 8 lines * 4 channels
-    const expectedSize = this.width * 8 * 4;
-
-    // Allow smaller strips for the last partial strip
-    if (strip.length !== expectedSize && strip.length < expectedSize) {
-      // Pad the strip to the expected size with transparent pixels
-      const padded = new Uint8Array(expectedSize);
-      padded.set(strip);
-      // Fill remaining bytes with white/opaque (255, 255, 255, 255)
-      for (let i = strip.length; i < expectedSize; i += 4) {
-        padded[i] = 255;     // R
-        padded[i + 1] = 255; // G
-        padded[i + 2] = 255; // B
-        padded[i + 3] = 255; // A
-      }
-      const encoded = this.encoder.encode_strip(padded);
-      if (encoded.length > 0) {
-        yield encoded;
-      }
-    } else {
-      const encoded = this.encoder.encode_strip(strip);
-      if (encoded.length > 0) {
-        yield encoded;
-      }
+    // Pass the strip directly to the WASM encoder
+    // It handles partial strips and pads using edge pixel repetition
+    const encoded = this.encoder.encode_strip(strip);
+    if (encoded.length > 0) {
+      yield encoded;
     }
   }
 
@@ -223,6 +208,7 @@ export class JpegEncoder {
 
     // Encode in 8-line strips
     const stripHeight = 8;
+    const scanlineSize = this.width * 4;
 
     for (let y = 0; y < this.height; y += stripHeight) {
       const remainingLines = Math.min(stripHeight, this.height - y);
@@ -230,7 +216,11 @@ export class JpegEncoder {
       const size = this.width * remainingLines * 4;
       const strip = data.subarray(offset, offset + size);
 
-      for await (const chunk of this.encodeStrip(strip)) {
+      // Extract last scanline from this strip for edge pixel repetition
+      const lastScanlineOffset = offset + (remainingLines - 1) * scanlineSize;
+      const lastScanline = data.subarray(lastScanlineOffset, lastScanlineOffset + scanlineSize);
+
+      for await (const chunk of this.encodeStrip(strip, lastScanline)) {
         chunks.push(chunk);
         totalLength += chunk.length;
       }

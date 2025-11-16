@@ -380,4 +380,36 @@ describe('JPEG Output Format', () => {
     const result = Buffer.concat(chunks);
     validateOutputJpeg(new Uint8Array(result));
   });
+
+  test('JPEG output with non-8-aligned height (no white padding artifacts)', async () => {
+    // Height not divisible by 8: 10
+    const png1 = await createTestPng(16, 10, new Uint8Array([255, 0, 0, 255])); // Red, 10px high
+
+    const result = await concatToBuffer({
+      inputs: [png1],
+      layout: { columns: 1 },
+      outputFormat: 'jpeg',
+      jpegQuality: 90
+    });
+
+    validateOutputJpeg(result);
+    // If padding was done incorrectly with white, the bottom 6 rows (to complete the 16-line MCU blocks)
+    // would blend with white, causing visible light bands. With correct edge pixel repetition, this won't happen.
+  });
+
+  test('JPEG output with height = 5 (partial MCU strip)', async () => {
+    // 5 is not divisible by 8, so we'll have a partial 5-line strip at the end
+    const png = await createTestPng(16, 5, new Uint8Array([128, 64, 192, 255]));
+
+    const result = await concatToBuffer({
+      inputs: [png],
+      layout: { columns: 1 },
+      outputFormat: 'jpeg',
+      jpegQuality: 85
+    });
+
+    validateOutputJpeg(result);
+    // The last 3 lines (to complete the 8-line MCU) should be filled with
+    // the repeated last scanline, not white pixels
+  });
 });
