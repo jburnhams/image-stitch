@@ -20,6 +20,7 @@ const guidesPath = path.join(docsDistDir, 'guides.html');
 const examplesPath = path.join(docsDistDir, 'examples.html');
 const streamingPath = path.join(docsDistDir, 'streaming.html');
 const sampleImagesDir = path.join(docsDistDir, 'images');
+const jpegWasmPath = path.join(docsDistDir, 'jpeg_encoder_bg.wasm');
 
 async function loadDocument(htmlPath: string) {
   const window = new Window({
@@ -42,6 +43,8 @@ describe('Browser Bundle Tests', () => {
 
     const bundleCode = fs.readFileSync(iifeBundlePath, 'utf8');
     const context: Record<string, any> = { window: {}, globalThis: {} };
+    context.TextDecoder = TextDecoder;
+    context.Uint8Array = Uint8Array;
     vm.createContext(context);
 
     assert.doesNotThrow(() => {
@@ -195,6 +198,13 @@ describe('Browser Bundle Tests', () => {
       assert.strictEqual(imageData[2], 78, `${imageName} should be PNG`);
       assert.strictEqual(imageData[3], 71, `${imageName} should be PNG`);
     }
+  });
+
+  test('JPEG encoder assets are available for browser bundle', () => {
+    assert.ok(fs.existsSync(jpegWasmPath), 'JPEG encoder WASM should be copied for docs');
+
+    const stats = fs.statSync(jpegWasmPath);
+    assert.ok(stats.size > 0, 'JPEG encoder WASM should not be empty');
   });
 
   test('interactive examples bundle includes pngsuite samples', () => {
@@ -411,6 +421,21 @@ describe('Functional Tests - Verify Examples Work Correctly', () => {
 
   const expected = fs.readFileSync(path.join(fixturesDir, 'example4.png'));
   assert.ok(await comparePngs(result, expected), 'Example 4 output should match expected image');
+  });
+
+  test('Bundle can emit JPEG output when requested', async () => {
+    const bundle = await loadBundleModule();
+
+    const result = await bundle.concat({
+      inputs: [loadImage('basn2c08.png'), loadImage('basn0g08.png')],
+      layout: { columns: 2 },
+      outputFormat: 'jpeg',
+      jpegQuality: 80
+    });
+
+    assert.ok(result.length > 4, 'JPEG output should contain data');
+    assert.strictEqual(result[0], 0xff, 'JPEG output should start with SOI marker');
+    assert.strictEqual(result[1], 0xd8, 'JPEG output should start with SOI marker');
   });
 
   test('Example 5: Width limit with wrapping produces correct output', async () => {

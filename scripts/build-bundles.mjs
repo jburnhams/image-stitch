@@ -12,6 +12,8 @@ const bundlesDir = path.join(distDir, 'bundles');
 const browserDir = path.join(distDir, 'browser');
 const pakoEntry = path.join(projectRoot, 'node_modules', 'pako', 'dist', 'pako.esm.mjs');
 const pakoMinEntry = path.join(projectRoot, 'node_modules', 'pako', 'dist', 'pako_deflate.min.js');
+const jpegEncoderEntry = path.join(projectRoot, 'node_modules', 'jpeg-encoder', 'pkg', 'jpeg_encoder.js');
+const jpegEncoderWasm = path.join(projectRoot, 'node_modules', 'jpeg-encoder', 'pkg', 'jpeg_encoder_bg.wasm');
 
 fs.mkdirSync(bundlesDir, { recursive: true });
 fs.mkdirSync(browserDir, { recursive: true });
@@ -140,6 +142,9 @@ function resolveSpecifier(fromPath, spec) {
   if (spec === 'pako') {
     return pakoEntry;
   }
+  if (spec === 'jpeg-encoder/pkg/jpeg_encoder.js') {
+    return jpegEncoderEntry;
+  }
   return null;
 }
 
@@ -151,6 +156,7 @@ function parseModule(modulePath) {
 
   let code = fs.readFileSync(absolute, 'utf8');
 
+  const defaultImports = [];
   if (absolute === pakoEntry) {
     const minSource = fs.readFileSync(pakoMinEntry, 'utf8');
     code = [
@@ -178,6 +184,11 @@ function parseModule(modulePath) {
     const resolved = resolveSpecifier(absolute, spec);
     if (resolved) {
       imports.add(resolved);
+
+      const defaultClauseMatch = clause.match(/^([A-Za-z0-9_$]+)(?:\s*,\s*\{.+\})?$/);
+      if (defaultClauseMatch) {
+        defaultImports.push({ local: defaultClauseMatch[1], from: resolved });
+      }
     } else {
       const fallback = createFallback(spec, clause);
       if (fallback) {
@@ -220,6 +231,13 @@ function parseModule(modulePath) {
     return '';
   });
 
+  const defaultExportRegex = /^export\s+default\s+([A-Za-z0-9_$]+);?\s*$/gm;
+  code = code.replace(defaultExportRegex, (match, name) => {
+    localExports.push({ local: name, exported: 'default' });
+    return '';
+  });
+
+  code = code.replace(/import\.meta\.url/g, '__BUNDLE_URL__');
   code = code.replace(/\/\/# sourceMappingURL=.*$/gm, '');
   if (fallbackSnippets.length) {
     code = `${fallbackSnippets.join('\n')}\n${code}`;
@@ -231,6 +249,7 @@ function parseModule(modulePath) {
     code,
     imports: Array.from(imports),
     localExports,
+    defaultImports,
     exportFrom,
     exportAll
   };
@@ -323,11 +342,21 @@ function buildBundles() {
     }
   }
 
-  const chunks = [];
-  for (let i = 0; i < order.length - 1; i++) {
+  const moduleChunks = [];
+  for (let i = 0; i < order.length; i++) {
     const info = order[i];
     const banner = `// ===== ${formatRelative(info.path)} =====`;
-    chunks.push(`${banner}\n${info.code}`);
+    const aliasLines = [];
+    for (const alias of info.defaultImports ?? []) {
+      const target = modules.get(alias.from);
+      const defaultExport = target?.localExports.find((pair) => pair.exported === 'default');
+      if (defaultExport) {
+        aliasLines.push(`const ${alias.local} = ${defaultExport.local};`);
+      }
+    }
+
+    const moduleBody = aliasLines.length ? `${aliasLines.join('\n')}\n${info.code}` : info.code;
+    moduleChunks.push(`${banner}\n${moduleBody}`);
   }
 
   const exportStatements = [];
@@ -345,12 +374,18 @@ function buildBundles() {
  * image-stitch bundle
  * Generated on ${new Date().toISOString()}
  */\n`;
-  const esmBundle = `${header}${chunks.join('\n')}\n${exportStatements.join('\n')}\n`;
+  const esmRuntime =
+    'const __BUNDLE_URL__ = typeof import.meta !== "undefined" && import.meta?.url ? import.meta.url : "";';
+  const iifeRuntime =
+    'const __BUNDLE_URL__ = typeof document !== "undefined" && document.currentScript?.src ? document.currentScript.src : (typeof location !== "undefined" ? location.href : "" );';
+
+  const esmChunks = [esmRuntime, ...moduleChunks];
+  const esmBundle = `${header}${esmChunks.join('\n')}\n${exportStatements.join('\n')}\n`;
   const esmPath = path.join(bundlesDir, 'image-stitch.esm.js');
   fs.writeFileSync(esmPath, `${esmBundle}\n//# sourceMappingURL=image-stitch.esm.js.map\n`);
   fs.writeFileSync(`${esmPath}.map`, generateIdentityMap(esmBundle, 'image-stitch.esm.js'));
 
-  const iifeBody = `${chunks.join('\n')}\n`;
+  const iifeBody = `${[iifeRuntime, ...moduleChunks].join('\n')}\n`;
   const assignments = [];
   for (const [exported, local] of exportNameMap.entries()) {
     assignments.push(`${JSON.stringify(exported)}: ${local}`);
@@ -367,6 +402,8 @@ function buildBundles() {
   const minPath = path.join(browserDir, 'image-stitch.min.js');
   fs.writeFileSync(minPath, `${minSource}\n//# sourceMappingURL=image-stitch.min.js.map\n`);
   fs.writeFileSync(`${minPath}.map`, generateIdentityMap(minSource, 'image-stitch.min.js', 'image-stitch.js', iifeSource));
+
+  copyJpegWasmArtifacts();
 }
 
 function indent(code, spaces = 2) {
@@ -394,6 +431,22 @@ function minify(code) {
     result.push(trimmed);
   }
   return result.join('\n');
+}
+
+function copyJpegWasmArtifacts() {
+  if (!fs.existsSync(jpegEncoderWasm)) {
+    console.warn('JPEG encoder WASM missing; skipping copy step.');
+    return;
+  }
+
+  const targets = [
+    path.join(bundlesDir, 'jpeg_encoder_bg.wasm'),
+    path.join(browserDir, 'jpeg_encoder_bg.wasm')
+  ];
+
+  for (const target of targets) {
+    fs.copyFileSync(jpegEncoderWasm, target);
+  }
 }
 
 renameCjsArtifacts();
