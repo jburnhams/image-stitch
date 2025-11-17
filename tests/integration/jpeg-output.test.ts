@@ -11,19 +11,10 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert';
 import { concat } from '../../src/image-concat.js';
-import * as fs from 'node:fs';
-import * as path from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const repoRoot = path.resolve(__dirname, '../../../../');
-const pngsuiteDir = path.join(repoRoot, 'pngsuite', 'png');
+import { loadPngsuiteImage } from '../utils/test-paths.js';
 
 // Helper to load an image from pngsuite
-function loadImage(filename: string): Uint8Array {
-  return fs.readFileSync(path.join(pngsuiteDir, filename));
-}
+const loadImage = loadPngsuiteImage;
 
 // Helper to verify JPEG signature
 function isValidJpeg(data: Uint8Array): boolean {
