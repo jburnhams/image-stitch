@@ -114,7 +114,10 @@ export class JpegEncoder {
   }
 
   /**
-   * Initialize the encoder and yield the JPEG header (SOI + frame headers)
+   * Initialize the encoder
+   *
+   * NOTE: The WASM encoder includes the JPEG header in the first encode_strip() call,
+   * so we don't call header_bytes() to avoid duplicate SOI markers.
    */
   async *header(): AsyncGenerator<Uint8Array> {
     if (this.initialized) {
@@ -131,16 +134,11 @@ export class JpegEncoder {
       this.quality
     );
 
-    // Yield the header bytes (SOI marker and frame headers)
-    const headerBytes = StreamingJpegEncoder.header_bytes(
-      this.width,
-      this.height,
-      WasmColorType.Rgba,
-      this.quality
-    );
-
-    yield headerBytes;
+    // Don't yield header_bytes() - the first encode_strip() call includes the header
     this.initialized = true;
+
+    // Return empty generator (no bytes to yield)
+    return;
   }
 
   /**
@@ -167,22 +165,23 @@ export class JpegEncoder {
   }
 
   /**
-   * Finalize the encoding and yield the JPEG footer (EOI marker)
+   * Finalize the encoding and yield any remaining data
+   *
+   * NOTE: The WASM encoder's finish() method already includes the EOI marker,
+   * so we don't call footer_bytes() to avoid duplicate EOI markers.
    */
   async *finish(): AsyncGenerator<Uint8Array> {
     if (!this.initialized || !this.encoder) {
       throw new Error('Encoder not initialized. Call header() first.');
     }
 
-    // Get any remaining buffered data
+    // Get remaining buffered data (includes EOI marker)
     const finalData = this.encoder.finish();
     if (finalData.length > 0) {
       yield finalData;
     }
 
-    // Yield the footer bytes (EOI marker)
-    const footerBytes = StreamingJpegEncoder.footer_bytes();
-    yield footerBytes;
+    // Don't call footer_bytes() - finish() already includes EOI marker
 
     // Clean up
     this.encoder.free();
