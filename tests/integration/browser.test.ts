@@ -5,22 +5,18 @@ import vm from 'node:vm';
 import { PNG } from 'pngjs';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import { pathToFileURL } from 'node:url';
+import { DIST_DIR, DOCS_DIST_DIR, FIXTURES_DIR, loadPngsuiteImage } from '../utils/test-paths.js';
 
 // Path to the generated docs
-const repoRoot = path.resolve(__dirname, '../../../../');
-const docsDistDir = path.join(repoRoot, 'docs-dist');
-const iifeBundlePath = path.join(docsDistDir, 'image-stitch.min.js');
-const esmBundlePath = path.join(docsDistDir, 'image-stitch.esm.js');
-const indexPath = path.join(docsDistDir, 'index.html');
-const guidesPath = path.join(docsDistDir, 'guides.html');
-const examplesPath = path.join(docsDistDir, 'examples.html');
-const streamingPath = path.join(docsDistDir, 'streaming.html');
-const sampleImagesDir = path.join(docsDistDir, 'images');
-const jpegWasmPath = path.join(docsDistDir, 'jpeg_encoder_bg.wasm');
+const iifeBundlePath = path.join(DOCS_DIST_DIR, 'image-stitch.min.js');
+const esmBundlePath = path.join(DOCS_DIST_DIR, 'image-stitch.esm.js');
+const indexPath = path.join(DOCS_DIST_DIR, 'index.html');
+const guidesPath = path.join(DOCS_DIST_DIR, 'guides.html');
+const examplesPath = path.join(DOCS_DIST_DIR, 'examples.html');
+const streamingPath = path.join(DOCS_DIST_DIR, 'streaming.html');
+const sampleImagesDir = path.join(DOCS_DIST_DIR, 'images');
+const jpegWasmPath = path.join(DOCS_DIST_DIR, 'jpeg_encoder_bg.wasm');
 
 async function loadDocument(htmlPath: string) {
   const window = new Window({
@@ -278,8 +274,7 @@ describe('Browser Bundle Tests', () => {
 });
 
 describe('Functional Tests - Verify Examples Work Correctly', () => {
-  const pngsuiteDir = path.join(repoRoot, 'pngsuite', 'png');
-  const fixturesDir = path.join(repoRoot, 'tests', 'utils', 'fixtures', 'expected-outputs');
+  const fixturesDir = path.join(FIXTURES_DIR, 'expected-outputs');
 
   // Helper to load the bundle and get its exports exactly as the browser does
   async function loadBundleModule() {
@@ -287,10 +282,8 @@ describe('Functional Tests - Verify Examples Work Correctly', () => {
     return await import(moduleUrl.href);
   }
 
-  // Helper to load an image
-  function loadImage(filename: string): Uint8Array {
-    return fs.readFileSync(path.join(pngsuiteDir, filename));
-  }
+  // Helper to load an image from pngsuite
+  const loadImage = loadPngsuiteImage;
 
   // Helper to compare two PNG files by pixels (visual equality)
   async function comparePngs(actual: Uint8Array, expected: Uint8Array): Promise<boolean> {
@@ -323,8 +316,8 @@ describe('Functional Tests - Verify Examples Work Correctly', () => {
       return true;
     } catch (err) {
       // Fall back to built-in parser + decompressor (more tolerant)
-      const parser = await import(path.resolve(__dirname, '..', '..', 'dist', 'esm', 'png-parser.js'));
-      const decompressor = await import(path.resolve(__dirname, '..', '..', 'dist', 'esm', 'png-decompress.js'));
+      const parser = await import(path.join(DIST_DIR, 'esm', 'png-parser.js'));
+      const decompressor = await import(path.join(DIST_DIR, 'esm', 'png-decompress.js'));
 
       const parsePngChunks = parser.parsePngChunks;
       const parsePngHeader = parser.parsePngHeader;

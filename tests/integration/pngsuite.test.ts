@@ -1,11 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { parsePngHeader, parsePngChunks } from '../../src/png-parser.js';
 import '../../src/decoders/index.js';
 import { concatToBuffer } from '../../src/image-concat.js';
 import { ColorType } from '../../src/types.js';
+import { loadPngsuiteImage } from '../utils/test-paths.js';
 
 /**
  * PngSuite Integration Tests
@@ -23,13 +22,8 @@ import { ColorType } from '../../src/types.js';
  * - Bit depth: 01, 02, 04, 08, 16
  */
 
-const PNGSUITE_PATH = join(process.cwd(), 'pngsuite', 'png');
-
 // Helper to load a PngSuite test image
-function loadPngSuite(filename: string): Uint8Array {
-  const path = join(PNGSUITE_PATH, filename);
-  return new Uint8Array(readFileSync(path));
-}
+const loadPngSuite = loadPngsuiteImage;
 
 // Helper to check if file exists and can be loaded
 function canLoadPngSuite(filename: string): boolean {
