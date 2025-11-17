@@ -6,7 +6,7 @@ import { PNG } from 'pngjs';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { REPO_ROOT, DOCS_DIST_DIR, FIXTURES_DIR, loadPngsuiteImage } from '../utils/test-paths.js';
+import { DIST_DIR, DOCS_DIST_DIR, FIXTURES_DIR, loadPngsuiteImage } from '../utils/test-paths.js';
 
 // Path to the generated docs
 const iifeBundlePath = path.join(DOCS_DIST_DIR, 'image-stitch.min.js');
@@ -316,8 +316,8 @@ describe('Functional Tests - Verify Examples Work Correctly', () => {
       return true;
     } catch (err) {
       // Fall back to built-in parser + decompressor (more tolerant)
-      const parser = await import(path.join(REPO_ROOT, 'dist', 'esm', 'png-parser.js'));
-      const decompressor = await import(path.join(REPO_ROOT, 'dist', 'esm', 'png-decompress.js'));
+      const parser = await import(path.join(DIST_DIR, 'esm', 'png-parser.js'));
+      const decompressor = await import(path.join(DIST_DIR, 'esm', 'png-decompress.js'));
 
       const parsePngChunks = parser.parsePngChunks;
       const parsePngHeader = parser.parsePngHeader;

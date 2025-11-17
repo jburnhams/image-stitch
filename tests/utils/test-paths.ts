@@ -21,6 +21,7 @@ export const PNGSUITE_DIR = path.join(REPO_ROOT, 'pngsuite', 'png');
 export const FIXTURES_DIR = path.join(REPO_ROOT, 'tests', 'utils', 'fixtures');
 export const EXPECTED_OUTPUTS_DIR = path.join(FIXTURES_DIR, 'expected-outputs');
 export const DOCS_DIST_DIR = path.join(REPO_ROOT, 'docs-dist');
+export const DIST_DIR = path.join(REPO_ROOT, 'dist');
 
 // Validate that paths exist and point to the right location
 function validatePaths(): void {

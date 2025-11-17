@@ -6,18 +6,15 @@ import { PngHeader, ColorType } from '../../src/types.js';
 import { parsePngHeader, parsePngChunks } from '../../src/png-parser.js';
 import { extractPixelData } from '../../src/png-decompress.js';
 import { concatToBuffer } from '../../src/image-concat.js';
-import { readFileSync, existsSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-
-const PNGSUITE_DIR = join(process.cwd(), 'pngsuite', 'png');
+import { loadPngsuiteImage, PNGSUITE_DIR } from '../utils/test-paths.js';
 
 function canLoadPngSuite(filename: string): boolean {
   return existsSync(join(PNGSUITE_DIR, filename));
 }
 
-function loadPngSuite(filename: string): Uint8Array {
-  return readFileSync(join(PNGSUITE_DIR, filename));
-}
+const loadPngSuite = loadPngsuiteImage;
 
 /**
  * Extract a pixel value at a specific coordinate from raw pixel data
