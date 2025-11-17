@@ -39,7 +39,7 @@ async function initWasm(): Promise<void> {
       }
 
       const wasmBuffer = readFileSync(wasmPath);
-      await jpegEncoderInit(wasmBuffer);
+      await jpegEncoderInit({ module_or_path: wasmBuffer });
     } catch (err) {
       // Final fallback: let the module find the wasm itself
       // This works in browser and some Node environments
