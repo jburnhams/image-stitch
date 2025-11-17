@@ -1,6 +1,6 @@
 {
   "name": "image-stitch",
-  "version": "1.1.42",
+  "version": "1.1.43",
   "description": "Stitch images together efficiently with multi-format support (PNG, JPEG, HEIC), streaming, for node.js and web",
   "repository": {
     "type": "git",
