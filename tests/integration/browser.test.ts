@@ -431,6 +431,65 @@ describe('Functional Tests - Verify Examples Work Correctly', () => {
     assert.strictEqual(result[1], 0xd8, 'JPEG output should start with SOI marker');
   });
 
+  test('Bundle JPEG output contains valid color data (not all grey)', async () => {
+    const bundle = await loadBundleModule();
+
+    // Use color images to ensure we can detect if output is grey
+    const result = await bundle.concat({
+      inputs: [
+        loadImage('basn2c08.png'),  // RGB color image
+        loadImage('basn6a08.png')   // RGBA color image
+      ],
+      layout: { columns: 2 },
+      outputFormat: 'jpeg',
+      jpegQuality: 85
+    });
+
+    // Verify it's a valid JPEG
+    assert.ok(result.length > 4, 'JPEG output should contain data');
+    assert.strictEqual(result[0], 0xff, 'JPEG output should start with SOI marker');
+    assert.strictEqual(result[1], 0xd8, 'JPEG output should start with SOI marker');
+    assert.strictEqual(result[result.length - 2], 0xff, 'JPEG should end with EOI marker');
+    assert.strictEqual(result[result.length - 1], 0xd9, 'JPEG should end with EOI marker');
+
+    // Decode the JPEG to verify it contains actual color data
+    const jpegjs = await import('jpeg-js');
+    const decoded = jpegjs.decode(Buffer.from(result));
+
+    // Verify dimensions are correct (32 + 32 = 64 wide, 32 tall)
+    assert.strictEqual(decoded.width, 64, 'JPEG width should be 64 (two 32px images)');
+    assert.strictEqual(decoded.height, 32, 'JPEG height should be 32');
+
+    // Check that the image is not all grey/black by looking for color variation
+    // RGBA data: first check that we have non-grey pixels (R !== G or G !== B)
+    let hasColor = false;
+    let hasNonZero = false;
+    const data = decoded.data;
+
+    for (let i = 0; i < data.length; i += 4) {
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
+
+      // Check if any channel is non-zero
+      if (r > 10 || g > 10 || b > 10) {
+        hasNonZero = true;
+      }
+
+      // Check if we have actual color (not grey)
+      // Allow some tolerance for JPEG compression
+      if (Math.abs(r - g) > 10 || Math.abs(g - b) > 10 || Math.abs(r - b) > 10) {
+        hasColor = true;
+      }
+
+      // Early exit if we found both
+      if (hasColor && hasNonZero) break;
+    }
+
+    assert.ok(hasNonZero, 'JPEG should contain non-zero pixel values (not all black)');
+    assert.ok(hasColor, 'JPEG should contain actual color data (not all grey)');
+  });
+
   test('Example 5: Width limit with wrapping produces correct output', async () => {
     const bundle = await loadBundleModule();
 
