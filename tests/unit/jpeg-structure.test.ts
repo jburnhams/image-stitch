@@ -166,7 +166,7 @@ describe('JPEG Structure Validation', () => {
     }
   });
 
-  test('encodeStrip method does not output SOI markers', async () => {
+  test('First strip includes SOI marker, subsequent strips do not', async () => {
     const width = 64;
     const height = 32;
     const data = createTestImage(width, height, [255, 255, 0, 255]); // Yellow
@@ -177,7 +177,7 @@ describe('JPEG Structure Validation', () => {
     const stripChunks: Uint8Array[] = [];
     const footerChunks: Uint8Array[] = [];
 
-    // Header
+    // Header (should return no chunks with our fix)
     for await (const chunk of encoder.header()) {
       headerChunks.push(chunk);
     }
@@ -200,8 +200,20 @@ describe('JPEG Structure Validation', () => {
       footerChunks.push(chunk);
     }
 
-    // Verify no strip chunks contain SOI markers
-    for (let i = 0; i < stripChunks.length; i++) {
+    // Verify header returns no chunks (our fix - header is in first strip)
+    assert.strictEqual(headerChunks.length, 0, 'header() should return no chunks');
+
+    // Verify FIRST strip contains exactly one SOI marker
+    assert.ok(stripChunks.length > 0, 'Should have at least one strip chunk');
+    const firstStripMarkers = countMarkers(stripChunks[0]);
+    assert.strictEqual(
+      firstStripMarkers.soi,
+      1,
+      `First strip should contain exactly 1 SOI marker (found ${firstStripMarkers.soi})`
+    );
+
+    // Verify SUBSEQUENT strips do NOT contain SOI markers
+    for (let i = 1; i < stripChunks.length; i++) {
       const chunk = stripChunks[i];
       const markers = countMarkers(chunk);
       assert.strictEqual(
@@ -211,14 +223,16 @@ describe('JPEG Structure Validation', () => {
       );
     }
 
-    // Verify exactly one SOI in header
-    const headerData = Buffer.concat(headerChunks.map(c => Buffer.from(c)));
-    const headerMarkers = countMarkers(new Uint8Array(headerData));
-    assert.strictEqual(headerMarkers.soi, 1, 'Header should contain exactly 1 SOI marker');
-
     // Verify exactly one EOI in footer
     const footerData = Buffer.concat(footerChunks.map(c => Buffer.from(c)));
     const footerMarkers = countMarkers(new Uint8Array(footerData));
     assert.strictEqual(footerMarkers.eoi, 1, 'Footer should contain exactly 1 EOI marker');
+
+    // Verify combined output has exactly 1 SOI and 1 EOI total
+    const allChunks = [...headerChunks, ...stripChunks, ...footerChunks];
+    const combined = Buffer.concat(allChunks.map(c => Buffer.from(c)));
+    const totalMarkers = countMarkers(new Uint8Array(combined));
+    assert.strictEqual(totalMarkers.soi, 1, 'Total output should have exactly 1 SOI marker');
+    assert.strictEqual(totalMarkers.eoi, 1, 'Total output should have exactly 1 EOI marker');
   });
 });
