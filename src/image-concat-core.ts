@@ -710,17 +710,8 @@ class CoreStreamingConcatenator {
     progress?: ProgressTracker
   ): AsyncGenerator<Uint8Array> {
     // JPEG encoder expects 8-bit RGBA data
-    // If we have >8-bit data, we need to down-convert
-    const is8Bit = outputHeader.bitDepth === 8;
-    const isRGBA = outputHeader.colorType === 6; // RGBA
-
-    if (!is8Bit || !isRGBA) {
-      throw new Error(
-        'JPEG output requires 8-bit RGBA format. ' +
-        `Current format: ${outputHeader.bitDepth}-bit, color type ${outputHeader.colorType}. ` +
-        'Please ensure all input images are compatible or add format conversion.'
-      );
-    }
+    // The output header is guaranteed to be 8-bit RGBA when this method is called
+    // (enforced in the stream() method)
 
     // Create JPEG encoder
     const encoder = new JpegEncoder({
@@ -822,12 +813,17 @@ class CoreStreamingConcatenator {
       const layout = calculateLayout(headers, this.options);
       const { grid, rowHeights, colWidths, totalWidth, totalHeight } = layout;
 
+      // JPEG output requires 8-bit RGBA format - force conversion if needed
+      const outputFormat = this.options.outputFormat ?? 'png';
+      const finalBitDepth = outputFormat === 'jpeg' ? 8 : targetBitDepth;
+      const finalColorType = outputFormat === 'jpeg' ? 6 : targetColorType; // 6 = RGBA
+
       // Create output header using common format
       const outputHeader: PngHeader = {
         width: totalWidth,
         height: totalHeight,
-        bitDepth: targetBitDepth,
-        colorType: targetColorType,
+        bitDepth: finalBitDepth,
+        colorType: finalColorType,
         compressionMethod: 0,
         filterMethod: 0,
         interlaceMethod: 0
@@ -841,8 +837,6 @@ class CoreStreamingConcatenator {
       const progressTracker = this.createProgressTracker(headers);
 
       // Branch between PNG and JPEG output
-      const outputFormat = this.options.outputFormat ?? 'png';
-
       if (outputFormat === 'jpeg') {
         // JPEG output
         const quality = this.options.jpegQuality ?? 85;
