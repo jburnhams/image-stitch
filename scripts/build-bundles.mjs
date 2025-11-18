@@ -12,8 +12,8 @@ const bundlesDir = path.join(distDir, 'bundles');
 const browserDir = path.join(distDir, 'browser');
 const pakoEntry = path.join(projectRoot, 'node_modules', 'pako', 'dist', 'pako.esm.mjs');
 const pakoMinEntry = path.join(projectRoot, 'node_modules', 'pako', 'dist', 'pako_deflate.min.js');
-const jpegEncoderEntry = path.join(projectRoot, 'node_modules', 'jpeg-encoder', 'pkg', 'jpeg_encoder.js');
-const jpegEncoderWasm = path.join(projectRoot, 'node_modules', 'jpeg-encoder', 'pkg', 'jpeg_encoder_bg.wasm');
+const jpegEncoderEntry = path.join(projectRoot, 'node_modules', 'jpeg-encoder-wasm', 'pkg', 'esm', 'index.js');
+const jpegEncoderWasm = path.join(projectRoot, 'node_modules', 'jpeg-encoder-wasm', 'pkg', 'esm', 'jpeg_encoder_bg.wasm');
 
 fs.mkdirSync(bundlesDir, { recursive: true });
 fs.mkdirSync(browserDir, { recursive: true });
@@ -142,7 +142,7 @@ function resolveSpecifier(fromPath, spec) {
   if (spec === 'pako') {
     return pakoEntry;
   }
-  if (spec === 'jpeg-encoder/pkg/jpeg_encoder.js') {
+  if (spec === 'jpeg-encoder-wasm') {
     return jpegEncoderEntry;
   }
   return null;
