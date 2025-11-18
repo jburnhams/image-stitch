@@ -167,6 +167,13 @@ async function buildBundles() {
  * image-stitch browser bundle
  * Generated on ${new Date().toISOString()}
  */`
+    },
+    footer: {
+      js: `
+if (typeof window !== 'undefined') { window.ImageStitch = ImageStitch; }
+if (typeof globalThis !== 'undefined') { globalThis.ImageStitch = ImageStitch; }
+if (typeof global !== 'undefined') { global.ImageStitch = ImageStitch; }
+`
     }
   });
 
@@ -180,6 +187,9 @@ async function buildBundles() {
     minify: true,
     banner: {
       js: `/* image-stitch v${getVersion()} | Generated ${new Date().toISOString()} */`
+    },
+    footer: {
+      js: `if(typeof window!=='undefined'){window.ImageStitch=ImageStitch;}if(typeof globalThis!=='undefined'){globalThis.ImageStitch=ImageStitch;}if(typeof global!=='undefined'){global.ImageStitch=ImageStitch;}`
     }
   });
 
