@@ -3,6 +3,170 @@ import { getBytesPerPixel } from './png-filter.js';
 import { getSamplesPerPixel } from './utils.js';
 
 /**
+ * Parse a background color specification into RGBA values (0-255)
+ */
+export function parseBackgroundColor(
+  color: string | [number, number, number] | [number, number, number, number] | undefined
+): [number, number, number, number] {
+  // Default: transparent black
+  if (color === undefined || color === 'transparent') {
+    return [0, 0, 0, 0];
+  }
+
+  // Array format
+  if (Array.isArray(color)) {
+    if (color.length === 3) {
+      const [r, g, b] = color;
+      if (!Number.isInteger(r) || !Number.isInteger(g) || !Number.isInteger(b) ||
+          r < 0 || r > 255 || g < 0 || g > 255 || b < 0 || b > 255) {
+        throw new Error('RGB color values must be integers between 0 and 255');
+      }
+      return [r, g, b, 255]; // Opaque
+    } else if (color.length === 4) {
+      const [r, g, b, a] = color;
+      if (!Number.isInteger(r) || !Number.isInteger(g) || !Number.isInteger(b) || !Number.isInteger(a) ||
+          r < 0 || r > 255 || g < 0 || g > 255 || b < 0 || b > 255 || a < 0 || a > 255) {
+        throw new Error('RGBA color values must be integers between 0 and 255');
+      }
+      return [r, g, b, a];
+    } else {
+      throw new Error('Color array must have 3 (RGB) or 4 (RGBA) values');
+    }
+  }
+
+  // Named colors
+  const namedColors: Record<string, [number, number, number, number]> = {
+    'black': [0, 0, 0, 255],
+    'white': [255, 255, 255, 255],
+    'red': [255, 0, 0, 255],
+    'green': [0, 255, 0, 255],
+    'blue': [0, 0, 255, 255],
+    'yellow': [255, 255, 0, 255],
+    'cyan': [0, 255, 255, 255],
+    'magenta': [255, 0, 255, 255],
+    'gray': [128, 128, 128, 255],
+    'grey': [128, 128, 128, 255]
+  };
+
+  const lowerColor = color.toLowerCase();
+  if (lowerColor in namedColors) {
+    return namedColors[lowerColor];
+  }
+
+  // Hex colors
+  if (color.startsWith('#')) {
+    const hex = color.slice(1);
+    let r: number, g: number, b: number, a = 255;
+
+    if (hex.length === 3 || hex.length === 4) {
+      // Short format: #RGB or #RGBA
+      r = parseInt(hex[0] + hex[0], 16);
+      g = parseInt(hex[1] + hex[1], 16);
+      b = parseInt(hex[2] + hex[2], 16);
+      if (hex.length === 4) {
+        a = parseInt(hex[3] + hex[3], 16);
+      }
+    } else if (hex.length === 6 || hex.length === 8) {
+      // Long format: #RRGGBB or #RRGGBBAA
+      r = parseInt(hex.slice(0, 2), 16);
+      g = parseInt(hex.slice(2, 4), 16);
+      b = parseInt(hex.slice(4, 6), 16);
+      if (hex.length === 8) {
+        a = parseInt(hex.slice(6, 8), 16);
+      }
+    } else {
+      throw new Error(`Invalid hex color format: ${color}. Expected #RGB, #RGBA, #RRGGBB, or #RRGGBBAA`);
+    }
+
+    if (isNaN(r) || isNaN(g) || isNaN(b) || isNaN(a)) {
+      throw new Error(`Invalid hex color: ${color}`);
+    }
+
+    return [r, g, b, a];
+  }
+
+  throw new Error(`Unsupported color format: ${color}. Use hex (#RRGGBB), RGB array [r,g,b], or named color`);
+}
+
+/**
+ * Convert RGBA color to format-specific color value
+ */
+function rgbaToColorType(
+  rgba: [number, number, number, number],
+  colorType: number,
+  bitDepth: number
+): Uint8Array {
+  const [r, g, b, a] = rgba;
+
+  // Helper to scale 8-bit value to target bit depth
+  const scale = (value: number): number => {
+    if (bitDepth === 16) {
+      // Scale 8-bit to 16-bit
+      return Math.round((value * 0xFFFF) / 0xFF);
+    } else if (bitDepth === 8) {
+      return value;
+    } else {
+      // For bit depths < 8, scale to max value
+      const maxVal = (1 << bitDepth) - 1;
+      return Math.round((value * maxVal) / 0xFF);
+    }
+  };
+
+  // Helper to write 16-bit value
+  const write16 = (value: number): [number, number] => {
+    return [(value >> 8) & 0xFF, value & 0xFF];
+  };
+
+  switch (colorType) {
+    case 0: // Grayscale
+      {
+        const gray = Math.round(0.299 * r + 0.587 * g + 0.114 * b); // Luminance
+        const scaledGray = scale(gray);
+        if (bitDepth === 16) {
+          return new Uint8Array(write16(scaledGray));
+        } else if (bitDepth === 8) {
+          return new Uint8Array([scaledGray]);
+        } else {
+          // Sub-byte formats not supported for custom colors
+          return new Uint8Array([scaledGray]);
+        }
+      }
+    case 2: // RGB
+      if (bitDepth === 16) {
+        const r16 = scale(r);
+        const g16 = scale(g);
+        const b16 = scale(b);
+        return new Uint8Array([...write16(r16), ...write16(g16), ...write16(b16)]);
+      } else {
+        return new Uint8Array([scale(r), scale(g), scale(b)]);
+      }
+    case 4: // Grayscale + Alpha
+      {
+        const gray = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+        const scaledGray = scale(gray);
+        const scaledAlpha = scale(a);
+        if (bitDepth === 16) {
+          return new Uint8Array([...write16(scaledGray), ...write16(scaledAlpha)]);
+        } else {
+          return new Uint8Array([scaledGray, scaledAlpha]);
+        }
+      }
+    case 6: // RGBA
+      if (bitDepth === 16) {
+        const r16 = scale(r);
+        const g16 = scale(g);
+        const b16 = scale(b);
+        const a16 = scale(a);
+        return new Uint8Array([...write16(r16), ...write16(g16), ...write16(b16), ...write16(a16)]);
+      } else {
+        return new Uint8Array([scale(r), scale(g), scale(b), scale(a)]);
+      }
+    default:
+      throw new Error(`Unsupported color type: ${colorType}`);
+  }
+}
+
+/**
  * Copy a rectangular region from one image to another
  */
 export function copyPixelRegion(
@@ -83,9 +247,23 @@ export function createBlankImage(
 }
 
 /**
- * Get transparent color for a given color type and bit depth
+ * Get background/transparent color for a given color type and bit depth
+ * @param colorType - PNG color type (0=grayscale, 2=RGB, 4=grayscale+alpha, 6=RGBA)
+ * @param bitDepth - Bit depth (8 or 16)
+ * @param backgroundColor - Optional custom background color (default: transparent black)
  */
-export function getTransparentColor(colorType: number, bitDepth: number): Uint8Array {
+export function getTransparentColor(
+  colorType: number,
+  bitDepth: number,
+  backgroundColor?: string | [number, number, number] | [number, number, number, number]
+): Uint8Array {
+  // If custom background color is specified, use it
+  if (backgroundColor !== undefined) {
+    const rgba = parseBackgroundColor(backgroundColor);
+    return rgbaToColorType(rgba, colorType, bitDepth);
+  }
+
+  // Default: transparent black (legacy behavior)
   const bytesPerSample = bitDepth === 16 ? 2 : 1;
 
   switch (colorType) {

@@ -7,7 +7,8 @@ import {
   getTransparentColor,
   determineCommonFormat,
   convertPixelFormat,
-  convertScanline
+  convertScanline,
+  parseBackgroundColor
 } from '../../src/pixel-ops.js';
 import { ColorType, PngHeader } from '../../src/types.js';
 
@@ -224,4 +225,166 @@ test('convertScanline upconverts RGBA samples and validates inputs', () => {
     () => convertScanline(new Uint8Array([0]), 1, 8, ColorType.PALETTE, 8, ColorType.RGBA),
     /Unsupported source color type/
   );
+});
+
+test('parseBackgroundColor handles undefined and transparent', () => {
+  assert.deepStrictEqual(parseBackgroundColor(undefined), [0, 0, 0, 0]);
+  assert.deepStrictEqual(parseBackgroundColor('transparent'), [0, 0, 0, 0]);
+});
+
+test('parseBackgroundColor parses named colors', () => {
+  assert.deepStrictEqual(parseBackgroundColor('black'), [0, 0, 0, 255]);
+  assert.deepStrictEqual(parseBackgroundColor('white'), [255, 255, 255, 255]);
+  assert.deepStrictEqual(parseBackgroundColor('red'), [255, 0, 0, 255]);
+  assert.deepStrictEqual(parseBackgroundColor('green'), [0, 255, 0, 255]);
+  assert.deepStrictEqual(parseBackgroundColor('blue'), [0, 0, 255, 255]);
+  assert.deepStrictEqual(parseBackgroundColor('yellow'), [255, 255, 0, 255]);
+  assert.deepStrictEqual(parseBackgroundColor('cyan'), [0, 255, 255, 255]);
+  assert.deepStrictEqual(parseBackgroundColor('magenta'), [255, 0, 255, 255]);
+  assert.deepStrictEqual(parseBackgroundColor('gray'), [128, 128, 128, 255]);
+  assert.deepStrictEqual(parseBackgroundColor('grey'), [128, 128, 128, 255]);
+  // Case insensitive
+  assert.deepStrictEqual(parseBackgroundColor('WHITE'), [255, 255, 255, 255]);
+  assert.deepStrictEqual(parseBackgroundColor('Red'), [255, 0, 0, 255]);
+});
+
+test('parseBackgroundColor parses RGB arrays', () => {
+  assert.deepStrictEqual(parseBackgroundColor([255, 0, 0]), [255, 0, 0, 255]);
+  assert.deepStrictEqual(parseBackgroundColor([0, 255, 0]), [0, 255, 0, 255]);
+  assert.deepStrictEqual(parseBackgroundColor([0, 0, 255]), [0, 0, 255, 255]);
+  assert.deepStrictEqual(parseBackgroundColor([128, 128, 128]), [128, 128, 128, 255]);
+});
+
+test('parseBackgroundColor parses RGBA arrays', () => {
+  assert.deepStrictEqual(parseBackgroundColor([255, 0, 0, 128]), [255, 0, 0, 128]);
+  assert.deepStrictEqual(parseBackgroundColor([0, 255, 0, 64]), [0, 255, 0, 64]);
+  assert.deepStrictEqual(parseBackgroundColor([0, 0, 255, 0]), [0, 0, 255, 0]);
+});
+
+test('parseBackgroundColor parses hex colors - 6 digit', () => {
+  assert.deepStrictEqual(parseBackgroundColor('#FF0000'), [255, 0, 0, 255]);
+  assert.deepStrictEqual(parseBackgroundColor('#00FF00'), [0, 255, 0, 255]);
+  assert.deepStrictEqual(parseBackgroundColor('#0000FF'), [0, 0, 255, 255]);
+  assert.deepStrictEqual(parseBackgroundColor('#FFFFFF'), [255, 255, 255, 255]);
+  assert.deepStrictEqual(parseBackgroundColor('#000000'), [0, 0, 0, 255]);
+  assert.deepStrictEqual(parseBackgroundColor('#808080'), [128, 128, 128, 255]);
+});
+
+test('parseBackgroundColor parses hex colors - 8 digit with alpha', () => {
+  assert.deepStrictEqual(parseBackgroundColor('#FF000080'), [255, 0, 0, 128]);
+  assert.deepStrictEqual(parseBackgroundColor('#00FF0040'), [0, 255, 0, 64]);
+  assert.deepStrictEqual(parseBackgroundColor('#0000FF00'), [0, 0, 255, 0]);
+  assert.deepStrictEqual(parseBackgroundColor('#FFFFFFFF'), [255, 255, 255, 255]);
+});
+
+test('parseBackgroundColor parses hex colors - 3 digit shorthand', () => {
+  assert.deepStrictEqual(parseBackgroundColor('#F00'), [255, 0, 0, 255]);
+  assert.deepStrictEqual(parseBackgroundColor('#0F0'), [0, 255, 0, 255]);
+  assert.deepStrictEqual(parseBackgroundColor('#00F'), [0, 0, 255, 255]);
+  assert.deepStrictEqual(parseBackgroundColor('#FFF'), [255, 255, 255, 255]);
+  assert.deepStrictEqual(parseBackgroundColor('#000'), [0, 0, 0, 255]);
+});
+
+test('parseBackgroundColor parses hex colors - 4 digit shorthand with alpha', () => {
+  assert.deepStrictEqual(parseBackgroundColor('#F008'), [255, 0, 0, 136]);
+  assert.deepStrictEqual(parseBackgroundColor('#0F04'), [0, 255, 0, 68]);
+  assert.deepStrictEqual(parseBackgroundColor('#00F0'), [0, 0, 255, 0]);
+  assert.deepStrictEqual(parseBackgroundColor('#FFFF'), [255, 255, 255, 255]);
+});
+
+test('parseBackgroundColor validates RGB array values', () => {
+  assert.throws(() => parseBackgroundColor([256, 0, 0]), /integers between 0 and 255/);
+  assert.throws(() => parseBackgroundColor([-1, 0, 0]), /integers between 0 and 255/);
+  assert.throws(() => parseBackgroundColor([255.5, 0, 0]), /integers between 0 and 255/);
+  assert.throws(() => parseBackgroundColor([0, 0] as any), /must have 3.*or 4.*values/);
+  assert.throws(() => parseBackgroundColor([0, 0, 0, 0, 0] as any), /must have 3.*or 4.*values/);
+});
+
+test('parseBackgroundColor validates RGBA array values', () => {
+  assert.throws(() => parseBackgroundColor([255, 0, 0, 256]), /integers between 0 and 255/);
+  assert.throws(() => parseBackgroundColor([255, 0, 0, -1]), /integers between 0 and 255/);
+  assert.throws(() => parseBackgroundColor([255, 0, 0, 128.5]), /integers between 0 and 255/);
+});
+
+test('parseBackgroundColor validates hex format', () => {
+  assert.throws(() => parseBackgroundColor('#GGGGGG'), /Invalid hex color/);
+  assert.throws(() => parseBackgroundColor('#12345'), /Invalid hex color format/);
+  assert.throws(() => parseBackgroundColor('#1234567'), /Invalid hex color format/);
+});
+
+test('parseBackgroundColor rejects invalid formats', () => {
+  assert.throws(() => parseBackgroundColor('purple'), /Unsupported color format/);
+  assert.throws(() => parseBackgroundColor('rgb(255, 0, 0)'), /Unsupported color format/);
+  assert.throws(() => parseBackgroundColor('invalid'), /Unsupported color format/);
+});
+
+test('getTransparentColor with custom background color - 8-bit RGBA', () => {
+  // Red background
+  const red = getTransparentColor(ColorType.RGBA, 8, '#FF0000');
+  assert.deepStrictEqual(Array.from(red), [255, 0, 0, 255]);
+
+  // Green with alpha
+  const greenAlpha = getTransparentColor(ColorType.RGBA, 8, '#00FF0080');
+  assert.deepStrictEqual(Array.from(greenAlpha), [0, 255, 0, 128]);
+
+  // Named color
+  const white = getTransparentColor(ColorType.RGBA, 8, 'white');
+  assert.deepStrictEqual(Array.from(white), [255, 255, 255, 255]);
+
+  // Array format
+  const blue = getTransparentColor(ColorType.RGBA, 8, [0, 0, 255]);
+  assert.deepStrictEqual(Array.from(blue), [0, 0, 255, 255]);
+});
+
+test('getTransparentColor with custom background color - 16-bit RGBA', () => {
+  // White background at 16-bit
+  const white = getTransparentColor(ColorType.RGBA, 16, 'white');
+  assert.deepStrictEqual(Array.from(white), [255, 255, 255, 255, 255, 255, 255, 255]);
+
+  // Red at 16-bit
+  const red = getTransparentColor(ColorType.RGBA, 16, [255, 0, 0]);
+  assert.deepStrictEqual(Array.from(red), [255, 255, 0, 0, 0, 0, 255, 255]);
+});
+
+test('getTransparentColor with custom background color - RGB', () => {
+  // Red background (no alpha channel)
+  const red = getTransparentColor(ColorType.RGB, 8, '#FF0000');
+  assert.deepStrictEqual(Array.from(red), [255, 0, 0]);
+
+  // Even if alpha is specified, it's ignored for RGB
+  const green = getTransparentColor(ColorType.RGB, 8, '#00FF0080');
+  assert.deepStrictEqual(Array.from(green), [0, 255, 0]);
+});
+
+test('getTransparentColor with custom background color - Grayscale', () => {
+  // Red converts to grayscale using luminance formula
+  const fromRed = getTransparentColor(ColorType.GRAYSCALE, 8, '#FF0000');
+  const expectedGray = Math.round(0.299 * 255 + 0.587 * 0 + 0.114 * 0);
+  assert.deepStrictEqual(Array.from(fromRed), [expectedGray]);
+
+  // White
+  const white = getTransparentColor(ColorType.GRAYSCALE, 8, 'white');
+  assert.deepStrictEqual(Array.from(white), [255]);
+
+  // Black
+  const black = getTransparentColor(ColorType.GRAYSCALE, 8, 'black');
+  assert.deepStrictEqual(Array.from(black), [0]);
+});
+
+test('getTransparentColor with custom background color - Grayscale+Alpha', () => {
+  // White with full alpha
+  const white = getTransparentColor(ColorType.GRAYSCALE_ALPHA, 8, 'white');
+  assert.deepStrictEqual(Array.from(white), [255, 255]);
+
+  // Semi-transparent gray
+  const gray = getTransparentColor(ColorType.GRAYSCALE_ALPHA, 8, [128, 128, 128, 128]);
+  assert.deepStrictEqual(Array.from(gray), [128, 128]);
+});
+
+test('getTransparentColor maintains backward compatibility without backgroundColor', () => {
+  // Without backgroundColor parameter, should return transparent black (legacy behavior)
+  assert.deepStrictEqual(getTransparentColor(ColorType.RGBA, 8), new Uint8Array([0, 0, 0, 0]));
+  assert.deepStrictEqual(getTransparentColor(ColorType.RGB, 8), new Uint8Array([0, 0, 0]));
+  assert.deepStrictEqual(getTransparentColor(ColorType.GRAYSCALE, 8), new Uint8Array([0]));
+  assert.deepStrictEqual(getTransparentColor(ColorType.GRAYSCALE_ALPHA, 8), new Uint8Array([0, 0]));
 });

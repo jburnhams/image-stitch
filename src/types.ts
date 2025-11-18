@@ -87,6 +87,29 @@ export interface ConcatOptions {
   jpegQuality?: number;
 
   /**
+   * Background color for padding areas (when source images don't fill the output)
+   *
+   * Supports multiple formats:
+   * - Hex colors: '#RRGGBB', '#RRGGBBAA', '#RGB', '#RGBA'
+   * - RGB/RGBA arrays: [r, g, b] or [r, g, b, a] with values 0-255
+   * - Named colors: 'transparent' (default), 'black', 'white', 'red', 'green', 'blue'
+   *
+   * Default: 'transparent' (rgba(0, 0, 0, 0))
+   *
+   * For JPEG output (which doesn't support transparency):
+   * - Transparent colors are composited as black
+   * - Specify an opaque color for better control
+   *
+   * @example
+   * backgroundColor: '#FF0000'      // Red
+   * backgroundColor: '#FF0000AA'    // Semi-transparent red
+   * backgroundColor: [255, 0, 0]    // Red (RGB)
+   * backgroundColor: [255, 0, 0, 128] // Semi-transparent red (RGBA)
+   * backgroundColor: 'white'        // White
+   */
+  backgroundColor?: string | [number, number, number] | [number, number, number, number];
+
+  /**
    * Optional progress callback invoked when each input image finishes streaming.
    * Receives the number of completed inputs and the total inputs to process.
    */

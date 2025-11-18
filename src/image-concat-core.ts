@@ -833,7 +833,11 @@ class CoreStreamingConcatenator {
       // Create iterators for each input decoder
       const iterators = decoders.map(decoder => decoder.scanlines());
       const bytesPerPixel = getBytesPerPixel(outputHeader.bitDepth, outputHeader.colorType);
-      const transparentColor = getTransparentColor(outputHeader.colorType, outputHeader.bitDepth);
+      const transparentColor = getTransparentColor(
+        outputHeader.colorType,
+        outputHeader.bitDepth,
+        this.options.backgroundColor
+      );
       const progressTracker = this.createProgressTracker(headers);
 
       // Branch between PNG and JPEG output
