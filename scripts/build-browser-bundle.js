@@ -20,7 +20,7 @@ const browserDistDir = path.join(distDir, 'browser');
 const docsSourceDir = path.join(projectRoot, 'docs');
 const docsDistDir = path.join(projectRoot, 'docs-dist');
 const pngsuiteDir = path.join(projectRoot, 'pngsuite', 'png');
-const jpegWasmPath = path.join(projectRoot, 'node_modules', 'jpeg-encoder', 'pkg', 'jpeg_encoder_bg.wasm');
+const jpegWasmPath = path.join(projectRoot, 'node_modules', 'jpeg-encoder-wasm', 'pkg', 'esm', 'jpeg_encoder_bg.wasm');
 
 function assertExists(targetPath, message) {
   if (!fs.existsSync(targetPath)) {
