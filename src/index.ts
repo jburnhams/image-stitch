@@ -105,7 +105,8 @@ export {
 export {
   copyPixelRegion,
   fillPixelRegion,
-  createBlankImage
+  createBlankImage,
+  parseBackgroundColor
 } from './pixel-ops.js';
 export * from './types.js';
 export {
