@@ -104,8 +104,7 @@
   },
   "dependencies": {
     "@types/pako": "^2.0.4",
-    "jpeg-encoder": "github:jburnhams/jpeg-encoder",
-    "jpeg-encoder-wasm": "github:jburnhams/jpeg-encoder",
+    "jpeg-encoder-wasm": "github:jburnhams/jpeg-encoder#9267440ca1bd050e198fb05aab36beee1a32a458",
     "jpeg-js": "^0.4.4",
     "pako": "^2.1.0"
   },
