@@ -8,7 +8,7 @@
  * - Streaming encode that yields JPEG marker/data chunks as they're generated
  */
 
-import jpegEncoderInit, { StreamingJpegEncoder, WasmColorType } from 'jpeg-encoder/pkg/jpeg_encoder.js';
+import jpegEncoderInit, { StreamingJpegEncoder, WasmColorType } from 'jpeg-encoder-wasm';
 
 let wasmInitialized = false;
 
@@ -22,24 +22,25 @@ async function initWasm(): Promise<void> {
   }
 
   // In Node.js, we need to load the wasm file manually
+  // The new package structure has both ESM and CJS builds with proper WASM loading
   if (typeof process !== 'undefined' && process.versions?.node) {
     try {
       // Dynamic imports to avoid bundler issues
       const { readFileSync } = await import('node:fs');
       const { join } = await import('node:path');
 
-      // Try to load from node_modules using require.resolve (works in both ESM and CJS)
+      // Try to load from node_modules using require.resolve
       let wasmPath: string;
       try {
-        // Try require.resolve first (works in CJS and sometimes in ESM)
-        wasmPath = require.resolve('jpeg-encoder/pkg/jpeg_encoder_bg.wasm');
+        // Try require.resolve first (works in both CJS and ESM with createRequire)
+        wasmPath = require.resolve('jpeg-encoder-wasm/pkg/esm/jpeg_encoder_bg.wasm');
       } catch {
-        // Fallback: use cwd-relative path
-        wasmPath = join(process.cwd(), 'node_modules', 'jpeg-encoder', 'pkg', 'jpeg_encoder_bg.wasm');
+        // Fallback: use cwd-relative path for ESM
+        wasmPath = join(process.cwd(), 'node_modules', 'jpeg-encoder-wasm', 'pkg', 'esm', 'jpeg_encoder_bg.wasm');
       }
 
       const wasmBuffer = readFileSync(wasmPath);
-      await jpegEncoderInit({ module_or_path: wasmBuffer });
+      await jpegEncoderInit(wasmBuffer);
     } catch (err) {
       // Final fallback: let the module find the wasm itself
       // This works in browser and some Node environments
