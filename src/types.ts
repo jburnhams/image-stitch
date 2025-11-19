@@ -46,18 +46,33 @@ export interface ConcatOptions {
    * Can be an array, iterable, or async iterable of inputs.
    * Async iterables allow lazily generating tiles so large grids do not require
    * allocating every image up front.
+   *
+   * Supports two modes:
+   * 1. Grid mode: Regular image inputs arranged in rows/columns
+   * 2. Positioned mode: PositionedImage objects with explicit x,y coordinates
+   *    - Images can be placed anywhere on the canvas
+   *    - Images can overlap (later images drawn on top)
+   *    - If ANY input is positioned, ALL inputs must be positioned
    */
   inputs: ImageInputSource;
 
   /** Layout configuration */
   layout: {
-    /** Number of images per row (horizontal concatenation) */
+    /** Number of images per row (horizontal concatenation) - ignored in positioned mode */
     columns?: number;
-    /** Number of images per column (vertical concatenation) */
+    /** Number of images per column (vertical concatenation) - ignored in positioned mode */
     rows?: number;
-    /** Output width in pixels (alternative to columns) */
+    /**
+     * Output width in pixels
+     * - Grid mode: alternative to columns
+     * - Positioned mode: canvas width (auto-calculated from image bounds if omitted)
+     */
     width?: number;
-    /** Output height in pixels (alternative to rows) */
+    /**
+     * Output height in pixels
+     * - Grid mode: alternative to rows
+     * - Positioned mode: canvas height (auto-calculated from image bounds if omitted)
+     */
     height?: number;
   };
 
@@ -108,6 +123,18 @@ export interface ConcatOptions {
    * backgroundColor: 'white'        // White
    */
   backgroundColor?: string | [number, number, number] | [number, number, number, number];
+
+  /**
+   * Enable alpha blending for overlapping positioned images
+   *
+   * When true, overlapping images are blended using the alpha channel.
+   * When false, later images completely replace earlier images (faster).
+   *
+   * Only applies to positioned mode. Ignored in grid mode.
+   *
+   * Default: true
+   */
+  enableAlphaBlending?: boolean;
 
   /**
    * Optional progress callback invoked when each input image finishes streaming.

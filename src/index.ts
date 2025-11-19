@@ -57,6 +57,7 @@ export type {
   ImageHeader,
   ImageFormat,
   ImageInput,
+  PositionedImage,
   DecoderOptions,
   JpegDecoderOptions,
   HeicDecoderOptions
