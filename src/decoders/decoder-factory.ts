@@ -213,10 +213,12 @@ export function hasPositionedImages(inputs: ImageInput[]): boolean {
  * Extract position information from inputs
  * Returns positions for positioned images, or undefined for non-positioned
  */
-export function extractPositions(inputs: ImageInput[]): Array<{ x: number; y: number } | undefined> {
+export function extractPositions(
+  inputs: ImageInput[]
+): Array<{ x: number; y: number; zIndex?: number } | undefined> {
   return inputs.map(input => {
     if (isPositionedImage(input)) {
-      return { x: input.x, y: input.y };
+      return { x: input.x, y: input.y, zIndex: input.zIndex };
     }
     return undefined;
   });

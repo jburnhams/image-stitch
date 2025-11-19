@@ -113,6 +113,8 @@ export interface PositionedImage {
   x: number;
   /** Y coordinate on canvas (top edge) */
   y: number;
+  /** Optional z-index override for draw order (higher = rendered later) */
+  zIndex?: number;
   /** Image source (any of the standard input types) */
   source: string | Uint8Array | ArrayBuffer | ImageDecoder;
 }

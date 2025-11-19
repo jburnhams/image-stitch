@@ -204,7 +204,8 @@ test('buildScanlineIndex: single image', () => {
       y: 20,
       width: 50,
       height: 30,
-      currentScanline: 0
+      currentScanline: 0,
+      zIndex: 0
     }
   ];
 
@@ -231,8 +232,8 @@ test('buildScanlineIndex: single image', () => {
 
 test('buildScanlineIndex: non-overlapping images', () => {
   const positionedImages: PositionedImageInfo[] = [
-    { imageIdx: 0, x: 0, y: 0, width: 50, height: 50, currentScanline: 0 },
-    { imageIdx: 1, x: 50, y: 0, width: 50, height: 50, currentScanline: 0 }
+    { imageIdx: 0, x: 0, y: 0, width: 50, height: 50, currentScanline: 0, zIndex: 0 },
+    { imageIdx: 1, x: 50, y: 0, width: 50, height: 50, currentScanline: 0, zIndex: 1 }
   ];
 
   const index = buildScanlineIndex(positionedImages, 100);
@@ -250,8 +251,8 @@ test('buildScanlineIndex: non-overlapping images', () => {
 
 test('buildScanlineIndex: overlapping images', () => {
   const positionedImages: PositionedImageInfo[] = [
-    { imageIdx: 0, x: 0, y: 0, width: 100, height: 100, currentScanline: 0 },
-    { imageIdx: 1, x: 50, y: 50, width: 100, height: 100, currentScanline: 0 }
+    { imageIdx: 0, x: 0, y: 0, width: 100, height: 100, currentScanline: 0, zIndex: 0 },
+    { imageIdx: 1, x: 50, y: 50, width: 100, height: 100, currentScanline: 0, zIndex: 1 }
   ];
 
   const index = buildScanlineIndex(positionedImages, 200);
@@ -277,8 +278,8 @@ test('buildScanlineIndex: overlapping images', () => {
 
 test('buildScanlineIndex: empty scanlines', () => {
   const positionedImages: PositionedImageInfo[] = [
-    { imageIdx: 0, x: 0, y: 0, width: 50, height: 50, currentScanline: 0 },
-    { imageIdx: 1, x: 0, y: 100, width: 50, height: 50, currentScanline: 0 }
+    { imageIdx: 0, x: 0, y: 0, width: 50, height: 50, currentScanline: 0, zIndex: 0 },
+    { imageIdx: 1, x: 0, y: 100, width: 50, height: 50, currentScanline: 0, zIndex: 1 }
   ];
 
   const index = buildScanlineIndex(positionedImages, 200);
@@ -298,9 +299,9 @@ test('buildScanlineIndex: empty scanlines', () => {
 
 test('buildScanlineIndex: z-order preservation', () => {
   const positionedImages: PositionedImageInfo[] = [
-    { imageIdx: 2, x: 0, y: 0, width: 100, height: 100, currentScanline: 0 },
-    { imageIdx: 5, x: 25, y: 25, width: 100, height: 100, currentScanline: 0 },
-    { imageIdx: 1, x: 50, y: 50, width: 100, height: 100, currentScanline: 0 }
+    { imageIdx: 2, x: 0, y: 0, width: 100, height: 100, currentScanline: 0, zIndex: 5 },
+    { imageIdx: 5, x: 25, y: 25, width: 100, height: 100, currentScanline: 0, zIndex: 1 },
+    { imageIdx: 1, x: 50, y: 50, width: 100, height: 100, currentScanline: 0, zIndex: 3 }
   ];
 
   const index = buildScanlineIndex(positionedImages, 200);
@@ -309,11 +310,11 @@ test('buildScanlineIndex: z-order preservation', () => {
   const intersections = index.get(75)!;
   assert.strictEqual(intersections.length, 3);
 
-  // Z-order should match input order
-  assert.strictEqual(intersections[0].imageIdx, 2);
-  assert.strictEqual(intersections[0].zIndex, 0);
-  assert.strictEqual(intersections[1].imageIdx, 5);
-  assert.strictEqual(intersections[1].zIndex, 1);
-  assert.strictEqual(intersections[2].imageIdx, 1);
-  assert.strictEqual(intersections[2].zIndex, 2);
+  // Z-order should match explicit zIndex values (lowest renders first)
+  assert.strictEqual(intersections[0].imageIdx, 5);
+  assert.strictEqual(intersections[0].zIndex, 1);
+  assert.strictEqual(intersections[1].imageIdx, 1);
+  assert.strictEqual(intersections[1].zIndex, 3);
+  assert.strictEqual(intersections[2].imageIdx, 2);
+  assert.strictEqual(intersections[2].zIndex, 5);
 });
