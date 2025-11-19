@@ -7,7 +7,8 @@ image-stitch combines images into a single output without relying on Canvas APIs
 - **Multi-format output**: PNG (lossless) or JPEG (lossy with quality control)
 - **Streaming processing**: Minimal memory usage for large images
 - **No canvas dependency**: Works in Node.js and browsers
-- **Flexible layouts**: Grid, columns, rows, or custom dimensions
+- **Flexible layouts**: Grid, columns, rows, or positioned images with overlapping
+- **Alpha blending**: Proper compositing for overlapping positioned images
 
 ## Install
 
@@ -67,6 +68,50 @@ JPEG output features:
 - **8-bit RGBA format** (automatically converts higher bit depths)
 - **Streaming support** via `concatToStream()` and `concatStreaming()`
 - **Mixed inputs** - combine PNG, JPEG, HEIC inputs into JPEG output
+
+### Positioned images (flexible layout)
+
+Place images at arbitrary x,y coordinates with support for overlapping and alpha blending:
+
+```ts
+import { concatToBuffer, type PositionedImage } from 'image-stitch';
+
+const inputs: PositionedImage[] = [
+  { x: 0, y: 0, source: 'background.png' },
+  { x: 50, y: 50, source: 'overlay.png' },      // Overlaps background
+  { x: 200, y: 100, source: imageBuffer }
+];
+
+const result = await concatToBuffer({
+  inputs,
+  layout: {
+    width: 500,    // Optional: canvas width (auto-calculated if omitted)
+    height: 400    // Optional: canvas height (auto-calculated if omitted)
+  },
+  enableAlphaBlending: true  // Default: true (blend overlapping images)
+});
+```
+
+Positioned image features:
+- **Arbitrary placement** - position images anywhere on the canvas using x,y coordinates
+- **Overlapping support** - images can overlap with proper alpha blending (z-order = input order)
+- **Auto canvas sizing** - canvas dimensions calculated from image bounds if not specified
+- **Automatic clipping** - images outside canvas bounds are clipped with console warnings
+- **Alpha blending** - optional blending for overlapping images (disable for faster compositing)
+- **Streaming** - maintains O(canvas_width) memory usage, not O(total_pixels)
+
+```ts
+// Example: Create a composite with watermark
+const composite = await concatToBuffer({
+  inputs: [
+    { x: 0, y: 0, source: 'photo.jpg' },
+    { x: 420, y: 380, source: 'watermark.png' }  // Bottom-right corner
+  ],
+  layout: {},  // Canvas auto-sized to fit all images
+  outputFormat: 'jpeg',
+  jpegQuality: 90
+});
+```
 
 ### Track progress
 
