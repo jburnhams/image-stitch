@@ -585,8 +585,11 @@ class CoreStreamingConcatenator {
           const imageHeader = headers[imageIdx];
           const clipInfo = clippedImages.find(c => c.imageIdx === imageIdx);
 
+          // Calculate the actual source scanline (accounting for top clipping)
+          const sourceScanline = localY + (clipInfo?.sourceOffsetY ?? 0);
+
           // Skip scanlines until we reach the one we need
-          while (currentScanlines[imageIdx] < localY) {
+          while (currentScanlines[imageIdx] < sourceScanline) {
             await iterators[imageIdx].next();
             currentScanlines[imageIdx]++;
 
@@ -596,7 +599,7 @@ class CoreStreamingConcatenator {
           }
 
           // Read the scanline we need
-          if (currentScanlines[imageIdx] === localY) {
+          if (currentScanlines[imageIdx] === sourceScanline) {
             const { value, done } = await iterators[imageIdx].next();
 
             if (done || value === undefined) {
