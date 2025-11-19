@@ -93,6 +93,57 @@ function copyJpegWasmArtifacts() {
 }
 
 // Plugin to handle Node.js built-ins and deep imports
+const optionalDependencyStubPlugin = {
+  name: 'optional-dependency-browser-stubs',
+  setup(build) {
+    const optionalDeps = ['pako', 'jpeg-js', 'sharp'];
+    const filter = new RegExp(`^(?:${optionalDeps.map((dep) => dep.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')).join('|')})(?:/.*)?$`);
+
+    build.onResolve({ filter }, (args) => ({
+      path: args.path,
+      namespace: 'optional-dep-browser-stub'
+    }));
+
+    build.onLoad({ filter: /.*/, namespace: 'optional-dep-browser-stub' }, (args) => {
+      const depName = args.path.split('/')[0];
+      const message = `${depName} is not bundled in the browser build. Use the Node.js build or include a custom polyfill if needed.`;
+
+      let contents = '';
+      if (depName === 'pako') {
+        contents = `const message = ${JSON.stringify(message)};
+export class Deflate {
+  constructor() {
+    throw new Error(message);
+  }
+  push() {
+    throw new Error(message);
+  }
+}
+export default { Deflate };
+`;
+      } else if (depName === 'jpeg-js') {
+        contents = `const message = ${JSON.stringify(message)};
+export function decode() {
+  throw new Error(message);
+}
+export default { decode };
+`;
+      } else {
+        contents = `const message = ${JSON.stringify(message)};
+export default function optionalDependencyStub() {
+  throw new Error(message);
+}
+`;
+      }
+
+      return {
+        contents,
+        loader: 'js'
+      };
+    });
+  }
+};
+
 const nodeBuiltinsPlugin = {
   name: 'node-builtins-handler',
   setup(build) {
@@ -138,7 +189,7 @@ async function buildBundles() {
     sourcemap: true,
     platform: 'browser',
     target: 'es2020',
-    plugins: [nodeBuiltinsPlugin]
+    plugins: [optionalDependencyStubPlugin, nodeBuiltinsPlugin]
   };
 
   // ESM bundle
