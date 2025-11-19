@@ -292,10 +292,8 @@ class CoreStreamingConcatenator {
       throw new Error('At least one input image is required');
     }
 
-    const { layout } = options;
-    if (!layout.columns && !layout.rows && !layout.width && !layout.height) {
-      throw new Error('Must specify layout: columns, rows, width, or height');
-    }
+    // Note: layout validation deferred to stream() method since positioned mode
+    // allows empty layout {} with auto-calculated canvas size
   }
 
   /**
@@ -1010,9 +1008,15 @@ class CoreStreamingConcatenator {
     targetBitDepth: number,
     targetColorType: number
   ): AsyncGenerator<Uint8Array> {
+    // Validate grid mode requires layout specification
+    const { layout } = this.options;
+    if (!layout.columns && !layout.rows && !layout.width && !layout.height) {
+      throw new Error('Grid mode requires layout: columns, rows, width, or height');
+    }
+
     // Calculate layout with variable image sizes
-    const layout = calculateLayout(headers, this.options);
-    const { grid, rowHeights, colWidths, totalWidth, totalHeight } = layout;
+    const gridLayout = calculateLayout(headers, this.options);
+    const { grid, rowHeights, colWidths, totalWidth, totalHeight } = gridLayout;
 
     // JPEG output requires 8-bit RGBA format - force conversion if needed
     const outputFormat = this.options.outputFormat ?? 'png';
