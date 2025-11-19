@@ -17,6 +17,8 @@ export interface PositionedImageInfo {
   x: number;
   /** Y position on canvas (top edge) */
   y: number;
+  /** Z-order priority (higher numbers render later) */
+  zIndex: number;
   /** Image width in pixels */
   width: number;
   /** Image height in pixels */
@@ -103,7 +105,7 @@ export function calculateCanvasSize(
  * Returns clipping information and logs warnings for clipped images
  */
 export function clipImagesToCanvas(
-  positions: Array<{ x: number; y: number }>,
+  positions: Array<{ x: number; y: number; zIndex?: number }>,
   headers: PngHeader[],
   canvasWidth: number,
   canvasHeight: number,
@@ -178,7 +180,8 @@ export function clipImagesToCanvas(
         y: top,
         width: right - left,
         height: bottom - top,
-        currentScanline: 0
+        currentScanline: 0,
+        zIndex: positions[i]?.zIndex ?? i
       });
     }
   }
@@ -216,13 +219,18 @@ export function buildScanlineIndex(
           localY,
           startX: img.x,
           endX: img.x + img.width,
-          zIndex: i // Input order = z-order
+          zIndex: img.zIndex
         });
       }
     }
 
     // Sort by zIndex so we composite in order (back to front)
-    intersections.sort((a, b) => a.zIndex - b.zIndex);
+    intersections.sort((a, b) => {
+      if (a.zIndex === b.zIndex) {
+        return a.imageIdx - b.imageIdx;
+      }
+      return a.zIndex - b.zIndex;
+    });
 
     // Only store non-empty scanlines
     if (intersections.length > 0) {
@@ -238,7 +246,7 @@ export function buildScanlineIndex(
  * This accounts for clipping and source offsets
  */
 export function getEffectivePositionedImages(
-  positions: Array<{ x: number; y: number }>,
+  positions: Array<{ x: number; y: number; zIndex?: number }>,
   headers: PngHeader[],
   canvasWidth: number,
   canvasHeight: number,

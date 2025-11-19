@@ -78,7 +78,7 @@ import { concatToBuffer, type PositionedImage } from 'image-stitch';
 
 const inputs: PositionedImage[] = [
   { x: 0, y: 0, source: 'background.png' },
-  { x: 50, y: 50, source: 'overlay.png' },      // Overlaps background
+  { x: 50, y: 50, zIndex: 10, source: 'overlay.png' },      // Overlaps background with explicit zIndex
   { x: 200, y: 100, source: imageBuffer }
 ];
 
@@ -94,7 +94,7 @@ const result = await concatToBuffer({
 
 Positioned image features:
 - **Arbitrary placement** - position images anywhere on the canvas using x,y coordinates
-- **Overlapping support** - images can overlap with proper alpha blending (z-order = input order)
+- **Overlapping support** - images can overlap with proper alpha blending (z-order = input order or custom `zIndex`)
 - **Auto canvas sizing** - canvas dimensions calculated from image bounds if not specified
 - **Automatic clipping** - images outside canvas bounds are clipped with console warnings
 - **Alpha blending** - optional blending for overlapping images (disable for faster compositing)

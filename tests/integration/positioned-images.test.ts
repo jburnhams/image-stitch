@@ -3,9 +3,9 @@ import assert from 'node:assert';
 import '../../src/decoders/index.js';
 import { concatToBuffer } from '../../src/image-concat.js';
 import type { PositionedImage } from '../../src/decoders/types.js';
-import { parsePngHeader } from '../../src/png-parser.js';
+import { parsePngHeader, parsePngChunks } from '../../src/png-parser.js';
 import { createIHDR, createIEND, createChunk, buildPng } from '../../src/png-writer.js';
-import { compressImageData } from '../../src/png-decompress.js';
+import { compressImageData, extractPixelData } from '../../src/png-decompress.js';
 import { PngHeader, ColorType } from '../../src/types.js';
 
 /**
@@ -36,6 +36,13 @@ async function createTestPng(width: number, height: number, color: Uint8Array): 
   const iend = createIEND();
 
   return buildPng([ihdr, idat, iend]);
+}
+
+async function readTopLeftPixel(image: Uint8Array): Promise<[number, number, number, number]> {
+  const header = parsePngHeader(image);
+  const chunks = parsePngChunks(image);
+  const pixels = await extractPixelData(chunks, header);
+  return [pixels[0], pixels[1], pixels[2], pixels[3]];
 }
 
 test('Positioned images: non-overlapping layout', async () => {
@@ -85,6 +92,40 @@ test('Positioned images: overlapping with alpha blending', async () => {
   assert.strictEqual(header.width, 150); // 50 + 100
   assert.strictEqual(header.height, 150); // 50 + 100
   assert.strictEqual(header.colorType, ColorType.RGBA);
+});
+
+test('Positioned images: default zIndex draws later inputs on top', async () => {
+  const redImage = await createTestPng(10, 10, new Uint8Array([255, 0, 0, 255]));
+  const blueImage = await createTestPng(10, 10, new Uint8Array([0, 0, 255, 255]));
+
+  const result = await concatToBuffer({
+    inputs: [
+      { x: 0, y: 0, source: redImage },
+      { x: 0, y: 0, source: blueImage } // Should render on top
+    ],
+    layout: {},
+    enableAlphaBlending: false
+  });
+
+  const pixel = await readTopLeftPixel(result);
+  assert.deepStrictEqual(pixel, [0, 0, 255, 255]);
+});
+
+test('Positioned images: explicit zIndex overrides input order', async () => {
+  const redImage = await createTestPng(10, 10, new Uint8Array([255, 0, 0, 255]));
+  const blueImage = await createTestPng(10, 10, new Uint8Array([0, 0, 255, 255]));
+
+  const result = await concatToBuffer({
+    inputs: [
+      { x: 0, y: 0, zIndex: 10, source: redImage }, // Highest zIndex renders on top
+      { x: 0, y: 0, zIndex: 5, source: blueImage }
+    ],
+    layout: {},
+    enableAlphaBlending: false
+  });
+
+  const pixel = await readTopLeftPixel(result);
+  assert.deepStrictEqual(pixel, [255, 0, 0, 255]);
 });
 
 test('Positioned images: explicit canvas size', async () => {
