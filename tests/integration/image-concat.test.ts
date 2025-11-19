@@ -126,7 +126,7 @@ test('concat throws on missing layout', async () => {
       const gen = concatStreaming({ inputs: [testPng], layout: {} });
       await collectChunks(gen);
     },
-    /Must specify layout/
+    /Grid mode requires layout: columns, rows, width, or height/
   );
 });
 
