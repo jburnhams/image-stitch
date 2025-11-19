@@ -5,9 +5,34 @@
  * Supports PNG, JPEG, and HEIC formats with automatic fallback strategies.
  */
 
-import type { ImageDecoder, ImageInput, DecoderOptions, DecoderPlugin } from './types.js';
+import type { ImageDecoder, ImageInput, DecoderOptions, DecoderPlugin, PositionedImage } from './types.js';
 import { detectFormat, validateFormat } from './format-detection.js';
 import { getDefaultDecoderPlugins } from './plugin-registry.js';
+
+/**
+ * Type guard to check if input is a PositionedImage
+ */
+function isPositionedImage(input: ImageInput): input is PositionedImage {
+  return (
+    typeof input === 'object' &&
+    input !== null &&
+    'x' in input &&
+    'y' in input &&
+    'source' in input &&
+    typeof (input as PositionedImage).x === 'number' &&
+    typeof (input as PositionedImage).y === 'number'
+  );
+}
+
+/**
+ * Extract the actual image source from input (unwraps PositionedImage)
+ */
+function extractSource(input: ImageInput): string | Uint8Array | ArrayBuffer | ImageDecoder {
+  if (isPositionedImage(input)) {
+    return input.source;
+  }
+  return input;
+}
 
 /**
  * Create appropriate decoder for any image input
@@ -36,22 +61,25 @@ export async function createDecoder(
   options: DecoderOptions = {},
   plugins: DecoderPlugin[] = getDefaultDecoderPlugins()
 ): Promise<ImageDecoder> {
+  // Unwrap PositionedImage to get the actual source
+  const source = extractSource(input);
+
   // If already a decoder, return as-is
   if (
-    typeof input === 'object' &&
-    input !== null &&
-    'getHeader' in input &&
-    'scanlines' in input &&
-    'close' in input
+    typeof source === 'object' &&
+    source !== null &&
+    'getHeader' in source &&
+    'scanlines' in source &&
+    'close' in source
   ) {
-    return input as ImageDecoder;
+    return source as ImageDecoder;
   }
 
   const availablePlugins = plugins.length > 0 ? plugins : getDefaultDecoderPlugins();
 
   // For file paths
-  if (typeof input === 'string') {
-    const format = await detectFormat(input);
+  if (typeof source === 'string') {
+    const format = await detectFormat(source);
     validateFormat(format);
 
     const plugin = availablePlugins.find(candidate => candidate.format === format);
@@ -61,18 +89,19 @@ export async function createDecoder(
       );
     }
 
-    return plugin.create(input, options);
+    return plugin.create(source, options);
   }
 
   // For ArrayBuffer, convert to Uint8Array
-  if (input instanceof ArrayBuffer) {
-    input = new Uint8Array(input);
+  let processedSource = source;
+  if (source instanceof ArrayBuffer) {
+    processedSource = new Uint8Array(source);
   }
 
   // For Uint8Array
-  if (input instanceof Uint8Array) {
+  if (processedSource instanceof Uint8Array) {
     // Detect format from magic bytes
-    const magicBytes = input.slice(0, 32);
+    const magicBytes = processedSource.slice(0, 32);
     const format = await detectFormat(magicBytes);
     validateFormat(format);
 
@@ -83,11 +112,11 @@ export async function createDecoder(
       );
     }
 
-    return plugin.create(input, options);
+    return plugin.create(processedSource, options);
   }
 
   throw new Error(
-    'Unsupported input type. Expected string (file path), Uint8Array, ArrayBuffer, or ImageDecoder instance'
+    'Unsupported input type. Expected string (file path), Uint8Array, ArrayBuffer, ImageDecoder instance, or PositionedImage'
   );
 }
 
@@ -172,3 +201,42 @@ export async function createDecodersFromIterable(
   const inputArray = Array.from(inputs as Iterable<ImageInput>);
   return createDecoders(inputArray, options, plugins);
 }
+
+/**
+ * Check if inputs contain positioned images
+ */
+export function hasPositionedImages(inputs: ImageInput[]): boolean {
+  return inputs.some(isPositionedImage);
+}
+
+/**
+ * Extract position information from inputs
+ * Returns positions for positioned images, or undefined for non-positioned
+ */
+export function extractPositions(inputs: ImageInput[]): Array<{ x: number; y: number } | undefined> {
+  return inputs.map(input => {
+    if (isPositionedImage(input)) {
+      return { x: input.x, y: input.y };
+    }
+    return undefined;
+  });
+}
+
+/**
+ * Validate that all inputs are positioned or none are
+ * Throws if mixing positioned and non-positioned inputs
+ */
+export function validatePositionedInputs(inputs: ImageInput[]): void {
+  const positionedCount = inputs.filter(isPositionedImage).length;
+
+  if (positionedCount > 0 && positionedCount < inputs.length) {
+    throw new Error(
+      'Cannot mix positioned and non-positioned images. ' +
+      'All inputs must be PositionedImage objects or none can be. ' +
+      `Found ${positionedCount} positioned and ${inputs.length - positionedCount} non-positioned images.`
+    );
+  }
+}
+
+// Export type guard for external use
+export { isPositionedImage };

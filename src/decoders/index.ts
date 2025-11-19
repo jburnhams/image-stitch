@@ -14,7 +14,7 @@ import { heicDecoder } from './heic-decoder.js';
 setDefaultDecoderPlugins([pngDecoder, jpegDecoder, heicDecoder]);
 
 // Core types
-export type { ImageDecoder, ImageHeader, ImageFormat, ImageInput, DecoderOptions, JpegDecoderOptions, HeicDecoderOptions, DecoderPlugin } from './types.js';
+export type { ImageDecoder, ImageHeader, ImageFormat, ImageInput, PositionedImage, DecoderOptions, JpegDecoderOptions, HeicDecoderOptions, DecoderPlugin } from './types.js';
 
 // Format detection
 export { detectImageFormat, detectFormat, readMagicBytes, validateFormat } from './format-detection.js';

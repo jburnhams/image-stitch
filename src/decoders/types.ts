@@ -105,9 +105,22 @@ export interface HeicDecoderOptions {
 }
 
 /**
+ * Positioned image with explicit canvas coordinates
+ * Allows placing images at arbitrary positions with potential overlapping
+ */
+export interface PositionedImage {
+  /** X coordinate on canvas (left edge) */
+  x: number;
+  /** Y coordinate on canvas (top edge) */
+  y: number;
+  /** Image source (any of the standard input types) */
+  source: string | Uint8Array | ArrayBuffer | ImageDecoder;
+}
+
+/**
  * Type for image input sources
  */
-export type ImageInput = string | Uint8Array | ArrayBuffer | ImageDecoder;
+export type ImageInput = string | Uint8Array | ArrayBuffer | ImageDecoder | PositionedImage;
 
 /**
  * Plugin interface for registering decoder implementations.

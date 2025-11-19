@@ -631,3 +631,126 @@ export function convertScanline(
 
   return targetScanline;
 }
+
+/**
+ * Composite a source scanline onto a destination scanline at a specific X position
+ * Uses alpha blending (over operator) for RGBA images
+ *
+ * @param dest Destination scanline (modified in place)
+ * @param source Source scanline to composite
+ * @param startX X position where source should be composited
+ * @param sourceWidth Width of the source in pixels
+ * @param bytesPerPixel Bytes per pixel (4 for 8-bit RGBA, 8 for 16-bit RGBA)
+ * @param useAlphaBlending If true, use alpha blending; if false, just copy pixels
+ */
+export function compositeScanline(
+  dest: Uint8Array,
+  source: Uint8Array,
+  startX: number,
+  sourceWidth: number,
+  bytesPerPixel: number,
+  useAlphaBlending: boolean
+): void {
+  const is16Bit = bytesPerPixel === 8;
+  const offset = startX * bytesPerPixel;
+
+  if (!useAlphaBlending) {
+    // Simple copy without blending
+    dest.set(source, offset);
+    return;
+  }
+
+  // Alpha blending (over operator)
+  for (let px = 0; px < sourceWidth; px++) {
+    const destIdx = offset + px * bytesPerPixel;
+    const srcIdx = px * bytesPerPixel;
+
+    if (is16Bit) {
+      // 16-bit RGBA
+      const srcAlpha =
+        ((source[srcIdx + 6] << 8) | source[srcIdx + 7]) / 65535;
+
+      if (srcAlpha >= 0.9999) {
+        // Opaque source - just copy
+        for (let i = 0; i < bytesPerPixel; i++) {
+          dest[destIdx + i] = source[srcIdx + i];
+        }
+      } else if (srcAlpha > 0.0001) {
+        // Alpha blend
+        const destAlpha =
+          ((dest[destIdx + 6] << 8) | dest[destIdx + 7]) / 65535;
+        const outAlpha = srcAlpha + destAlpha * (1 - srcAlpha);
+
+        if (outAlpha > 0.0001) {
+          // Blend RGB channels
+          for (let c = 0; c < 3; c++) {
+            const srcVal =
+              (source[srcIdx + c * 2] << 8) | source[srcIdx + c * 2 + 1];
+            const destVal =
+              (dest[destIdx + c * 2] << 8) | dest[destIdx + c * 2 + 1];
+            const blended =
+              (srcVal * srcAlpha + destVal * destAlpha * (1 - srcAlpha)) / outAlpha;
+            const val = Math.round(Math.max(0, Math.min(65535, blended)));
+            dest[destIdx + c * 2] = val >> 8;
+            dest[destIdx + c * 2 + 1] = val & 0xff;
+          }
+
+          // Alpha channel
+          const alphaVal = Math.round(outAlpha * 65535);
+          dest[destIdx + 6] = alphaVal >> 8;
+          dest[destIdx + 7] = alphaVal & 0xff;
+        }
+      }
+      // If srcAlpha is 0, dest pixel unchanged
+    } else {
+      // 8-bit RGBA
+      const srcAlpha = source[srcIdx + 3] / 255;
+
+      if (srcAlpha >= 0.9999) {
+        // Opaque source - just copy
+        for (let i = 0; i < bytesPerPixel; i++) {
+          dest[destIdx + i] = source[srcIdx + i];
+        }
+      } else if (srcAlpha > 0.0001) {
+        // Alpha blend
+        const destAlpha = dest[destIdx + 3] / 255;
+        const outAlpha = srcAlpha + destAlpha * (1 - srcAlpha);
+
+        if (outAlpha > 0.0001) {
+          // Blend RGB channels
+          for (let c = 0; c < 3; c++) {
+            const srcVal = source[srcIdx + c];
+            const destVal = dest[destIdx + c];
+            const blended =
+              (srcVal * srcAlpha + destVal * destAlpha * (1 - srcAlpha)) / outAlpha;
+            dest[destIdx + c] = Math.round(Math.max(0, Math.min(255, blended)));
+          }
+
+          // Alpha channel
+          dest[destIdx + 3] = Math.round(outAlpha * 255);
+        }
+      }
+      // If srcAlpha is 0, dest pixel unchanged
+    }
+  }
+}
+
+/**
+ * Extract a portion of a scanline (for clipping)
+ *
+ * @param scanline Source scanline
+ * @param offsetX X offset in pixels to start extraction
+ * @param width Number of pixels to extract
+ * @param bytesPerPixel Bytes per pixel
+ * @returns Extracted portion of scanline
+ */
+export function extractScanlinePortion(
+  scanline: Uint8Array,
+  offsetX: number,
+  width: number,
+  bytesPerPixel: number
+): Uint8Array {
+  const startByte = offsetX * bytesPerPixel;
+  const endByte = startByte + width * bytesPerPixel;
+  return scanline.subarray(startByte, endByte);
+}

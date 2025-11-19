@@ -10,12 +10,13 @@ import { ConcatOptions, PngHeader } from './types.js';
 import { PNG_SIGNATURE, getSamplesPerPixel } from './utils.js';
 import { filterScanline, getBytesPerPixel } from './png-filter.js';
 import { createIHDR, createIEND, serializeChunk, createChunk } from './png-writer.js';
-import { createDecodersFromIterable } from './decoders/decoder-factory.js';
+import { createDecodersFromIterable, hasPositionedImages, extractPositions, validatePositionedInputs } from './decoders/decoder-factory.js';
 import { getDefaultDecoderPlugins } from './decoders/plugin-registry.js';
-import type { ImageHeader } from './decoders/types.js';
-import { determineCommonFormat, convertScanline, getTransparentColor } from './pixel-ops.js';
+import type { ImageHeader, ImageInput } from './decoders/types.js';
+import { determineCommonFormat, convertScanline, getTransparentColor, compositeScanline, extractScanlinePortion } from './pixel-ops.js';
 import { StreamingDeflator } from './streaming-deflate.js';
 import { JpegEncoder } from './jpeg-encoder.js';
+import { calculateCanvasSize, buildScanlineIndex, clipImagesToCanvas, type PositionedImageInfo, type ScanlineIndex, type ClippedImageInfo } from './positioned-layout.js';
 
 function createStitchError(message: string, cause?: unknown): Error {
   const baseMessage = `Failed to stitch images: ${message}`;
@@ -291,10 +292,8 @@ class CoreStreamingConcatenator {
       throw new Error('At least one input image is required');
     }
 
-    const { layout } = options;
-    if (!layout.columns && !layout.rows && !layout.width && !layout.height) {
-      throw new Error('Must specify layout: columns, rows, width, or height');
-    }
+    // Note: layout validation deferred to stream() method since positioned mode
+    // allows empty layout {} with auto-calculated canvas size
   }
 
   /**
@@ -546,6 +545,146 @@ class CoreStreamingConcatenator {
   }
 
   /**
+   * Generate scanlines for positioned images with optional alpha blending
+   * Supports clipping and overlapping images
+   */
+  private async *generatePositionedScanlines(
+    scanlineIndex: ScanlineIndex,
+    positionedImages: PositionedImageInfo[],
+    clippedImages: ClippedImageInfo[],
+    iterators: AsyncGenerator<Uint8Array>[],
+    totalWidth: number,
+    totalHeight: number,
+    headers: PngHeader[],
+    outputHeader: PngHeader,
+    bytesPerPixel: number,
+    transparentColor: Uint8Array,
+    useAlphaBlending: boolean,
+    progress?: ProgressTracker
+  ): AsyncGenerator<Uint8Array> {
+    // Track current scanline for each image
+    const currentScanlines = new Array(headers.length).fill(0);
+
+    for (let outputY = 0; outputY < totalHeight; outputY++) {
+      // Start with transparent scanline
+      const outputScanline = createTransparentScanline(
+        totalWidth,
+        bytesPerPixel,
+        transparentColor
+      );
+
+      const intersections = scanlineIndex.get(outputY);
+
+      if (intersections) {
+        for (const intersection of intersections) {
+          const { imageIdx, localY, startX, endX } = intersection;
+          const img = positionedImages.find(p => p.imageIdx === imageIdx);
+
+          if (!img) continue;
+
+          const imageHeader = headers[imageIdx];
+          const clipInfo = clippedImages.find(c => c.imageIdx === imageIdx);
+
+          // Calculate the actual source scanline (accounting for top clipping)
+          const sourceScanline = localY + (clipInfo?.sourceOffsetY ?? 0);
+
+          // Skip scanlines until we reach the one we need
+          while (currentScanlines[imageIdx] < sourceScanline) {
+            await iterators[imageIdx].next();
+            currentScanlines[imageIdx]++;
+
+            if (progress && progress.remainingScanlines[imageIdx] > 0) {
+              progress.remainingScanlines[imageIdx]--;
+            }
+          }
+
+          // Read the scanline we need
+          if (currentScanlines[imageIdx] === sourceScanline) {
+            const { value, done } = await iterators[imageIdx].next();
+
+            if (done || value === undefined) {
+              throw createStitchError(
+                `Unexpected end of scanlines for positioned image #${imageIdx + 1} at Y=${outputY}`
+              );
+            }
+
+            const samplesPerPixel = getSamplesPerPixel(imageHeader.colorType);
+            const expectedSourceLength = Math.ceil(
+              (imageHeader.width * imageHeader.bitDepth * samplesPerPixel) / 8
+            );
+
+            if (value.length !== expectedSourceLength) {
+              const bitsPerPixel = imageHeader.bitDepth * samplesPerPixel;
+              const actualWidth = bitsPerPixel === 0 ? 0 : (value.length * 8) / bitsPerPixel;
+              throw createStitchError(
+                `dimension mismatch for positioned image #${imageIdx + 1} at Y=${outputY}. ` +
+                `Expected ${formatPixels(imageHeader.width)} wide scanline (${expectedSourceLength} raw bytes) but decoder produced ` +
+                `${formatPixels(actualWidth)} (${value.length} raw bytes).`
+              );
+            }
+
+            // Convert scanline format
+            let convertedScanline: Uint8Array;
+            try {
+              convertedScanline = convertScanline(
+                value,
+                imageHeader.width,
+                imageHeader.bitDepth,
+                imageHeader.colorType,
+                outputHeader.bitDepth,
+                outputHeader.colorType
+              );
+            } catch (error) {
+              throw createStitchError(
+                `unable to normalize positioned image #${imageIdx + 1} at Y=${outputY}`,
+                error
+              );
+            }
+
+            // Apply clipping if needed
+            let scanlineToComposite = convertedScanline;
+            let compositeX = startX;
+            let compositeWidth = endX - startX;
+
+            if (clipInfo && !clipInfo.fullyClipped) {
+              // Extract the visible portion of the scanline
+              scanlineToComposite = extractScanlinePortion(
+                convertedScanline,
+                clipInfo.sourceOffsetX,
+                compositeWidth,
+                bytesPerPixel
+              );
+            }
+
+            // Composite onto output scanline
+            compositeScanline(
+              outputScanline,
+              scanlineToComposite,
+              compositeX,
+              compositeWidth,
+              bytesPerPixel,
+              useAlphaBlending
+            );
+
+            currentScanlines[imageIdx]++;
+
+            // Update progress
+            if (progress && progress.remainingScanlines[imageIdx] > 0) {
+              progress.remainingScanlines[imageIdx]--;
+              if (progress.remainingScanlines[imageIdx] === 0) {
+                progress.completed++;
+                progress.callback(progress.completed, progress.total);
+              }
+            }
+          }
+        }
+      }
+
+      yield outputScanline;
+    }
+  }
+
+  /**
    * Generate raw RGBA scanlines (without filtering)
    * Used for JPEG encoding
    */
@@ -783,18 +922,46 @@ class CoreStreamingConcatenator {
   /**
    * Stream concatenated image output scanline-by-scanline
    * Supports both PNG and JPEG output formats
+   * Supports both grid mode and positioned mode
    */
   async *stream(): AsyncGenerator<Uint8Array> {
+    // Collect inputs into array if iterable
+    const inputsArray: ImageInput[] = Array.isArray(this.options.inputs)
+      ? this.options.inputs
+      : await (async () => {
+          const arr: ImageInput[] = [];
+          const asyncIterator = (this.options.inputs as AsyncIterable<ImageInput>)[Symbol.asyncIterator];
+          if (typeof asyncIterator === 'function') {
+            for await (const input of this.options.inputs as AsyncIterable<ImageInput>) {
+              arr.push(input);
+            }
+          } else {
+            for (const input of this.options.inputs as Iterable<ImageInput>) {
+              arr.push(input);
+            }
+          }
+          return arr;
+        })();
+
+    if (inputsArray.length === 0) {
+      throw new Error('At least one input image is required');
+    }
+
+    // Check if we're in positioned mode
+    const isPositionedMode = hasPositionedImages(inputsArray);
+
+    // Validate that we don't mix positioned and non-positioned
+    if (isPositionedMode) {
+      validatePositionedInputs(inputsArray);
+    }
+
     // PASS 1: Create decoders and read headers (supports PNG, JPEG, HEIC)
     const decoderPlugins = this.options.decoders ?? getDefaultDecoderPlugins();
     const decoders = await createDecodersFromIterable(
-      this.options.inputs,
+      inputsArray,
       this.options.decoderOptions ?? {},
       decoderPlugins
     );
-    if (decoders.length === 0) {
-      throw new Error('At least one input image is required');
-    }
 
     // Get headers from all decoders
     const imageHeaders: ImageHeader[] = [];
@@ -809,85 +976,425 @@ class CoreStreamingConcatenator {
       // Determine common format that can represent all images
       const { bitDepth: targetBitDepth, colorType: targetColorType } = determineCommonFormat(headers);
 
-      // Calculate layout with variable image sizes
-      const layout = calculateLayout(headers, this.options);
-      const { grid, rowHeights, colWidths, totalWidth, totalHeight } = layout;
-
-      // JPEG output requires 8-bit RGBA format - force conversion if needed
-      const outputFormat = this.options.outputFormat ?? 'png';
-      const finalBitDepth = outputFormat === 'jpeg' ? 8 : targetBitDepth;
-      const finalColorType = outputFormat === 'jpeg' ? 6 : targetColorType; // 6 = RGBA
-
-      // Create output header using common format
-      const outputHeader: PngHeader = {
-        width: totalWidth,
-        height: totalHeight,
-        bitDepth: finalBitDepth,
-        colorType: finalColorType,
-        compressionMethod: 0,
-        filterMethod: 0,
-        interlaceMethod: 0
-      };
-
-      // PASS 2: Stream scanlines with format-specific compression
-      // Create iterators for each input decoder
-      const iterators = decoders.map(decoder => decoder.scanlines());
-      const bytesPerPixel = getBytesPerPixel(outputHeader.bitDepth, outputHeader.colorType);
-      const transparentColor = getTransparentColor(
-        outputHeader.colorType,
-        outputHeader.bitDepth,
-        this.options.backgroundColor
-      );
-      const progressTracker = this.createProgressTracker(headers);
-
-      // Branch between PNG and JPEG output
-      if (outputFormat === 'jpeg') {
-        // JPEG output
-        const quality = this.options.jpegQuality ?? 85;
-        yield* this.streamJpegData(
-          grid,
-          rowHeights,
-          colWidths,
-          totalWidth,
-          totalHeight,
+      if (isPositionedMode) {
+        // POSITIONED MODE
+        yield* this.streamPositionedMode(
+          inputsArray,
+          decoders,
           headers,
-          iterators,
-          outputHeader,
-          bytesPerPixel,
-          transparentColor,
-          quality,
-          progressTracker
+          targetBitDepth,
+          targetColorType
         );
       } else {
-        // PNG output (default)
-        // Yield PNG signature
-        yield PNG_SIGNATURE;
-
-        // Yield IHDR
-        yield serializeChunk(createIHDR(outputHeader));
-
-        // Use streaming compression - process scanlines one at a time
-        yield* this.streamCompressedData(
-          grid,
-          rowHeights,
-          colWidths,
-          totalWidth,
+        // GRID MODE (existing implementation)
+        yield* this.streamGridMode(
+          decoders,
           headers,
-          iterators,
-          outputHeader,
-          bytesPerPixel,
-          transparentColor,
-          progressTracker
+          targetBitDepth,
+          targetColorType
         );
-
-        // Yield IEND
-        yield serializeChunk(createIEND());
       }
     } finally {
       // Clean up all decoders and release resources
       for (const decoder of decoders) {
         await decoder.close();
       }
+    }
+  }
+
+  /**
+   * Stream grid mode (existing row/column layout)
+   */
+  private async *streamGridMode(
+    decoders: any[],
+    headers: PngHeader[],
+    targetBitDepth: number,
+    targetColorType: number
+  ): AsyncGenerator<Uint8Array> {
+    // Validate grid mode requires layout specification
+    const { layout } = this.options;
+    if (!layout.columns && !layout.rows && !layout.width && !layout.height) {
+      throw new Error('Grid mode requires layout: columns, rows, width, or height');
+    }
+
+    // Calculate layout with variable image sizes
+    const gridLayout = calculateLayout(headers, this.options);
+    const { grid, rowHeights, colWidths, totalWidth, totalHeight } = gridLayout;
+
+    // JPEG output requires 8-bit RGBA format - force conversion if needed
+    const outputFormat = this.options.outputFormat ?? 'png';
+    const finalBitDepth = outputFormat === 'jpeg' ? 8 : targetBitDepth;
+    const finalColorType = outputFormat === 'jpeg' ? 6 : targetColorType; // 6 = RGBA
+
+    // Create output header using common format
+    const outputHeader: PngHeader = {
+      width: totalWidth,
+      height: totalHeight,
+      bitDepth: finalBitDepth,
+      colorType: finalColorType,
+      compressionMethod: 0,
+      filterMethod: 0,
+      interlaceMethod: 0
+    };
+
+    // PASS 2: Stream scanlines with format-specific compression
+    // Create iterators for each input decoder
+    const iterators = decoders.map(decoder => decoder.scanlines());
+    const bytesPerPixel = getBytesPerPixel(outputHeader.bitDepth, outputHeader.colorType);
+    const transparentColor = getTransparentColor(
+      outputHeader.colorType,
+      outputHeader.bitDepth,
+      this.options.backgroundColor
+    );
+    const progressTracker = this.createProgressTracker(headers);
+
+    // Branch between PNG and JPEG output
+    if (outputFormat === 'jpeg') {
+      // JPEG output
+      const quality = this.options.jpegQuality ?? 85;
+      yield* this.streamJpegData(
+        grid,
+        rowHeights,
+        colWidths,
+        totalWidth,
+        totalHeight,
+        headers,
+        iterators,
+        outputHeader,
+        bytesPerPixel,
+        transparentColor,
+        quality,
+        progressTracker
+      );
+    } else {
+      // PNG output (default)
+      // Yield PNG signature
+      yield PNG_SIGNATURE;
+
+      // Yield IHDR
+      yield serializeChunk(createIHDR(outputHeader));
+
+      // Use streaming compression - process scanlines one at a time
+      yield* this.streamCompressedData(
+        grid,
+        rowHeights,
+        colWidths,
+        totalWidth,
+        headers,
+        iterators,
+        outputHeader,
+        bytesPerPixel,
+        transparentColor,
+        progressTracker
+      );
+
+      // Yield IEND
+      yield serializeChunk(createIEND());
+    }
+  }
+
+  /**
+   * Stream positioned mode (free-form image placement with optional overlapping)
+   */
+  private async *streamPositionedMode(
+    inputsArray: ImageInput[],
+    decoders: any[],
+    headers: PngHeader[],
+    targetBitDepth: number,
+    targetColorType: number
+  ): AsyncGenerator<Uint8Array> {
+    // Extract positions from inputs
+    const positions = extractPositions(inputsArray).map((pos) => {
+      if (!pos) {
+        throw new Error('Internal error: non-positioned image in positioned mode');
+      }
+      return pos;
+    });
+
+    // Calculate canvas size (auto or explicit)
+    const { width: canvasWidth, height: canvasHeight } = calculateCanvasSize(
+      positions.map((pos, i) => ({
+        x: pos.x,
+        y: pos.y,
+        width: headers[i].width,
+        height: headers[i].height
+      })),
+      this.options.layout.width,
+      this.options.layout.height
+    );
+
+    // Clip images to canvas and log warnings
+    const logger = (message: string) => {
+      // Use console.warn for clipping warnings
+      if (typeof console !== 'undefined' && console.warn) {
+        console.warn(message);
+      }
+    };
+
+    const { clippedImages, positionedImages } = clipImagesToCanvas(
+      positions,
+      headers,
+      canvasWidth,
+      canvasHeight,
+      logger
+    );
+
+    // Build scanline index for efficient rendering
+    const scanlineIndex = buildScanlineIndex(positionedImages, canvasHeight);
+
+    // JPEG output requires 8-bit RGBA format - force conversion if needed
+    const outputFormat = this.options.outputFormat ?? 'png';
+    const finalBitDepth = outputFormat === 'jpeg' ? 8 : targetBitDepth;
+    const finalColorType = outputFormat === 'jpeg' ? 6 : targetColorType; // 6 = RGBA
+
+    // Create output header
+    const outputHeader: PngHeader = {
+      width: canvasWidth,
+      height: canvasHeight,
+      bitDepth: finalBitDepth,
+      colorType: finalColorType,
+      compressionMethod: 0,
+      filterMethod: 0,
+      interlaceMethod: 0
+    };
+
+    // Create iterators for each input decoder
+    const iterators = decoders.map(decoder => decoder.scanlines());
+    const bytesPerPixel = getBytesPerPixel(outputHeader.bitDepth, outputHeader.colorType);
+    const transparentColor = getTransparentColor(
+      outputHeader.colorType,
+      outputHeader.bitDepth,
+      this.options.backgroundColor
+    );
+    const progressTracker = this.createProgressTracker(headers);
+    const useAlphaBlending = this.options.enableAlphaBlending !== false; // Default: true
+
+    // Branch between PNG and JPEG output
+    if (outputFormat === 'jpeg') {
+      // JPEG output
+      const quality = this.options.jpegQuality ?? 85;
+      yield* this.streamPositionedJpegData(
+        scanlineIndex,
+        positionedImages,
+        clippedImages,
+        iterators,
+        canvasWidth,
+        canvasHeight,
+        headers,
+        outputHeader,
+        bytesPerPixel,
+        transparentColor,
+        useAlphaBlending,
+        quality,
+        progressTracker
+      );
+    } else {
+      // PNG output (default)
+      // Yield PNG signature
+      yield PNG_SIGNATURE;
+
+      // Yield IHDR
+      yield serializeChunk(createIHDR(outputHeader));
+
+      // Stream positioned scanlines with PNG compression
+      yield* this.streamPositionedPngData(
+        scanlineIndex,
+        positionedImages,
+        clippedImages,
+        iterators,
+        canvasWidth,
+        headers,
+        outputHeader,
+        bytesPerPixel,
+        transparentColor,
+        useAlphaBlending,
+        progressTracker
+      );
+
+      // Yield IEND
+      yield serializeChunk(createIEND());
+    }
+  }
+
+  /**
+   * Stream positioned PNG data with compression
+   */
+  private async *streamPositionedPngData(
+    scanlineIndex: ScanlineIndex,
+    positionedImages: PositionedImageInfo[],
+    clippedImages: ClippedImageInfo[],
+    iterators: AsyncGenerator<Uint8Array>[],
+    totalWidth: number,
+    headers: PngHeader[],
+    outputHeader: PngHeader,
+    bytesPerPixel: number,
+    transparentColor: Uint8Array,
+    useAlphaBlending: boolean,
+    progress?: ProgressTracker
+  ): AsyncGenerator<Uint8Array> {
+    // Calculate batch size
+    const scanlineSize = totalWidth * bytesPerPixel + 1;
+    const MAX_BATCH_BYTES = 1 * 1024 * 1024; // 1MB
+    const MAX_BATCH_SCANLINES = Math.max(50, Math.floor(MAX_BATCH_BYTES / scanlineSize));
+
+    // Create deflator
+    const deflator = new StreamingDeflator({
+      level: 6,
+      maxBatchSize: MAX_BATCH_BYTES
+    });
+
+    // Queue for compressed chunks from onData callback
+    const compressedChunks: Uint8Array[] = [];
+
+    // Initialize deflator with callback
+    await deflator.initialize((compressedData) => {
+      if (compressedData && compressedData.length > 0) {
+        compressedChunks.push(compressedData);
+      }
+    });
+
+    let scanlineCount = 0;
+    let previousOutputScanline: Uint8Array | null = null;
+
+    // Generate positioned scanlines
+    const scanlineGenerator = this.generatePositionedScanlines(
+      scanlineIndex,
+      positionedImages,
+      clippedImages,
+      iterators,
+      totalWidth,
+      outputHeader.height,
+      headers,
+      outputHeader,
+      bytesPerPixel,
+      transparentColor,
+      useAlphaBlending,
+      progress
+    );
+
+    // Process each scanline with PNG filtering
+    for await (const outputScanline of scanlineGenerator) {
+      // Filter the scanline
+      const { filterType, filtered } = filterScanline(
+        outputScanline,
+        previousOutputScanline,
+        bytesPerPixel
+      );
+
+      // Create scanline with filter byte
+      const scanlineWithFilter = new Uint8Array(1 + filtered.length);
+      scanlineWithFilter[0] = filterType;
+      scanlineWithFilter.set(filtered, 1);
+
+      await deflator.push(scanlineWithFilter);
+      scanlineCount++;
+
+      // Periodic flush for progressive output
+      if (scanlineCount % MAX_BATCH_SCANLINES === 0) {
+        await deflator.flush();
+      }
+
+      // Yield any compressed chunks that were produced
+      while (compressedChunks.length > 0) {
+        const chunk = compressedChunks.shift()!;
+        yield serializeChunk(createChunk('IDAT', chunk));
+      }
+
+      previousOutputScanline = outputScanline;
+    }
+
+    // Finish compression
+    await deflator.finish();
+
+    // Yield remaining compressed chunks
+    while (compressedChunks.length > 0) {
+      const chunk = compressedChunks.shift()!;
+      yield serializeChunk(createChunk('IDAT', chunk));
+    }
+  }
+
+  /**
+   * Stream positioned JPEG data
+   */
+  private async *streamPositionedJpegData(
+    scanlineIndex: ScanlineIndex,
+    positionedImages: PositionedImageInfo[],
+    clippedImages: ClippedImageInfo[],
+    iterators: AsyncGenerator<Uint8Array>[],
+    totalWidth: number,
+    totalHeight: number,
+    headers: PngHeader[],
+    outputHeader: PngHeader,
+    bytesPerPixel: number,
+    transparentColor: Uint8Array,
+    useAlphaBlending: boolean,
+    quality: number,
+    progress?: ProgressTracker
+  ): AsyncGenerator<Uint8Array> {
+    // Create JPEG encoder
+    const encoder = new JpegEncoder({
+      width: totalWidth,
+      height: totalHeight,
+      quality
+    });
+
+    // Yield JPEG header
+    for await (const chunk of encoder.header()) {
+      yield chunk;
+    }
+
+    // Generate positioned scanlines
+    const scanlineGenerator = this.generatePositionedScanlines(
+      scanlineIndex,
+      positionedImages,
+      clippedImages,
+      iterators,
+      totalWidth,
+      totalHeight,
+      headers,
+      outputHeader,
+      bytesPerPixel,
+      transparentColor,
+      useAlphaBlending,
+      progress
+    );
+
+    // Buffer scanlines into 8-line MCU strips
+    const MCU_HEIGHT = 8;
+    const stripSize = totalWidth * MCU_HEIGHT * 4; // RGBA
+    let stripBuffer = new Uint8Array(stripSize);
+    let lineInStrip = 0;
+    let lastScanline: Uint8Array | null = null;
+
+    for await (const scanline of scanlineGenerator) {
+      // Copy scanline into strip buffer
+      stripBuffer.set(scanline, lineInStrip * totalWidth * 4);
+      lastScanline = scanline;
+      lineInStrip++;
+
+      // When we have 8 lines, encode the strip
+      if (lineInStrip === MCU_HEIGHT) {
+        for await (const chunk of encoder.encodeStrip(stripBuffer, null)) {
+          yield chunk;
+        }
+        lineInStrip = 0;
+        stripBuffer = new Uint8Array(stripSize);
+      }
+    }
+
+    // Handle remaining partial strip
+    if (lineInStrip > 0) {
+      const partialSize = lineInStrip * totalWidth * 4;
+      const partialStrip = stripBuffer.subarray(0, partialSize);
+
+      for await (const chunk of encoder.encodeStrip(partialStrip, lastScanline)) {
+        yield chunk;
+      }
+    }
+
+    // Yield JPEG footer
+    for await (const chunk of encoder.finish()) {
+      yield chunk;
     }
   }
 
