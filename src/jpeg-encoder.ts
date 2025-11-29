@@ -8,7 +8,7 @@
  * - Streaming encode that yields JPEG marker/data chunks as they're generated
  */
 
-import jpegEncoderInit, { StreamingJpegEncoder, WasmColorType } from 'jpeg-encoder-wasm';
+import { init as jpegEncoderInit, StreamingJpegEncoder, WasmColorType } from 'jpeg-encoder-wasm';
 
 let wasmInitialized = false;
 
