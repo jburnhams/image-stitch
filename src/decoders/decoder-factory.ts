@@ -5,7 +5,7 @@
  * Supports PNG, JPEG, and HEIC formats with automatic fallback strategies.
  */
 
-import type { ImageDecoder, ImageInput, DecoderOptions, DecoderPlugin, PositionedImage } from './types.js';
+import type { ImageDecoder, ImageInput, DecoderOptions, DecoderPlugin, PositionedImage, ImageSource, ImageHeader } from './types.js';
 import { detectFormat, validateFormat } from './format-detection.js';
 import { getDefaultDecoderPlugins } from './plugin-registry.js';
 
@@ -25,9 +25,66 @@ function isPositionedImage(input: ImageInput): input is PositionedImage {
 }
 
 /**
+ * Type guard to check if input is an ImageSource
+ */
+function isImageSource(input: any): input is ImageSource {
+  return (
+    typeof input === 'object' &&
+    input !== null &&
+    'factory' in input &&
+    'width' in input &&
+    'height' in input
+  );
+}
+
+/**
+ * Lazy decoder that defers loading/decoding until scanlines are requested
+ */
+class LazyImageDecoder implements ImageDecoder {
+  constructor(
+    private source: ImageSource,
+    private options: DecoderOptions,
+    private plugins: DecoderPlugin[]
+  ) {}
+
+  async getHeader(): Promise<ImageHeader> {
+    return {
+      width: this.source.width,
+      height: this.source.height,
+      channels: 4, // Default to RGBA
+      bitDepth: 8, // Default to 8-bit
+      format: 'unknown'
+    };
+  }
+
+  async *scanlines(): AsyncGenerator<Uint8Array> {
+    const data = await this.source.factory();
+
+    let input: Uint8Array | ArrayBuffer;
+    if (typeof Blob !== 'undefined' && data instanceof Blob) {
+      input = await data.arrayBuffer();
+    } else {
+      input = data as Uint8Array | ArrayBuffer;
+    }
+
+    // Pass the plugins to the inner decoder to ensure consistency
+    const decoder = await createDecoder(input, this.options, this.plugins);
+    try {
+      yield *decoder.scanlines();
+    } finally {
+      await decoder.close();
+    }
+  }
+
+  async close(): Promise<void> {
+    // No resources to clean up until scanlines are called (which handles its own cleanup)
+  }
+}
+
+/**
  * Extract the actual image source from input (unwraps PositionedImage)
  */
-function extractSource(input: ImageInput): string | Uint8Array | ArrayBuffer | ImageDecoder {
+function extractSource(input: ImageInput): string | Uint8Array | ArrayBuffer | ImageDecoder | ImageSource {
   if (isPositionedImage(input)) {
     return input.source;
   }
@@ -76,6 +133,11 @@ export async function createDecoder(
   }
 
   const availablePlugins = plugins.length > 0 ? plugins : getDefaultDecoderPlugins();
+
+  // For Lazy ImageSource
+  if (isImageSource(source)) {
+    return new LazyImageDecoder(source, options, availablePlugins);
+  }
 
   // For file paths
   if (typeof source === 'string') {

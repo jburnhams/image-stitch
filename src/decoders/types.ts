@@ -116,13 +116,30 @@ export interface PositionedImage {
   /** Optional z-index override for draw order (higher = rendered later) */
   zIndex?: number;
   /** Image source (any of the standard input types) */
-  source: string | Uint8Array | ArrayBuffer | ImageDecoder;
+  source: string | Uint8Array | ArrayBuffer | ImageDecoder | ImageSource;
+}
+
+/**
+ * Factory function that returns image data
+ */
+export type ImageFactory = () => Promise<Blob | ArrayBuffer | Uint8Array>;
+
+/**
+ * Source for lazily loaded images
+ */
+export interface ImageSource {
+  /** Width of the image in pixels */
+  width: number;
+  /** Height of the image in pixels */
+  height: number;
+  /** Function that returns the full image data */
+  factory: ImageFactory;
 }
 
 /**
  * Type for image input sources
  */
-export type ImageInput = string | Uint8Array | ArrayBuffer | ImageDecoder | PositionedImage;
+export type ImageInput = string | Uint8Array | ArrayBuffer | ImageDecoder | PositionedImage | ImageSource;
 
 /**
  * Plugin interface for registering decoder implementations.
