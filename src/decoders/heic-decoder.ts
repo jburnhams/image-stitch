@@ -153,9 +153,19 @@ async function decodeHeicWithHeicDecode(data: Uint8Array): Promise<{ pixels: Uin
   try {
     // Dynamic import (optional peer dependency)
     // @ts-expect-error - heic-decode is an optional peer dependency
-    const heicDecode = await import('heic-decode');
+    const heicDecodeModule = await import('heic-decode');
 
-    const result = await heicDecode.decode({ buffer: data.buffer });
+    // Handle both ESM and CJS interop
+    // heic-decode v2 exports default function, but some environments might handle it differently
+    const decode = heicDecodeModule.decode || heicDecodeModule.default;
+
+    if (typeof decode !== 'function') {
+      throw new Error('heic-decode module does not export a decode function');
+    }
+
+    // heic-decode expects a Buffer or Uint8Array, not an ArrayBuffer
+    // We pass data (Uint8Array) directly
+    const result = await decode({ buffer: data });
     if (!result || result.length === 0) {
       throw new Error('Failed to decode HEIC image');
     }
