@@ -60,7 +60,7 @@ function pngHeaderToImageHeader(pngHeader: PngHeader): ImageHeader {
  * Decode scanlines from compressed PNG data
  */
 async function* decodeScanlinesFromCompressedData(
-  compressedData: Uint8Array,
+  compressedData: Uint8Array | Blob,
   header: PngHeader
 ): AsyncGenerator<Uint8Array> {
   const bytesPerPixel = getBytesPerPixel(header.bitDepth, header.colorType);
@@ -70,7 +70,14 @@ async function* decodeScanlinesFromCompressedData(
 
   // For interlaced images, we need all data at once to deinterlace
   if (header.interlaceMethod === 1) {
-    const decompressed = await decompressData(compressedData);
+    let data: Uint8Array;
+    if (typeof Blob !== 'undefined' && compressedData instanceof Blob) {
+      data = new Uint8Array(await compressedData.arrayBuffer());
+    } else {
+      data = compressedData as Uint8Array;
+    }
+
+    const decompressed = await decompressData(data);
     const deinterlaced = deinterlaceAdam7(decompressed, header);
 
     // Yield scanlines from the deinterlaced data
@@ -89,18 +96,26 @@ async function* decodeScanlinesFromCompressedData(
   let totalBufferLength = 0;
   let processedLines = 0;
 
-  const sourceBuffer =
-    compressedData.byteOffset === 0 && compressedData.byteLength === compressedData.buffer.byteLength
-      ? (compressedData.buffer as ArrayBuffer)
-      : compressedData.buffer.slice(
-          compressedData.byteOffset,
-          compressedData.byteOffset + compressedData.byteLength
-        );
+  let decompressedStream: ReadableStream<Uint8Array>;
 
-  const normalizedBuffer =
-    sourceBuffer instanceof ArrayBuffer ? sourceBuffer : new Uint8Array(sourceBuffer).slice().buffer;
+  if (typeof Blob !== 'undefined' && compressedData instanceof Blob) {
+    decompressedStream = compressedData.stream().pipeThrough(new DecompressionStream('deflate'));
+  } else {
+    const rawData = compressedData as Uint8Array;
+    const sourceBuffer =
+      rawData.byteOffset === 0 && rawData.byteLength === rawData.buffer.byteLength
+        ? (rawData.buffer as ArrayBuffer)
+        : rawData.buffer.slice(
+            rawData.byteOffset,
+            rawData.byteOffset + rawData.byteLength
+          );
 
-  const decompressedStream = new Blob([normalizedBuffer]).stream().pipeThrough(new DecompressionStream('deflate'));
+    const normalizedBuffer =
+      sourceBuffer instanceof ArrayBuffer ? sourceBuffer : new Uint8Array(sourceBuffer).slice().buffer;
+
+    decompressedStream = new Blob([normalizedBuffer]).stream().pipeThrough(new DecompressionStream('deflate'));
+  }
+
   const reader = decompressedStream.getReader();
 
   // Helper to merge chunks only when needed
@@ -352,6 +367,71 @@ export class PngBufferDecoder implements ImageDecoder {
 }
 
 /**
+ * PNG decoder for Blob inputs
+ * Scans Blob for IDAT chunks without loading entire file into memory
+ */
+export class PngBlobDecoder implements ImageDecoder {
+  private blob: Blob;
+  private pngHeader: PngHeader | null = null;
+
+  constructor(blob: Blob) {
+    this.blob = blob;
+  }
+
+  async getHeader(): Promise<ImageHeader> {
+    if (this.pngHeader) {
+      return pngHeaderToImageHeader(this.pngHeader);
+    }
+
+    // Read first 64 bytes (signature + IHDR should be enough)
+    const headerSlice = this.blob.slice(0, 64);
+    const headerBytes = new Uint8Array(await headerSlice.arrayBuffer());
+    this.pngHeader = parsePngHeader(headerBytes);
+    return pngHeaderToImageHeader(this.pngHeader);
+  }
+
+  async *scanlines(): AsyncGenerator<Uint8Array> {
+    await this.getHeader();
+    const pngHeader = this.pngHeader!;
+
+    // Scan Blob for IDAT chunks
+    const idatBlobs: Blob[] = [];
+    let pos = 8; // Skip signature
+    const blobSize = this.blob.size;
+
+    while (pos < blobSize) {
+        // Read Length (4) and Type (4)
+        if (pos + 8 > blobSize) break;
+
+        const chunkHeaderSlice = this.blob.slice(pos, pos + 8);
+        const chunkHeader = new Uint8Array(await chunkHeaderSlice.arrayBuffer());
+
+        const len = readUInt32BE(chunkHeader, 0);
+        const type = bytesToString(chunkHeader, 4, 4);
+
+        if (type === 'IDAT') {
+            idatBlobs.push(this.blob.slice(pos + 8, pos + 8 + len));
+        }
+
+        pos += 8 + len + 4; // Length + Type + Data + CRC
+
+        if (type === 'IEND') break;
+    }
+
+    if (idatBlobs.length === 0) {
+        throw new Error('No IDAT chunks found in PNG');
+    }
+
+    const combinedBlob = new Blob(idatBlobs);
+    yield* decodeScanlinesFromCompressedData(combinedBlob, pngHeader);
+  }
+
+  async close(): Promise<void> {
+    // nothing to close
+  }
+}
+
+/**
  * Decoder plugin for PNG images (files and buffers)
  */
 export const pngDecoder: DecoderPlugin = {
@@ -365,6 +445,9 @@ export const pngDecoder: DecoderPlugin = {
     }
     if (input instanceof ArrayBuffer) {
       return new PngBufferDecoder(new Uint8Array(input));
+    }
+    if (typeof Blob !== 'undefined' && input instanceof Blob) {
+      return new PngBlobDecoder(input);
     }
     throw new Error('Unsupported PNG input type for decoder plugin');
   }

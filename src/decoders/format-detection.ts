@@ -70,10 +70,10 @@ export function detectImageFormat(bytes: Uint8Array): ImageFormat {
 /**
  * Read the first N bytes from a file or buffer for format detection
  *
- * @param input - File path, Uint8Array, or ArrayBuffer
+ * @param input - File path, Uint8Array, ArrayBuffer, or Blob
  * @returns Promise resolving to first 32 bytes for format detection
  */
-export async function readMagicBytes(input: string | Uint8Array | ArrayBuffer): Promise<Uint8Array> {
+export async function readMagicBytes(input: string | Uint8Array | ArrayBuffer | Blob): Promise<Uint8Array> {
   // If already bytes, return first 32
   if (input instanceof Uint8Array) {
     return input.slice(0, 32);
@@ -81,6 +81,11 @@ export async function readMagicBytes(input: string | Uint8Array | ArrayBuffer): 
 
   if (input instanceof ArrayBuffer) {
     return new Uint8Array(input.slice(0, 32));
+  }
+
+  if (typeof Blob !== 'undefined' && input instanceof Blob) {
+    const slice = input.slice(0, 32);
+    return new Uint8Array(await slice.arrayBuffer());
   }
 
   // Read from file (Node.js only)
@@ -111,10 +116,10 @@ export async function readMagicBytes(input: string | Uint8Array | ArrayBuffer): 
 /**
  * Detect format from various input types
  *
- * @param input - Image source (path, bytes, or buffer)
+ * @param input - Image source (path, bytes, buffer, or Blob)
  * @returns Promise resolving to detected format
  */
-export async function detectFormat(input: string | Uint8Array | ArrayBuffer): Promise<ImageFormat> {
+export async function detectFormat(input: string | Uint8Array | ArrayBuffer | Blob): Promise<ImageFormat> {
   const magicBytes = await readMagicBytes(input);
   return detectImageFormat(magicBytes);
 }

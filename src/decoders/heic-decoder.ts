@@ -371,6 +371,10 @@ export const heicDecoder: DecoderPlugin = {
     if (input instanceof ArrayBuffer) {
       return new HeicBufferDecoder(new Uint8Array(input), heicOptions);
     }
+    if (typeof Blob !== 'undefined' && input instanceof Blob) {
+      const buffer = await input.arrayBuffer();
+      return new HeicBufferDecoder(new Uint8Array(buffer), heicOptions);
+    }
     throw new Error('Unsupported HEIC input type for decoder plugin');
   }
 };

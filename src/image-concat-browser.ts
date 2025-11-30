@@ -44,10 +44,6 @@ export type ConcatCanvasesOptions =
   | ConcatCanvasesBlobOptions
   | ConcatCanvasesCanvasOptions;
 
-function isBlob(value: unknown): value is Blob {
-  return typeof Blob !== 'undefined' && value instanceof Blob;
-}
-
 function isHtmlCanvasElement(value: unknown): value is HTMLCanvasElement {
   return (
     typeof HTMLCanvasElement !== 'undefined' &&
@@ -76,18 +72,12 @@ async function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
 }
 
 async function normalizeBrowserInput(input: BrowserImageInput): Promise<ImageInput> {
-  if (isBlob(input)) {
-    const buffer = await input.arrayBuffer();
-    return new Uint8Array(buffer);
-  }
-
   if (isHtmlCanvasElement(input)) {
     const blob = await canvasToBlob(input);
-    const buffer = await blob.arrayBuffer();
-    return new Uint8Array(buffer);
+    return blob;
   }
 
-  return input;
+  return input as ImageInput;
 }
 
 function toBlobPart(bytes: Uint8Array): ArrayBuffer {
