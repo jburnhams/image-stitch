@@ -23,6 +23,7 @@ npm install image-stitch
 - **Tree-shakeable bundle** – `import 'image-stitch/bundle'` for a single-file ESM artifact that keeps dependencies external. The
   browser bundle ships with PNG support out of the box; add JPEG/HEIC decoders only when you need them.
 - **Browser global** – drop `<script src="https://cdn.jsdelivr.net/npm/image-stitch/dist/browser/image-stitch.min.js"></script>` into any page and use `window.ImageStitch`.
+- **Node.js specific** – `import ... from 'image-stitch/node'` ensures you get the full Node.js build (useful for JSDOM testing).
 - **Deno** – `import { concatToBuffer } from 'npm:image-stitch/deno/mod.ts'` targets the ESM build with Node compatibility.
 
 All bundles ship with source maps and `.d.ts` files so editors stay fully typed.
@@ -148,3 +149,42 @@ await concatToBuffer({
 ```
 
 Node.js imports (`import { concatToBuffer } from 'image-stitch'`) continue to register PNG, JPEG, and HEIC decoders automatically.
+
+## Environment Support
+
+`image-stitch` supports Node.js, modern browsers, and hybrid environments like JSDOM.
+
+### Node.js
+
+Standard usage works out of the box with `npm install image-stitch`.
+Node environments automatically use efficient native libraries (like `sharp` if installed) or pure JS fallbacks (`jpeg-js`, `pako`).
+
+### JSDOM & Testing
+
+For JSDOM environments (e.g. Jest/Vitest tests), you can ensure robust behavior by using the Node-specific export or configuring custom constructors.
+
+**Option 1: Force Node Logic (Recommended)**
+
+Import from `image-stitch/node` to bypass browser bundles and use Node.js capabilities (file system, streams, buffers) even if JSDOM mocks browser globals.
+
+```ts
+import { concatToBuffer } from 'image-stitch/node';
+// Uses Node.js logic and dependencies (pako, jpeg-js, etc.)
+```
+
+**Option 2: Dependency Injection**
+
+If you prefer to use browser-like APIs (Canvas) in your tests, you can inject compatible constructors (like `napi-rs/canvas` or `canvas`).
+
+```ts
+import { concatToBuffer } from 'image-stitch';
+import { Image, Canvas } from '@napi-rs/canvas';
+
+await concatToBuffer({
+  inputs: [...],
+  layout: { columns: 2 },
+  decoderOptions: {
+    customConstructors: { Image, Canvas } // injected constructors
+  }
+});
+```

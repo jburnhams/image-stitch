@@ -71,6 +71,15 @@ export interface ImageDecoder {
 }
 
 /**
+ * Custom constructors for dependency injection
+ * Useful for testing or environments with non-standard globals (e.g. JSDOM)
+ */
+export interface CustomConstructors {
+  Image?: new () => any;
+  Canvas?: new (width: number, height: number) => any;
+}
+
+/**
  * Options for creating image decoders
  */
 export interface DecoderOptions {
@@ -78,6 +87,8 @@ export interface DecoderOptions {
   jpeg?: JpegDecoderOptions;
   /** HEIC-specific decoding options */
   heic?: HeicDecoderOptions;
+  /** Custom constructors for dependency injection (e.g. for JSDOM) */
+  customConstructors?: CustomConstructors;
 }
 
 /**
@@ -90,6 +101,8 @@ export interface JpegDecoderOptions {
   maxMemoryMB?: number;
   /** Use ImageDecoder API in browsers if available (default: true) */
   useImageDecoderAPI?: boolean;
+  /** Custom constructors for dependency injection (e.g. for JSDOM) */
+  customConstructors?: CustomConstructors;
 }
 
 /**
@@ -102,6 +115,8 @@ export interface HeicDecoderOptions {
   useNativeIfAvailable?: boolean;
   /** Maximum memory usage per image in MB */
   maxMemoryMB?: number;
+  /** Custom constructors for dependency injection (e.g. for JSDOM) */
+  customConstructors?: CustomConstructors;
 }
 
 /**

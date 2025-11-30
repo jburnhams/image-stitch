@@ -15,6 +15,7 @@ import { unfilterScanline, getBytesPerPixel, FilterType } from './png-filter.js'
 import { readUInt32BE, bytesToString, getSamplesPerPixel } from './utils.js';
 import { decompressData } from './png-decompress.js';
 import { deinterlaceAdam7 } from './adam7.js';
+import { createDecompressionStream } from './streaming-inflate.js';
 
 /**
  * Input caching configuration
@@ -229,7 +230,22 @@ async function* decodeScanlinesFromCompressedData(
   const normalizedBuffer =
     sourceBuffer instanceof ArrayBuffer ? sourceBuffer : new Uint8Array(sourceBuffer).slice().buffer;
 
-  const decompressedStream = new Blob([normalizedBuffer]).stream().pipeThrough(new DecompressionStream('deflate'));
+  // Use Blob.stream() if available, otherwise create stream from buffer manually
+  let sourceStream: ReadableStream<Uint8Array>;
+  const blob = typeof Blob !== 'undefined' ? new Blob([normalizedBuffer]) : null;
+
+  if (blob && typeof blob.stream === 'function') {
+    sourceStream = blob.stream();
+  } else {
+    sourceStream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(new Uint8Array(normalizedBuffer));
+        controller.close();
+      }
+    });
+  }
+
+  const decompressedStream = sourceStream.pipeThrough(createDecompressionStream('deflate') as ReadableWritablePair<Uint8Array, Uint8Array>);
   const reader = decompressedStream.getReader();
 
   // Helper to merge chunks only when needed

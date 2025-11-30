@@ -71,11 +71,25 @@ const originalCompressionStream = globalThis.CompressionStream;
 const originalDecompressionStream = globalThis.DecompressionStream;
 
 class NoopCompressionStream {
-  constructor(_type: string) {}
+  readable: ReadableStream<any>;
+  writable: WritableStream<any>;
+
+  constructor(_type: string) {
+    const { readable, writable } = new TransformStream();
+    this.readable = readable;
+    this.writable = writable;
+  }
 }
 
 class NoopDecompressionStream {
-  constructor(_type: string) {}
+  readable: ReadableStream<any>;
+  writable: WritableStream<any>;
+
+  constructor(_type: string) {
+    const { readable, writable } = new TransformStream();
+    this.readable = readable;
+    this.writable = writable;
+  }
 }
 
 function installStreamStubs(): void {

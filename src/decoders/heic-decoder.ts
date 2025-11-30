@@ -14,8 +14,10 @@ import type {
   ImageHeader,
   HeicDecoderOptions,
   DecoderPlugin,
-  DecoderOptions
+  DecoderOptions,
+  CustomConstructors
 } from './types.js';
+import { isNode } from '../utils.js';
 
 /**
  * Check if native HEIC support is available (Safari/iOS)
@@ -68,6 +70,68 @@ async function decodeHeicWithNative(data: Uint8Array): Promise<{ pixels: Uint8Ar
     };
   } finally {
     imageBitmap.close();
+  }
+}
+
+/**
+ * Decode HEIC using Canvas/Image API (with optional dependency injection)
+ */
+async function decodeHeicWithCanvas(
+  data: Uint8Array,
+  customConstructors?: CustomConstructors
+): Promise<{ pixels: Uint8Array; width: number; height: number }> {
+  // Resolve constructors
+  const ImageCtor = customConstructors?.Image || (typeof Image !== 'undefined' ? Image : null);
+
+  let CanvasCtor = customConstructors?.Canvas;
+  if (!CanvasCtor && typeof OffscreenCanvas !== 'undefined') {
+    CanvasCtor = OffscreenCanvas as any;
+  }
+
+  if (!ImageCtor) {
+    throw new Error('Image constructor not available for canvas decoding');
+  }
+
+  // Create blob from HEIC data
+  const buffer = data.slice().buffer as ArrayBuffer;
+  const blob = new Blob([buffer], { type: 'image/heic' });
+  const url = URL.createObjectURL(blob);
+
+  try {
+    const img = new ImageCtor();
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error('Failed to load HEIC image'));
+      img.src = url;
+    });
+
+    let canvas: any;
+    let ctx: any;
+
+    if (CanvasCtor) {
+      canvas = new CanvasCtor(img.width, img.height);
+      ctx = canvas.getContext('2d');
+    } else if (typeof document !== 'undefined') {
+      canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx = canvas.getContext('2d');
+    }
+
+    if (!ctx) {
+      throw new Error('Failed to get canvas context');
+    }
+
+    ctx.drawImage(img, 0, 0);
+    const imageData = ctx.getImageData(0, 0, img.width, img.height);
+
+    return {
+      pixels: new Uint8Array(imageData.data),
+      width: img.width,
+      height: img.height
+    };
+  } finally {
+    URL.revokeObjectURL(url);
   }
 }
 
@@ -203,10 +267,26 @@ async function decodeHeic(
   data: Uint8Array,
   options: HeicDecoderOptions = {}
 ): Promise<{ pixels: Uint8Array; width: number; height: number }> {
-  const isBrowser = typeof window !== 'undefined';
-  const isNode = typeof process !== 'undefined' && process?.versions?.node;
+  // 1. Custom Constructors (Force Browser/Canvas Strategy)
+  if (options.customConstructors) {
+    return await decodeHeicWithCanvas(data, options.customConstructors);
+  }
 
-  // Browser environment
+  // 2. Node.js environment (Strict Check)
+  if (isNode()) {
+    // Try sharp first (fastest, but requires libheif)
+    try {
+      return await decodeHeicWithSharp(data);
+    } catch (err) {
+      // warning suppressed in default flow
+    }
+
+    // Fallback to heic-decode WASM
+    return await decodeHeicWithHeicDecode(data);
+  }
+
+  // 3. Browser environment
+  const isBrowser = typeof window !== 'undefined';
   if (isBrowser) {
     // Try native support first (Safari/iOS)
     if (options.useNativeIfAvailable !== false) {
@@ -222,19 +302,6 @@ async function decodeHeic(
 
     // Fallback to libheif-js WASM
     return await decodeHeicWithLibheifJs(data, options.wasmPath);
-  }
-
-  // Node.js environment
-  if (isNode) {
-    // Try sharp first (fastest, but requires libheif)
-    try {
-      return await decodeHeicWithSharp(data);
-    } catch (err) {
-      console.warn('sharp with HEIC support not available, using heic-decode fallback');
-    }
-
-    // Fallback to heic-decode WASM
-    return await decodeHeicWithHeicDecode(data);
   }
 
   throw new Error('Unsupported environment for HEIC decoding');
@@ -370,7 +437,10 @@ export class HeicBufferDecoder extends BaseHeicDecoder {
 export const heicDecoder: DecoderPlugin = {
   format: 'heic',
   async create(input, options?: DecoderOptions) {
-    const heicOptions = options?.heic;
+    const heicOptions: HeicDecoderOptions = {
+      ...options?.heic,
+      customConstructors: options?.customConstructors
+    };
 
     if (typeof input === 'string') {
       return new HeicFileDecoder(input, heicOptions);
