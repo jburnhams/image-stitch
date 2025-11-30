@@ -99,3 +99,15 @@ export function getSamplesPerPixel(colorType: number): number {
     default: throw new Error(`Unknown color type: ${colorType}`);
   }
 }
+
+/**
+ * Detect if running in Node.js environment
+ * Prioritizes process.versions.node check over window check
+ */
+export function isNode(): boolean {
+  return typeof process !== 'undefined' &&
+         process !== null &&
+         typeof process.versions === 'object' &&
+         process.versions !== null &&
+         typeof process.versions.node !== 'undefined';
+}

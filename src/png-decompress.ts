@@ -2,14 +2,29 @@ import { PngChunk, PngHeader } from './types.js';
 import { unfilterScanline, filterScanline, getBytesPerPixel, FilterType } from './png-filter.js';
 import { getSamplesPerPixel } from './utils.js';
 import { deinterlaceAdam7 } from './adam7.js';
+import { createDecompressionStream } from './streaming-inflate.js';
+import { StreamingDeflator } from './streaming-deflate.js';
 
 /**
  * Decompress data using Web Compression Streams API
  * Works in both Node.js (18+) and modern browsers
  */
 export async function decompressData(data: Uint8Array): Promise<Uint8Array> {
-  const stream = new Blob([data as BlobPart]).stream();
-  const decompressedStream = stream.pipeThrough(new DecompressionStream('deflate'));
+  // Use Blob.stream() if available, otherwise create stream from buffer manually
+  let stream: ReadableStream<Uint8Array>;
+
+  if (typeof Blob !== 'undefined' && typeof new Blob([data] as any).stream === 'function') {
+    stream = new Blob([data] as any).stream();
+  } else {
+    stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(data);
+        controller.close();
+      }
+    });
+  }
+
+  const decompressedStream = stream.pipeThrough(createDecompressionStream('deflate') as ReadableWritablePair<Uint8Array, Uint8Array>);
   const chunks: Uint8Array[] = [];
   const reader = decompressedStream.getReader();
 
@@ -34,16 +49,15 @@ export async function decompressData(data: Uint8Array): Promise<Uint8Array> {
  * Works in both Node.js (18+) and modern browsers
  */
 async function compressData(data: Uint8Array): Promise<Uint8Array> {
-  const stream = new Blob([data as BlobPart]).stream();
-  const compressedStream = stream.pipeThrough(new CompressionStream('deflate'));
   const chunks: Uint8Array[] = [];
-  const reader = compressedStream.getReader();
+  const deflator = new StreamingDeflator();
 
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    chunks.push(value);
-  }
+  await deflator.initialize((chunk) => {
+    chunks.push(chunk);
+  });
+
+  await deflator.push(data);
+  await deflator.finish();
 
   const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
   const result = new Uint8Array(totalLength);

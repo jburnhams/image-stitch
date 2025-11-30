@@ -41,6 +41,11 @@
       "default": "./dist/esm/decoders/heic.js"
     },
     "./deno": "./deno/mod.ts",
+    "./node": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.cjs"
+    },
     "./package.json": "./package.json"
   },
   "browser": "dist/browser/image-stitch.min.js",

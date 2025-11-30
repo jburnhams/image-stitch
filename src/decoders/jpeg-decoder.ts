@@ -14,8 +14,10 @@ import type {
   ImageHeader,
   JpegDecoderOptions,
   DecoderPlugin,
-  DecoderOptions
+  DecoderOptions,
+  CustomConstructors
 } from './types.js';
+import { isNode } from '../utils.js';
 
 /**
  * JPEG SOF (Start of Frame) marker types
@@ -137,7 +139,21 @@ async function decodeJpegWithImageDecoderAPI(data: Uint8Array): Promise<Uint8Arr
 /**
  * Decode JPEG using Canvas API (fallback for browsers)
  */
-async function decodeJpegWithCanvas(data: Uint8Array): Promise<Uint8Array> {
+async function decodeJpegWithCanvas(data: Uint8Array, customConstructors?: CustomConstructors): Promise<Uint8Array> {
+  // Resolve constructors
+  const ImageCtor = customConstructors?.Image || (typeof Image !== 'undefined' ? Image : null);
+
+  // Try OffscreenCanvas first, then custom Canvas, then HTMLCanvasElement logic if needed
+  // Note: customConstructors.Canvas usually expects `new Canvas(width, height)` signature
+  let CanvasCtor = customConstructors?.Canvas;
+  if (!CanvasCtor && typeof OffscreenCanvas !== 'undefined') {
+    CanvasCtor = OffscreenCanvas as any;
+  }
+
+  if (!ImageCtor) {
+    throw new Error('Image constructor not available for canvas decoding');
+  }
+
   // Create blob from JPEG data - create a copy to ensure it's an ArrayBuffer
   const buffer = data.slice().buffer as ArrayBuffer;
   const blob = new Blob([buffer], { type: 'image/jpeg' });
@@ -145,18 +161,29 @@ async function decodeJpegWithCanvas(data: Uint8Array): Promise<Uint8Array> {
 
   try {
     // Load image
-    const img = new Image();
+    const img = new ImageCtor();
     await new Promise<void>((resolve, reject) => {
       img.onload = () => resolve();
       img.onerror = () => reject(new Error('Failed to load JPEG image'));
       img.src = url;
     });
 
-    // Draw to canvas and extract pixels
-    const canvas = new OffscreenCanvas(img.width, img.height);
-    const ctx = canvas.getContext('2d');
+    let canvas: any;
+    let ctx: any;
+
+    if (CanvasCtor) {
+      canvas = new CanvasCtor(img.width, img.height);
+      ctx = canvas.getContext('2d');
+    } else if (typeof document !== 'undefined') {
+      // Fallback to document.createElement('canvas')
+      canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx = canvas.getContext('2d');
+    }
+
     if (!ctx) {
-      throw new Error('Failed to get canvas context');
+      throw new Error('Failed to get canvas context (no Canvas constructor available)');
     }
 
     ctx.drawImage(img, 0, 0);
@@ -212,10 +239,31 @@ async function decodeJpegWithJpegJs(data: Uint8Array): Promise<Uint8Array> {
  * Detect environment and choose best JPEG decoder
  */
 async function decodeJpeg(data: Uint8Array, options: JpegDecoderOptions = {}): Promise<Uint8Array> {
-  const isBrowser = typeof window !== 'undefined';
-  const isNode = typeof process !== 'undefined' && process?.versions?.node;
+  // 1. Custom Constructors (Force Browser/Canvas Strategy)
+  // This allows JSDOM to use injected node-canvas or similar
+  if (options.customConstructors) {
+    return await decodeJpegWithCanvas(data, options.customConstructors);
+  }
 
-  // Browser environment
+  // 2. Node.js environment (Strict Check)
+  // We check this BEFORE browser check to handle JSDOM correctly (which has window but is Node)
+  if (isNode()) {
+    // Try sharp first (fastest, but optional dependency)
+    if (!options.preferWasm) {
+      try {
+        return await decodeJpegWithSharp(data);
+      } catch (err) {
+        // Sharp not available, continue to fallback
+        // Only warn if we're not in a test environment or if strict mode
+      }
+    }
+
+    // Fallback to jpeg-js (pure JS, always available)
+    return await decodeJpegWithJpegJs(data);
+  }
+
+  // 3. Browser environment
+  const isBrowser = typeof window !== 'undefined';
   if (isBrowser) {
     // Try ImageDecoder API first (if enabled and available)
     if (options.useImageDecoderAPI !== false && hasImageDecoderAPI()) {
@@ -227,27 +275,7 @@ async function decodeJpeg(data: Uint8Array, options: JpegDecoderOptions = {}): P
     }
 
     // Fallback to Canvas API
-    if (typeof OffscreenCanvas !== 'undefined' || typeof HTMLCanvasElement !== 'undefined') {
-      return await decodeJpegWithCanvas(data);
-    }
-
-    throw new Error('No JPEG decoder available in this browser environment');
-  }
-
-  // Node.js environment
-  if (isNode) {
-    // Try sharp first (fastest, but optional dependency)
-    if (!options.preferWasm) {
-      try {
-        return await decodeJpegWithSharp(data);
-      } catch (err) {
-        // Sharp not available, continue to fallback
-        console.warn('sharp not available, using jpeg-js fallback');
-      }
-    }
-
-    // Fallback to jpeg-js (pure JS, always available)
-    return await decodeJpegWithJpegJs(data);
+    return await decodeJpegWithCanvas(data);
   }
 
   throw new Error('Unsupported environment for JPEG decoding');
@@ -362,7 +390,10 @@ export class JpegBufferDecoder extends BaseJpegDecoder {
 export const jpegDecoder: DecoderPlugin = {
   format: 'jpeg',
   async create(input, options?: DecoderOptions) {
-    const jpegOptions = options?.jpeg;
+    const jpegOptions: JpegDecoderOptions = {
+      ...options?.jpeg,
+      customConstructors: options?.customConstructors
+    };
 
     if (typeof input === 'string') {
       return new JpegFileDecoder(input, jpegOptions);
