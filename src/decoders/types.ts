@@ -116,7 +116,7 @@ export interface PositionedImage {
   /** Optional z-index override for draw order (higher = rendered later) */
   zIndex?: number;
   /** Image source (any of the standard input types) */
-  source: string | Uint8Array | ArrayBuffer | ImageDecoder | ImageSource;
+  source: string | Uint8Array | ArrayBuffer | Blob | ImageDecoder | ImageSource;
 }
 
 /**
@@ -139,7 +139,7 @@ export interface ImageSource {
 /**
  * Type for image input sources
  */
-export type ImageInput = string | Uint8Array | ArrayBuffer | ImageDecoder | PositionedImage | ImageSource;
+export type ImageInput = string | Uint8Array | ArrayBuffer | Blob | ImageDecoder | PositionedImage | ImageSource;
 
 /**
  * Plugin interface for registering decoder implementations.

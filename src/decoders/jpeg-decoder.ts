@@ -373,6 +373,10 @@ export const jpegDecoder: DecoderPlugin = {
     if (input instanceof ArrayBuffer) {
       return new JpegBufferDecoder(new Uint8Array(input), jpegOptions);
     }
+    if (typeof Blob !== 'undefined' && input instanceof Blob) {
+      const buffer = await input.arrayBuffer();
+      return new JpegBufferDecoder(new Uint8Array(buffer), jpegOptions);
+    }
     throw new Error('Unsupported JPEG input type for decoder plugin');
   }
 };

@@ -84,7 +84,7 @@ class LazyImageDecoder implements ImageDecoder {
 /**
  * Extract the actual image source from input (unwraps PositionedImage)
  */
-function extractSource(input: ImageInput): string | Uint8Array | ArrayBuffer | ImageDecoder | ImageSource {
+function extractSource(input: ImageInput): string | Uint8Array | ArrayBuffer | Blob | ImageDecoder | ImageSource {
   if (isPositionedImage(input)) {
     return input.source;
   }
@@ -177,8 +177,23 @@ export async function createDecoder(
     return plugin.create(processedSource, options);
   }
 
+  // For Blob
+  if (typeof Blob !== 'undefined' && processedSource instanceof Blob) {
+    const format = await detectFormat(processedSource);
+    validateFormat(format);
+
+    const plugin = availablePlugins.find(candidate => candidate.format === format);
+    if (!plugin) {
+      throw new Error(
+        `No decoder registered for format "${format}". Provide a matching plugin via options.decoders.`
+      );
+    }
+
+    return plugin.create(processedSource, options);
+  }
+
   throw new Error(
-    'Unsupported input type. Expected string (file path), Uint8Array, ArrayBuffer, ImageDecoder instance, or PositionedImage'
+    'Unsupported input type. Expected string (file path), Uint8Array, ArrayBuffer, Blob, ImageDecoder instance, or PositionedImage'
   );
 }
 
