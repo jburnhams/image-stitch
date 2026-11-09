@@ -1,4 +1,17 @@
-name: 'Bump Version and Release'
+name: "Release"
+
+# After every green CI run on main, bump the version through a pull request
+# (main only accepts pull requests), merge it, then tag and release that commit.
+#
+# Version bump comes from the commit messages since the latest v* tag:
+#   "major"/"breaking" -> major, "minor"/"feat"/"feature" -> minor, else patch.
+#
+# The bump PR's merge commit carries [skip ci], so it doesn't start another
+# CI -> release cycle. The release (created with RELEASE_TOKEN so other
+# workflows fire) triggers npm-publish.yml.
+#
+# RELEASE_TOKEN needs contents + pull-requests write on this repo. If the main
+# ruleset ever requires approvals or status checks, the bump PR will wait for them.
 
 on:
   workflow_run:
@@ -8,62 +21,127 @@ on:
     branches:
       - main
 
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
-  bump-version:
-    name: 'Bump Version on main'
+  release:
+    name: "Bump, tag and release"
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' }}
 
     steps:
-      - name: 'Checkout source code'
-        uses: 'actions/checkout@v5'
+      - name: "Checkout the commit CI tested"
+        uses: "actions/checkout@v5"
         with:
-          ref: main
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_TOKEN }}
 
-      - name: 'Setup Node.js'
-        uses: 'actions/setup-node@v5'
+      - name: "Setup Node.js"
+        uses: "actions/setup-node@v5"
         with:
-          node-version: '24'
+          node-version: "24"
+          cache: "npm"
 
-      - name: 'cat package.json'
-        run: cat ./package.json
+      - name: "Work out the next version"
+        id: version
+        run: |
+          set -euo pipefail
+          if [ -n "$(git tag --points-at HEAD --list 'v[0-9]*')" ]; then
+            echo "HEAD is already tagged; nothing to release."
+            exit 0
+          fi
 
-      - name: 'Automated Version Bump'
-        id: version-bump
-        uses: 'phips28/gh-action-bump-version@v11.0.7'
-        with:
-          tag-prefix: 'v'
-          major-wording: 'major,Major,breaking,Breaking'
-          minor-wording: 'minor,Minor,feat,Feat,feature,Feature'
-          patch-wording: 'patch,Patch,fix,Fix,fixes,Fixes'
-          rc-wording: 'rc,pre,beta,alpha'  # For pre-releases
-          commit-message: 'ci: bump version to {{version}} [skip ci]'  # Skips re-triggering
-          push: true  # Pushes the commit/tag back to main
+          last_tag=$(git tag --list 'v[0-9]*' --sort=-v:refname | head -n 1)
+          if [ -z "$last_tag" ]; then
+            last_tag="v$(node -p "require('./package.json').version")"
+            range="HEAD"
+          else
+            range="$last_tag..HEAD"
+          fi
+
+          # Ignore earlier release commits when choosing the bump
+          messages=$(git log --format=%B "$range" | grep -vE '^ci: (release|bump version to) v' || true)
+          if [ -z "$(tr -d '[:space:]' <<<"$messages")" ]; then
+            echo "No changes since $last_tag; nothing to release."
+            exit 0
+          fi
+
+          if grep -qE '\b([Mm]ajor|[Bb]reaking)\b' <<<"$messages"; then
+            bump=major
+          elif grep -qE '\b([Mm]inor|[Ff]eat|[Ff]eature)\b' <<<"$messages"; then
+            bump=minor
+          else
+            bump=patch
+          fi
+
+          IFS=. read -r major minor patch <<<"${last_tag#v}"
+          case "$bump" in
+            major) major=$((major + 1)); minor=0; patch=0 ;;
+            minor) minor=$((minor + 1)); patch=0 ;;
+            patch) patch=$((patch + 1)) ;;
+          esac
+
+          version="$major.$minor.$patch"
+          echo "$last_tag -> v$version ($bump)"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: "Open and merge the version bump PR"
+        id: bump
+        if: ${{ steps.version.outputs.version }}
         env:
-          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          branch="release/v$VERSION"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      - name: 'cat package.json'
-        run: cat ./package.json
+          git switch -c "$branch"
+          npm version "$VERSION" --no-git-tag-version
+          git commit -am "ci: release v$VERSION [skip ci]"
+          git push origin "$branch"
 
-      - name: 'Output Step'
-        env:
-          NEW_TAG: ${{ steps.version-bump.outputs.newTag }}
-        run: echo "new tag $NEW_TAG"
+          gh pr create --base main --head "$branch" \
+            --title "Release v$VERSION" \
+            --body "Automated version bump to v$VERSION after CI passed on main."
+          # GitHub computes mergeability asynchronously, so retry briefly
+          for attempt in 1 2 3 4 5 6; do
+            if gh pr merge "$branch" --merge --delete-branch \
+              --subject "ci: release v$VERSION [skip ci]"; then
+              break
+            fi
+            if [ "$attempt" = 6 ]; then
+              echo "Could not merge the release PR; see the error above." >&2
+              exit 1
+            fi
+            sleep 10
+          done
 
-      - name: 'Install dependencies'
-        run: npm ci
+          sha=$(gh pr view "$branch" --json mergeCommit --jq .mergeCommit.oid)
+          echo "Merged as $sha"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
 
-      - name: 'Build browser bundle'
-        run: npm run build:docs
+      - name: "Build browser bundle for the release"
+        if: ${{ steps.bump.outputs.sha }}
+        run: |
+          npm ci
+          npm run build:docs
 
-      - name: 'Create GitHub Release'
-        if: ${{ steps.version-bump.outputs.newTag }}
-        uses: 'softprops/action-gh-release@v2'
+      - name: "Create tag and GitHub release"
+        if: ${{ steps.bump.outputs.sha }}
+        uses: "softprops/action-gh-release@v2"
         with:
-          tag_name: ${{ steps.version-bump.outputs.newTag }}
-          name: Release ${{ steps.version-bump.outputs.newTag }}
+          tag_name: v${{ steps.version.outputs.version }}
+          target_commitish: ${{ steps.bump.outputs.sha }}
+          name: Release v${{ steps.version.outputs.version }}
           generate_release_notes: true
+          fail_on_unmatched_files: true
           files: |
-            docs-dist/image-stitch.bundle.js
+            docs-dist/image-stitch.min.js
+            docs-dist/image-stitch.esm.js
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
