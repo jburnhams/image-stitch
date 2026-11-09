@@ -7,7 +7,7 @@
     "declarationMap": false,
     "sourceMap": true,
     "module": "CommonJS",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true
   },
