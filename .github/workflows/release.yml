@@ -32,10 +32,13 @@ jobs:
     if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' }}
 
     steps:
-      - name: "Checkout the commit CI tested"
+      # Use the latest main, not just the commit whose CI finished: if more PRs
+      # landed meanwhile, the bump must account for every commit it releases.
+      # Their own CI runs will then find nothing new to release.
+      - name: "Checkout main"
         uses: "actions/checkout@v5"
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: main
           fetch-depth: 0
           token: ${{ secrets.RELEASE_TOKEN }}
 
@@ -100,14 +103,17 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git switch -c "$branch"
+          git switch -C "$branch"
           npm version "$VERSION" --no-git-tag-version
           git commit -am "ci: release v$VERSION [skip ci]"
-          git push origin "$branch"
+          # Force: a re-run after a failed attempt replaces the bot's own branch
+          git push --force origin "$branch"
 
-          gh pr create --base main --head "$branch" \
-            --title "Release v$VERSION" \
-            --body "Automated version bump to v$VERSION after CI passed on main."
+          if [ "$(gh pr view "$branch" --json state --jq .state 2>/dev/null || true)" != "OPEN" ]; then
+            gh pr create --base main --head "$branch" \
+              --title "Release v$VERSION" \
+              --body "Automated version bump to v$VERSION after CI passed on main."
+          fi
           # GitHub computes mergeability asynchronously, so retry briefly
           for attempt in 1 2 3 4 5 6; do
             if gh pr merge "$branch" --merge --delete-branch \
