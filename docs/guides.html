@@ -111,7 +111,7 @@
       <a href="index.html">🏠 Overview</a>
       <a href="examples.html">🎛️ Interactive Examples</a>
       <a href="streaming.html">⚡ Streaming demo</a>
-      <a href="https://github.com/jburnhams/Png-concat">🌐 GitHub</a>
+      <a href="https://github.com/jburnhams/image-stitch">🌐 GitHub</a>
     </nav>
   </header>
 
@@ -165,7 +165,7 @@ document.querySelector("img.preview").src = URL.createObjectURL(blob);
     <section>
       <h2>Canvas helper</h2>
       <p>The browser bundle exposes <code>concatCanvases</code> so you can stitch existing canvases without converting to blobs yourself. Choose whether to receive a <code>Blob</code> or render into a canvas.</p>
-      <pre><code>import { concatCanvases } from "image-stitch/browser";
+      <pre><code>import { concatCanvases } from "image-stitch/bundle";
 
 const stitchedCanvas = await concatCanvases({
   canvases: [topLeft, topRight, bottomLeft, bottomRight],
@@ -228,17 +228,19 @@ interface ConcatOptions {
     rows?: number;
     width?: number;
     height?: number;
-    wrapBehavior?: "wrap" | "truncate";
   };
   decoderOptions?: DecoderOptions;
   decoders?: DecoderPlugin[];
-  outputFormat?: "png";
+  outputFormat?: "png" | "jpeg";
+  jpegQuality?: number;          // 1-100, default 85
+  backgroundColor?: string | number[];
+  enableAlphaBlending?: boolean; // positioned mode, default true
   onProgress?: (completed: number, total: number) =&gt; void;
 }
 </code></pre>
       <ul>
         <li><strong>inputs</strong> — Accepts arrays, iterables, or async iterables of Node-friendly sources. In browsers, the <code>BrowserConcatOptions</code> wrapper also accepts <code>Blob</code> and <code>HTMLCanvasElement</code> values.</li>
-        <li><strong>layout</strong> — Choose fixed rows/columns or constrain the output width/height. Use <code>wrapBehavior</code> to control overflow when hitting a limit.</li>
+        <li><strong>layout</strong> — Use <code>columns</code> or <code>rows</code> for a regular grid (cells line up, sized by the largest image in each row and column). Use <code>width</code> and/or <code>height</code> for a flow layout that wraps to a new row when the next image would not fit; <code>columns</code>/<code>rows</code> can cap it further. Images that do not fit within a height or row limit are left out with a console warning.</li>
         <li><strong>onProgress</strong> — Callback receiving <code>(current, total)</code> whenever an input tile finishes streaming.</li>
       </ul>
       <p>The supporting typings (<code>ImageDecoder</code>, <code>DecoderOptions</code>, <code>DecoderPlugin</code>, and <code>BrowserConcatOptions</code>) are exported from the package for projects that want full TypeScript coverage.</p>
@@ -274,7 +276,7 @@ interface ConcatOptions {
   <footer>
     <p>
       Still have questions? Check the interactive examples, browse the source on
-      <a href="https://github.com/jburnhams/Png-concat">GitHub</a>, or file an issue for help.
+      <a href="https://github.com/jburnhams/image-stitch">GitHub</a>, or file an issue for help.
     </p>
   </footer>
 </body>

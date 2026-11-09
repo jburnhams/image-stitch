@@ -20,8 +20,9 @@ npm install image-stitch
 
 - **ESM (default)** – `import { concatToBuffer } from 'image-stitch'` resolves to `dist/esm/index.js` with rich type definitions.
 - **CommonJS** – legacy bundlers or Node.js `require` load `dist/cjs/index.cjs` automatically.
-- **Tree-shakeable bundle** – `import 'image-stitch/bundle'` for a single-file ESM artifact that keeps dependencies external. The
-  browser bundle ships with PNG support out of the box; add JPEG/HEIC decoders only when you need them.
+- **Browser bundlers** – Vite, webpack and other bundlers that use the `browser` condition pick up the browser build
+  automatically when you `import 'image-stitch'`. You can also import `image-stitch/bundle` explicitly (it has its own
+  types, including `concatCanvases`). The browser build ships with PNG and JPEG decoding; add HEIC only when you need it.
 - **Browser global** – drop `<script src="https://cdn.jsdelivr.net/npm/image-stitch/dist/browser/image-stitch.min.js"></script>` into any page and use `window.ImageStitch`.
 - **Node.js specific** – `import ... from 'image-stitch/node'` ensures you get the full Node.js build (useful for JSDOM testing).
 - **Deno** – `import { concatToBuffer } from 'npm:image-stitch/deno/mod.ts'` targets the ESM build with Node compatibility.
@@ -43,6 +44,27 @@ const result = await concatToBuffer({
 });
 
 writeFileSync('stitched.png', result);
+```
+
+### Layouts
+
+- `{ columns: n }` or `{ rows: n }` gives a regular grid. Every column is as wide as its widest image and every row as tall
+  as its tallest image, so cells line up. Smaller images sit in the top-left of their cell and the rest of the cell is
+  filled with `backgroundColor` (transparent by default).
+- `{ width: px }` and/or `{ height: px }` gives a flow layout: images fill a row left to right and wrap when the next one
+  would make the row wider than `width`. Add `columns` or `rows` to cap it further. Images that do not fit within a
+  `height` or `rows` limit are left out, with a console warning.
+
+### Write straight to a file (Node.js)
+
+```ts
+import { concatToFile, concatToStream } from 'image-stitch';
+
+// Streams to disk, so the full output is never held in memory
+await concatToFile({ inputs: ['a.png', 'b.png'], layout: { columns: 2 } }, 'stitched.png');
+
+// Or pipe a Readable wherever you like
+concatToStream({ inputs: ['a.png', 'b.png'], layout: { columns: 2 } }).pipe(process.stdout);
 ```
 
 ### JPEG output
@@ -129,22 +151,23 @@ await concatToBuffer({
 });
 ```
 
-👉 Read the full guides, API docs, and interactive demos at [image-stitch GitHub Pages](https://jburnhams.github.io/Png-concat/).
+👉 Read the full guides, API docs, and interactive demos at [image-stitch GitHub Pages](https://jburnhams.github.io/image-stitch/).
 
 ## Browser bundle & optional decoders
 
-Modern browsers provide native HEIC/JPEG decoding primitives, so the browser-focused bundle keeps only the PNG decoder by
-default. Opt in to extra formats with lightweight plugins:
+The browser bundle registers the PNG and JPEG decoders by default. HEIC support is heavier, so opt in with a plugin
+(pass every decoder you need, because `decoders` replaces the defaults):
 
 ```ts
 import { concatToBuffer } from 'image-stitch/bundle';
+import { pngDecoder } from 'image-stitch/decoders/png';
 import { jpegDecoder } from 'image-stitch/decoders/jpeg';
 import { heicDecoder } from 'image-stitch/decoders/heic';
 
 await concatToBuffer({
-  inputs: [jpegBytes, heicBytes],
-  layout: { columns: 2 },
-  decoders: [jpegDecoder, heicDecoder]
+  inputs: [pngBytes, jpegBytes, heicBytes],
+  layout: { columns: 3 },
+  decoders: [pngDecoder, jpegDecoder, heicDecoder]
 });
 ```
 
