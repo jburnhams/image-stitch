@@ -7,23 +7,18 @@ import {
 } from './image-concat-core.js';
 
 class NodeStreamingConcatenator extends CoreStreamingConcatenator {
+  /**
+   * Expose the output as a Node.js Readable. Destroying the stream early stops
+   * decoding and releases the input decoders.
+   */
   toReadableStream(): Readable {
     const generator = this.stream();
-
-    return new Readable({
-      async read() {
-        try {
-          const { value, done } = await generator.next();
-          if (done) {
-            this.push(null);
-          } else {
-            this.push(Buffer.from(value));
-          }
-        } catch (error) {
-          this.destroy(error as Error);
-        }
+    async function* toBuffers(): AsyncGenerator<Buffer> {
+      for await (const chunk of generator) {
+        yield Buffer.from(chunk.buffer, chunk.byteOffset, chunk.byteLength);
       }
-    });
+    }
+    return Readable.from(toBuffers(), { objectMode: false });
   }
 }
 
@@ -40,8 +35,32 @@ export function concatToStream(options: ConcatOptions): Readable {
   return concatenator.toReadableStream();
 }
 
-export async function concatToFile(options: ConcatOptions): Promise<Readable> {
-  return concatToStream(options);
+/**
+ * Stitch images and write the result to `outputPath`.
+ * Output is streamed to disk, so the full image is never held in memory.
+ *
+ * @returns the path that was written
+ *
+ * @example
+ * await concatToFile({ inputs: ['a.png', 'b.png'], layout: { columns: 2 } }, 'out.png');
+ */
+export function concatToFile(options: ConcatOptions, outputPath: string): Promise<string>;
+/**
+ * @deprecated Calling without `outputPath` returns a Readable stream and writes nothing.
+ * Use {@link concatToStream} for a stream, or pass `outputPath` to write a file.
+ */
+export function concatToFile(options: ConcatOptions): Promise<Readable>;
+export async function concatToFile(options: ConcatOptions, outputPath?: string): Promise<string | Readable> {
+  if (outputPath === undefined) {
+    return concatToStream(options);
+  }
+
+  const [{ createWriteStream }, { pipeline }] = await Promise.all([
+    import('node:fs'),
+    import('node:stream/promises')
+  ]);
+  await pipeline(concatToStream(options), createWriteStream(outputPath));
+  return outputPath;
 }
 
 /**

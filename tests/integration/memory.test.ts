@@ -30,10 +30,6 @@ import { createIHDR, createIEND, createChunk, buildPng } from '../../src/png-wri
 import { compressImageData } from '../../src/png-decompress.js';
 import { PngHeader, ColorType, PngInputSource } from '../../src/types.js';
 
-import { enableInputCache } from '../../src/png-input-adapter.js';
-// Enable caching for tiling/grid scenarios to minimize duplicate decoding
-enableInputCache();
-
 import {
   monitorMemory,
   assertMemoryBelow,
