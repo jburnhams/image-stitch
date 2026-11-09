@@ -149,5 +149,6 @@ jobs:
           files: |
             docs-dist/image-stitch.min.js
             docs-dist/image-stitch.esm.js
-        env:
-          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          # The action reads its `token` input, not GITHUB_TOKEN. Without it the
+          # release is made by github-actions[bot], which doesn't trigger npm-publish.
+          token: ${{ secrets.RELEASE_TOKEN }}
