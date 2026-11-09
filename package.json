@@ -111,7 +111,7 @@
     "node": ">=20.0.0"
   },
   "dependencies": {
-    "jpeg-encoder-wasm": "github:jburnhams/jpeg-encoder#9267440ca1bd050e198fb05aab36beee1a32a458",
+    "jpeg-encoder-wasm": "^0.1.0",
     "jpeg-js": "^0.4.4",
     "pako": "^3.0.3"
   },

@@ -10,53 +10,23 @@
 
 import { init as jpegEncoderInit, StreamingJpegEncoder, WasmColorType } from 'jpeg-encoder-wasm';
 
+/**
+ * Initialize the WASM module once. jpeg-encoder-wasm finds its bundled
+ * `jpeg_encoder_bg.wasm` itself, in Node (ESM and CommonJS) and in browsers.
+ */
 let wasmReady: Promise<void> | null = null;
 
-function isNode(): boolean {
-  return typeof process !== 'undefined' && !!process.versions?.node;
-}
-
-/**
- * Initialize the WASM module once.
- *
- * - CommonJS (Node): the encoder's CJS build loads its WASM synchronously, so
- *   init() is a no-op.
- * - ESM in a browser: init() fetches `jpeg_encoder_bg.wasm` next to the module.
- * - ESM in Node: init() also tries to fetch the WASM by `file:` URL, which Node's
- *   fetch does not support. We serve that one request from disk instead, so the
- *   WASM is found wherever the package is installed, whatever the working
- *   directory is.
- */
 function initWasm(): Promise<void> {
   if (!wasmReady) {
-    wasmReady = (isNode() ? initWasmNode() : jpegEncoderInit()).catch((error: unknown) => {
-      wasmReady = null;
-      throw error;
-    });
+    wasmReady = Promise.resolve(jpegEncoderInit()).then(
+      () => undefined,
+      (error: unknown) => {
+        wasmReady = null;
+        throw error;
+      }
+    );
   }
   return wasmReady;
-}
-
-async function initWasmNode(): Promise<void> {
-  const originalFetch = globalThis.fetch;
-  const fileFetch = async (input: unknown, init?: unknown): Promise<Response> => {
-    const url = input instanceof URL ? input : undefined;
-    if (url && url.protocol === 'file:') {
-      const { readFile } = await import('node:fs/promises');
-      const bytes = await readFile(url);
-      return new Response(bytes, { headers: { 'Content-Type': 'application/wasm' } });
-    }
-    return originalFetch(input as Parameters<typeof fetch>[0], init as Parameters<typeof fetch>[1]);
-  };
-
-  globalThis.fetch = fileFetch as typeof fetch;
-  try {
-    await jpegEncoderInit();
-  } finally {
-    if (globalThis.fetch === (fileFetch as typeof fetch)) {
-      globalThis.fetch = originalFetch;
-    }
-  }
 }
 
 export interface JpegEncoderOptions {
