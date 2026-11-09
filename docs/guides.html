@@ -228,6 +228,8 @@ interface ConcatOptions {
     rows?: number;
     width?: number;
     height?: number;
+    alignColumns?: boolean;      // default false
+    alignRows?: boolean;         // default true
   };
   decoderOptions?: DecoderOptions;
   decoders?: DecoderPlugin[];
@@ -240,7 +242,7 @@ interface ConcatOptions {
 </code></pre>
       <ul>
         <li><strong>inputs</strong> — Accepts arrays, iterables, or async iterables of Node-friendly sources. In browsers, the <code>BrowserConcatOptions</code> wrapper also accepts <code>Blob</code> and <code>HTMLCanvasElement</code> values.</li>
-        <li><strong>layout</strong> — Use <code>columns</code> or <code>rows</code> for a regular grid (cells line up, sized by the largest image in each row and column). Use <code>width</code> and/or <code>height</code> for a flow layout that wraps to a new row when the next image would not fit; <code>columns</code>/<code>rows</code> can cap it further. Images that do not fit within a height or row limit are left out with a console warning.</li>
+        <li><strong>layout</strong> — Use <code>columns</code> or <code>rows</code> for a fixed grid, or <code>width</code> and/or <code>height</code> for a flow layout that wraps to a new row when the next image would not fit (<code>columns</code>/<code>rows</code> can cap it further; images that do not fit a height or row limit are left out with a console warning). <code>alignRows</code> (default <code>true</code>) makes every row as tall as its tallest image; set it to <code>false</code> for a masonry layout where each image sits directly below the one above. <code>alignColumns</code> (default <code>false</code>) makes every column as wide as its widest image, for a full grid; it applies to fixed grids only.</li>
         <li><strong>onProgress</strong> — Callback receiving <code>(current, total)</code> whenever an input tile finishes streaming.</li>
       </ul>
       <p>The supporting typings (<code>ImageDecoder</code>, <code>DecoderOptions</code>, <code>DecoderPlugin</code>, and <code>BrowserConcatOptions</code>) are exported from the package for projects that want full TypeScript coverage.</p>

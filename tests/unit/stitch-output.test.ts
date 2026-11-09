@@ -42,13 +42,13 @@ async function streamToBuffer(stream: NodeJS.ReadableStream): Promise<Buffer> {
 }
 
 describe('grid output', () => {
-  test('mixed sizes line up in columns and pad with the background colour', async () => {
+  test('alignColumns: mixed sizes line up in columns and pad with the background colour', async () => {
     const wide = await createTestPng(20, 4, RED);
     const small = await createTestPng(4, 4, GREEN);
 
     const out = await concatToBuffer({
       inputs: [wide, small, small, wide],
-      layout: { columns: 2 },
+      layout: { columns: 2, alignColumns: true },
       backgroundColor: '#0000FF'
     });
     const png = decodePng(out);
@@ -61,6 +61,36 @@ describe('grid output', () => {
     assert.deepStrictEqual(pixelAt(png, 0, 4), [0, 255, 0, 255]);
     assert.deepStrictEqual(pixelAt(png, 10, 4), [0, 0, 255, 255], 'padding in column 1, row 2');
     assert.deepStrictEqual(pixelAt(png, 20, 4), [255, 0, 0, 255], 'column 2 starts at the same x on every row');
+  });
+
+  test('default grid packs each row side by side', async () => {
+    const wide = await createTestPng(20, 4, RED);
+    const small = await createTestPng(4, 4, GREEN);
+
+    const png = decodePng(await concatToBuffer({ inputs: [wide, small, small, wide], layout: { columns: 2 } }));
+
+    assert.strictEqual(png.width, 24);
+    assert.strictEqual(png.height, 8);
+    assert.deepStrictEqual(pixelAt(png, 4, 4), [255, 0, 0, 255], 'row 2 column 2 starts right after the small image');
+  });
+
+  test('alignRows false: short images leave no gap below them', async () => {
+    const tall = await createTestPng(4, 8, RED);
+    const short = await createTestPng(4, 2, GREEN);
+    const blue = await createTestPng(4, 2, BLUE);
+
+    const png = decodePng(
+      await concatToBuffer({
+        inputs: [tall, short, blue, blue],
+        layout: { columns: 2, alignColumns: true, alignRows: false }
+      })
+    );
+
+    assert.strictEqual(png.width, 8);
+    assert.strictEqual(png.height, 10);
+    assert.deepStrictEqual(pixelAt(png, 4, 2), [0, 0, 255, 255], 'column 2 image 2 sits right under the short image');
+    assert.deepStrictEqual(pixelAt(png, 0, 8), [0, 0, 255, 255], 'column 1 image 2 sits under the tall image');
+    assert.deepStrictEqual(pixelAt(png, 4, 6), [0, 0, 0, 0], 'gap at the bottom of column 2');
   });
 
   test('flow layout honours a row limit and warns about dropped inputs', async (t) => {
@@ -283,6 +313,7 @@ describe('option validation', () => {
     ['zero columns', { layout: { columns: 0 } }, /layout\.columns must be a positive integer/],
     ['fractional width', { layout: { width: 10.5 } }, /layout\.width must be a positive integer/],
     ['negative rows', { layout: { rows: -1 } }, /layout\.rows must be a positive integer/],
+    ['non-boolean alignRows', { layout: { columns: 1, alignRows: 'no' } }, /layout\.alignRows must be true or false/],
     ['missing layout', { layout: undefined }, /layout is required/],
     ['bad output format', { layout: { columns: 1 }, outputFormat: 'gif' }, /outputFormat must be 'png' or 'jpeg'/],
     ['quality too high', { layout: { columns: 1 }, jpegQuality: 101 }, /jpegQuality must be a number from 1 to 100/],

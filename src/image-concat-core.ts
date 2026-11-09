@@ -96,17 +96,23 @@ function assertPositiveInteger(value: unknown, name: string): void {
 // Grid layout
 // ---------------------------------------------------------------------------
 
-/**
- * Grid layout. Each cell is placed at (cellX, cellY) and every row is
- * `rowHeights[row]` pixels tall.
- */
+/** Where one input image is drawn in grid mode */
+export interface GridCell {
+  imageIdx: number;
+  row: number;
+  col: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/** Result of laying out a grid */
 export interface GridLayout {
   /** grid[row][col] is an input index, or -1 for an empty cell */
   grid: number[][];
-  /** Height of each row (tallest image in the row) */
-  rowHeights: number[];
-  /** Width of each cell, per row. Fixed grids share column widths across rows. */
-  colWidths: number[][];
+  /** Placement of every input that made it into the output, in grid order */
+  cells: GridCell[];
   totalWidth: number;
   totalHeight: number;
   /** Indices of inputs that did not fit within the width/height/rows limits */
@@ -188,14 +194,20 @@ function makeFlowGrid(
 /**
  * Work out where every image goes in grid mode.
  *
- * - `columns` (or `rows`) alone gives a regular grid. Column widths are the
- *   widest image in that column and row heights the tallest image in that
- *   row, so cells line up across the whole grid.
- * - `width` and/or `height` give a flow layout that wraps when a row would
- *   become too wide. `columns`/`rows` can be combined with them as extra caps.
+ * Which images share a row or column:
+ * - `columns` (or `rows`) alone gives a fixed grid, filled row by row (or column by column).
+ * - `width` and/or `height` give a flow layout that wraps when a row would become too
+ *   wide. `columns`/`rows` can be combined with them as extra caps.
  *
- * Images smaller than their cell are top-left aligned and the rest of the cell
- * is filled with the background colour.
+ * How cells line up:
+ * - `alignRows` (default true): every image in a row starts at the same y, and the row is as
+ *   tall as its tallest image. When false, each image sits directly below whatever is above it,
+ *   so short images leave no gap (a masonry-style layout).
+ * - `alignColumns` (default false): every image in a column starts at the same x, and the column
+ *   is as wide as its widest image. When false, images in a row are packed side by side.
+ *   Ignored for flow layouts, where rows hold different numbers of images.
+ *
+ * Gaps are filled with the background colour.
  */
 export function calculateLayout(
   headers: Array<{ width: number; height: number }>,
@@ -203,10 +215,10 @@ export function calculateLayout(
 ): GridLayout {
   const numImages = headers.length;
   const { columns, rows, width, height } = layout;
+  const alignRows = layout.alignRows !== false;
+  let alignColumns = layout.alignColumns === true;
 
   let grid: number[][];
-  let alignColumns = true;
-
   if (columns && !height) {
     grid = makeColumnGrid(numImages, columns);
   } else if (rows && !width) {
@@ -218,28 +230,52 @@ export function calculateLayout(
     grid = [Array.from({ length: numImages }, (_, i) => i)];
   }
 
-  const rowHeights = grid.map((row) =>
-    row.reduce((max, idx) => (idx >= 0 ? Math.max(max, headers[idx].height) : max), 0)
+  const numCols = Math.max(0, ...grid.map((row) => row.length));
+  const columnWidths = Array.from({ length: numCols }, (_, col) =>
+    grid.reduce((max, row) => {
+      const idx = row[col] ?? -1;
+      return idx >= 0 ? Math.max(max, headers[idx].width) : max;
+    }, 0)
   );
 
-  let colWidths: number[][];
-  if (alignColumns) {
-    const numCols = Math.max(0, ...grid.map((row) => row.length));
-    const shared = Array.from({ length: numCols }, (_, col) =>
-      grid.reduce((max, row) => {
-        const idx = row[col] ?? -1;
-        return idx >= 0 ? Math.max(max, headers[idx].width) : max;
-      }, 0)
-    );
-    colWidths = grid.map((row) => shared.slice(0, row.length));
-  } else {
-    colWidths = grid.map((row) => row.map((idx) => (idx >= 0 ? headers[idx].width : 0)));
+  const cells: GridCell[] = [];
+  let rowTop = 0;
+  let totalWidth = 0;
+  let totalHeight = 0;
+
+  for (let r = 0; r < grid.length; r++) {
+    let x = 0;
+    let rowHeight = 0;
+
+    for (let c = 0; c < grid[r].length; c++) {
+      const idx = grid[r][c];
+      const cellWidth = alignColumns ? columnWidths[c] : idx >= 0 ? headers[idx].width : 0;
+
+      if (idx >= 0) {
+        const { width: w, height: h } = headers[idx];
+        let y = rowTop;
+        if (!alignRows) {
+          // Sit directly below the lowest image already placed under this x range
+          y = 0;
+          for (const cell of cells) {
+            if (cell.x < x + w && x < cell.x + cell.width) {
+              y = Math.max(y, cell.y + cell.height);
+            }
+          }
+        }
+        cells.push({ imageIdx: idx, row: r, col: c, x, y, width: w, height: h });
+        rowHeight = Math.max(rowHeight, h);
+        totalHeight = Math.max(totalHeight, y + h);
+      }
+
+      x += cellWidth;
+    }
+
+    totalWidth = Math.max(totalWidth, x);
+    rowTop += rowHeight;
   }
 
-  const totalHeight = rowHeights.reduce((sum, h) => sum + h, 0);
-  const totalWidth = Math.max(0, ...colWidths.map((row) => row.reduce((sum, w) => sum + w, 0)));
-
-  const placed = new Set(grid.flat());
+  const placed = new Set(cells.map((cell) => cell.imageIdx));
   const dropped: number[] = [];
   for (let i = 0; i < numImages; i++) {
     if (!placed.has(i)) {
@@ -247,7 +283,7 @@ export function calculateLayout(
     }
   }
 
-  return { grid, rowHeights, colWidths, totalWidth, totalHeight, dropped };
+  return { grid, cells, totalWidth, totalHeight, dropped };
 }
 
 // ---------------------------------------------------------------------------
@@ -332,6 +368,12 @@ class CoreStreamingConcatenator {
     assertPositiveInteger(options.layout.rows, 'rows');
     assertPositiveInteger(options.layout.width, 'width');
     assertPositiveInteger(options.layout.height, 'height');
+    for (const key of ['alignColumns', 'alignRows'] as const) {
+      const value = options.layout[key];
+      if (value !== undefined && typeof value !== 'boolean') {
+        throw new Error(`layout.${key} must be true or false, got ${String(value)}`);
+      }
+    }
 
     const format = options.outputFormat ?? 'png';
     if (format !== 'png' && format !== 'jpeg') {
@@ -598,45 +640,38 @@ async function* generateGridScanlines(
   background: Uint8Array,
   progress?: ProgressTracker
 ): AsyncGenerator<Uint8Array> {
-  const { grid, rowHeights, colWidths, totalWidth } = layout;
-  const iterators = new Map<number, AsyncGenerator<Uint8Array>>();
+  const { totalWidth, totalHeight } = layout;
   const backgroundRow = createFilledScanline(totalWidth, bytesPerPixel, background);
 
-  for (let row = 0; row < grid.length; row++) {
-    const rowColWidths = colWidths[row];
+  // Cells in the order they start, so only cells overlapping the current row are visited
+  const pending = [...layout.cells].sort((a, b) => a.y - b.y || a.x - b.x);
+  let next = 0;
+  let active: Array<{ cell: GridCell; iterator: AsyncGenerator<Uint8Array> }> = [];
 
-    for (let localY = 0; localY < rowHeights[row]; localY++) {
-      const output = backgroundRow.slice();
-      let x = 0;
-
-      for (let col = 0; col < grid[row].length; col++) {
-        const imageIdx = grid[row][col];
-
-        if (imageIdx >= 0 && localY < headers[imageIdx].height) {
-          let iterator = iterators.get(imageIdx);
-          if (!iterator) {
-            iterator = decoders[imageIdx].scanlines();
-            iterators.set(imageIdx, iterator);
-          }
-
-          const scanline = await readConvertedScanline(
-            iterator,
-            imageIdx,
-            headers[imageIdx],
-            localY,
-            outputHeader,
-            bytesPerPixel,
-            `while assembling row ${row + 1}, column ${col + 1}`
-          );
-          output.set(scanline, x * bytesPerPixel);
-          progress?.rowRead(imageIdx);
-        }
-
-        x += rowColWidths[col];
-      }
-
-      yield output;
+  for (let y = 0; y < totalHeight; y++) {
+    while (next < pending.length && pending[next].y === y) {
+      const cell = pending[next++];
+      active.push({ cell, iterator: decoders[cell.imageIdx].scanlines() });
     }
+
+    const output = backgroundRow.slice();
+
+    for (const { cell, iterator } of active) {
+      const scanline = await readConvertedScanline(
+        iterator,
+        cell.imageIdx,
+        headers[cell.imageIdx],
+        y - cell.y,
+        outputHeader,
+        bytesPerPixel,
+        `while assembling row ${cell.row + 1}, column ${cell.col + 1}`
+      );
+      output.set(scanline, cell.x * bytesPerPixel);
+      progress?.rowRead(cell.imageIdx);
+    }
+
+    active = active.filter(({ cell }) => y + 1 < cell.y + cell.height);
+    yield output;
   }
 }
 

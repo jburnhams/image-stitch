@@ -48,12 +48,31 @@ writeFileSync('stitched.png', result);
 
 ### Layouts
 
-- `{ columns: n }` or `{ rows: n }` gives a regular grid. Every column is as wide as its widest image and every row as tall
-  as its tallest image, so cells line up. Smaller images sit in the top-left of their cell and the rest of the cell is
-  filled with `backgroundColor` (transparent by default).
+Choose which images share a row:
+
+- `{ columns: n }` or `{ rows: n }` gives a fixed grid, filled row by row (or column by column).
 - `{ width: px }` and/or `{ height: px }` gives a flow layout: images fill a row left to right and wrap when the next one
   would make the row wider than `width`. Add `columns` or `rows` to cap it further. Images that do not fit within a
   `height` or `rows` limit are left out, with a console warning.
+
+Then choose how the cells line up. The two settings are independent:
+
+| `alignRows` | `alignColumns` | Result |
+| --- | --- | --- |
+| `true` (default) | `false` (default) | Rows line up; images in each row are packed side by side |
+| `true` | `true` | Full grid: every column as wide as its widest image, every row as tall as its tallest |
+| `false` | `true` | Columns line up and each column stacks its images with no gaps (masonry) |
+| `false` | `false` | No grid: images are packed side by side and each one sits directly on whatever is above it |
+
+```ts
+await concatToBuffer({
+  inputs: photos,
+  layout: { columns: 3, alignColumns: true, alignRows: false } // masonry columns
+});
+```
+
+`alignColumns` only applies to `columns`/`rows` grids, because flow rows hold different numbers of images. Gaps are
+filled with `backgroundColor` (transparent by default).
 
 ### Write straight to a file (Node.js)
 
