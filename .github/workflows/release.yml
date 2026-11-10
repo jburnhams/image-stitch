@@ -36,7 +36,7 @@ jobs:
       # landed meanwhile, the bump must account for every commit it releases.
       # Their own CI runs will then find nothing new to release.
       - name: "Checkout main"
-        uses: "actions/checkout@v5"
+        uses: "actions/checkout@v7"
         with:
           ref: main
           fetch-depth: 0
