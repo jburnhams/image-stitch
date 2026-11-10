@@ -4,7 +4,7 @@
   "description": "Stitch images together efficiently with multi-format support (PNG, JPEG, HEIC), streaming, for node.js and web",
   "repository": {
     "type": "git",
-    "url": "https://github.com/jburnhams/image-stitch.git"
+    "url": "git+https://github.com/jburnhams/image-stitch.git"
   },
   "homepage": "https://jburnhams.github.io/image-stitch/",
   "bugs": {
@@ -60,7 +60,8 @@
     "dist/browser",
     "dist/types",
     "deno",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "clean": "node scripts/clean.mjs",
@@ -94,7 +95,7 @@
     "multi-format",
     "image-processing"
   ],
-  "author": "jburnhams",
+  "author": "Jonathan Burnhams",
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^24.19.2",
