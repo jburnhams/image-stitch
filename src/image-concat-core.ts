@@ -10,17 +10,34 @@
  * 3. Encoding: turn those rows into PNG or JPEG bytes as they arrive.
  */
 
-import { ConcatOptions, PngHeader } from './types.js';
+import type { ConcatOptions, PngHeader } from './types.js';
 import { PNG_SIGNATURE, getSamplesPerPixel } from './utils.js';
 import { filterScanline, getBytesPerPixel } from './png-filter.js';
 import { createIHDR, createIEND, serializeChunk, createChunk } from './png-writer.js';
-import { createDecodersFromIterable, hasPositionedImages, extractPositions, validatePositionedInputs } from './decoders/decoder-factory.js';
+import {
+  createDecodersFromIterable,
+  hasPositionedImages,
+  extractPositions,
+  validatePositionedInputs,
+} from './decoders/decoder-factory.js';
 import { getDefaultDecoderPlugins } from './decoders/plugin-registry.js';
 import type { ImageDecoder, ImageHeader, ImageInput } from './decoders/types.js';
-import { determineCommonFormat, convertScanline, getTransparentColor, compositeScanline, extractScanlinePortion } from './pixel-ops.js';
+import {
+  determineCommonFormat,
+  convertScanline,
+  getTransparentColor,
+  compositeScanline,
+  extractScanlinePortion,
+} from './pixel-ops.js';
 import { StreamingDeflator } from './streaming-deflate.js';
 import { JpegEncoder } from './jpeg-encoder.js';
-import { calculateCanvasSize, buildScanlineIndex, clipImagesToCanvas, type ClippedImageInfo, type ScanlineIndex } from './positioned-layout.js';
+import {
+  calculateCanvasSize,
+  buildScanlineIndex,
+  clipImagesToCanvas,
+  type ClippedImageInfo,
+  type ScanlineIndex,
+} from './positioned-layout.js';
 
 function createStitchError(message: string, cause?: unknown): Error {
   const baseMessage = `Failed to stitch images: ${message}`;
@@ -66,7 +83,7 @@ function imageHeaderToPngHeader(header: ImageHeader): PngHeader {
     colorType,
     compressionMethod: 0,
     filterMethod: 0,
-    interlaceMethod: 0
+    interlaceMethod: 0,
   };
 }
 
@@ -88,7 +105,7 @@ function assertPositiveInteger(value: unknown, name: string): void {
     return;
   }
   if (typeof value !== 'number' || !Number.isInteger(value) || value <= 0) {
-    throw new Error(`layout.${name} must be a positive integer, got ${String(value)}`);
+    throw new Error(`layout.${name} must be a positive integer, got ${JSON.stringify(value)}`);
   }
 }
 
@@ -353,10 +370,7 @@ class CoreStreamingConcatenator {
       throw new Error('Options object is required');
     }
 
-    if (
-      !options.inputs ||
-      (Array.isArray(options.inputs) && options.inputs.length === 0)
-    ) {
+    if (!options.inputs || (Array.isArray(options.inputs) && options.inputs.length === 0)) {
       throw new Error('At least one input image is required');
     }
 
@@ -448,7 +462,12 @@ class CoreStreamingConcatenator {
 
       // PASS 2: encode scanlines as they are produced
       if ((this.options.outputFormat ?? 'png') === 'jpeg') {
-        yield* encodeJpeg(plan.scanlines, plan.header.width, plan.header.height, this.options.jpegQuality ?? 85);
+        yield* encodeJpeg(
+          plan.scanlines,
+          plan.header.width,
+          plan.header.height,
+          this.options.jpegQuality ?? 85
+        );
       } else {
         yield* encodePng(plan.scanlines, plan.header, plan.bytesPerPixel);
       }
@@ -475,7 +494,7 @@ class CoreStreamingConcatenator {
       colorType: isJpeg ? 6 : common.colorType,
       compressionMethod: 0,
       filterMethod: 0,
-      interlaceMethod: 0
+      interlaceMethod: 0,
     };
   }
 
@@ -498,20 +517,38 @@ class CoreStreamingConcatenator {
 
     const header = this.createOutputHeader(layout.totalWidth, layout.totalHeight, headers);
     const bytesPerPixel = getBytesPerPixel(header.bitDepth, header.colorType);
-    const background = getTransparentColor(header.colorType, header.bitDepth, this.options.backgroundColor);
+    const background = getTransparentColor(
+      header.colorType,
+      header.bitDepth,
+      this.options.backgroundColor
+    );
 
     const droppedSet = new Set(layout.dropped);
-    const progress = this.createProgressTracker(headers.map((h, i) => (droppedSet.has(i) ? 0 : h.height)));
+    const progress = this.createProgressTracker(
+      headers.map((h, i) => (droppedSet.has(i) ? 0 : h.height))
+    );
 
     return {
       header,
       bytesPerPixel,
       background,
-      scanlines: generateGridScanlines(layout, decoders, headers, header, bytesPerPixel, background, progress)
+      scanlines: generateGridScanlines(
+        layout,
+        decoders,
+        headers,
+        header,
+        bytesPerPixel,
+        background,
+        progress
+      ),
     };
   }
 
-  private planPositioned(inputsArray: ImageInput[], decoders: ImageDecoder[], headers: PngHeader[]): OutputPlan {
+  private planPositioned(
+    inputsArray: ImageInput[],
+    decoders: ImageDecoder[],
+    headers: PngHeader[]
+  ): OutputPlan {
     const positions = extractPositions(inputsArray).map((pos) => {
       if (!pos) {
         throw new Error('Internal error: non-positioned image in positioned mode');
@@ -520,7 +557,12 @@ class CoreStreamingConcatenator {
     });
 
     const { width: canvasWidth, height: canvasHeight } = calculateCanvasSize(
-      positions.map((pos, i) => ({ x: pos.x, y: pos.y, width: headers[i].width, height: headers[i].height })),
+      positions.map((pos, i) => ({
+        x: pos.x,
+        y: pos.y,
+        width: headers[i].width,
+        height: headers[i].height,
+      })),
       this.options.layout.width,
       this.options.layout.height
     );
@@ -536,9 +578,15 @@ class CoreStreamingConcatenator {
     const scanlineIndex = buildScanlineIndex(positionedImages, canvasHeight);
     const header = this.createOutputHeader(canvasWidth, canvasHeight, headers);
     const bytesPerPixel = getBytesPerPixel(header.bitDepth, header.colorType);
-    const background = getTransparentColor(header.colorType, header.bitDepth, this.options.backgroundColor);
+    const background = getTransparentColor(
+      header.colorType,
+      header.bitDepth,
+      this.options.backgroundColor
+    );
 
-    const clipByImage = new Map<number, ClippedImageInfo>(clippedImages.map((c) => [c.imageIdx, c]));
+    const clipByImage = new Map<number, ClippedImageInfo>(
+      clippedImages.map((c) => [c.imageIdx, c])
+    );
 
     // Rows each input must be read for: everything down to its last visible row
     const requiredRows = headers.map(() => 0);
@@ -560,7 +608,7 @@ class CoreStreamingConcatenator {
         background,
         this.options.enableAlphaBlending !== false,
         this.createProgressTracker(requiredRows)
-      )
+      ),
     };
   }
 }
@@ -858,9 +906,7 @@ async function* encodeJpeg(
  *   // write chunk somewhere
  * }
  */
-async function* coreConcatStreaming(
-  options: ConcatOptions
-): AsyncGenerator<Uint8Array> {
+async function* coreConcatStreaming(options: ConcatOptions): AsyncGenerator<Uint8Array> {
   const concatenator = new CoreStreamingConcatenator(options);
   yield* concatenator.stream();
 }

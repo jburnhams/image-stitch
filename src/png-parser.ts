@@ -1,10 +1,5 @@
-import { PngChunk, PngHeader } from './types.js';
-import {
-  pngCrc32,
-  readUInt32BE,
-  bytesToString,
-  isPngSignature
-} from './utils.js';
+import type { PngChunk, PngHeader } from './types.js';
+import { pngCrc32, readUInt32BE, bytesToString, isPngSignature } from './utils.js';
 
 /**
  * Parse PNG file and extract chunks
@@ -71,9 +66,7 @@ export class PngParser {
    */
   readAllChunks(): PngChunk[] {
     const chunks: PngChunk[] = [];
-    let chunk: PngChunk | null;
-
-    while ((chunk = this.readChunk()) !== null) {
+    for (let chunk = this.readChunk(); chunk !== null; chunk = this.readChunk()) {
       chunks.push(chunk);
     }
 
@@ -99,7 +92,7 @@ export class PngParser {
       colorType: chunk.data[9],
       compressionMethod: chunk.data[10],
       filterMethod: chunk.data[11],
-      interlaceMethod: chunk.data[12]
+      interlaceMethod: chunk.data[12],
     };
   }
 
@@ -112,7 +105,7 @@ export class PngParser {
     this.offset = 8;
 
     const firstChunk = this.readChunk();
-    if (!firstChunk || firstChunk.type !== 'IHDR') {
+    if (firstChunk?.type !== 'IHDR') {
       throw new Error('First chunk must be IHDR');
     }
 

@@ -3,6 +3,7 @@
 image-stitch combines images into a single output without relying on Canvas APIs. It works in Node.js and modern browsers, including streaming scenarios for large images.
 
 **Features:**
+
 - **Multi-format input**: PNG, JPEG, HEIC with automatic format detection
 - **Multi-format output**: PNG (lossless) or JPEG (lossy with quality control)
 - **Streaming processing**: Minimal memory usage for large images
@@ -36,11 +37,8 @@ import { concatToBuffer } from 'image-stitch';
 import { readFileSync, writeFileSync } from 'fs';
 
 const result = await concatToBuffer({
-  inputs: [
-    readFileSync('one.png'),
-    readFileSync('two.png')
-  ],
-  layout: { columns: 2 }
+  inputs: [readFileSync('one.png'), readFileSync('two.png')],
+  layout: { columns: 2 },
 });
 
 writeFileSync('stitched.png', result);
@@ -57,17 +55,17 @@ Choose which images share a row:
 
 Then choose how the cells line up. The two settings are independent:
 
-| `alignRows` | `alignColumns` | Result |
-| --- | --- | --- |
-| `true` (default) | `false` (default) | Rows line up; images in each row are packed side by side |
-| `true` | `true` | Full grid: every column as wide as its widest image, every row as tall as its tallest |
-| `false` | `true` | Columns line up and each column stacks its images with no gaps (masonry) |
-| `false` | `false` | No grid: images are packed side by side and each one sits directly on whatever is above it |
+| `alignRows`      | `alignColumns`    | Result                                                                                     |
+| ---------------- | ----------------- | ------------------------------------------------------------------------------------------ |
+| `true` (default) | `false` (default) | Rows line up; images in each row are packed side by side                                   |
+| `true`           | `true`            | Full grid: every column as wide as its widest image, every row as tall as its tallest      |
+| `false`          | `true`            | Columns line up and each column stacks its images with no gaps (masonry)                   |
+| `false`          | `false`           | No grid: images are packed side by side and each one sits directly on whatever is above it |
 
 ```ts
 await concatToBuffer({
   inputs: photos,
-  layout: { columns: 3, alignColumns: true, alignRows: false } // masonry columns
+  layout: { columns: 3, alignColumns: true, alignRows: false }, // masonry columns
 });
 ```
 
@@ -97,14 +95,15 @@ import { concatToBuffer } from 'image-stitch';
 const result = await concatToBuffer({
   inputs: ['photo1.jpg', 'photo2.jpg', 'image.png'],
   layout: { columns: 3 },
-  outputFormat: 'jpeg',  // 'png' (default) or 'jpeg'
-  jpegQuality: 90        // 1-100, default: 85
+  outputFormat: 'jpeg', // 'png' (default) or 'jpeg'
+  jpegQuality: 90, // 1-100, default: 85
 });
 
 writeFileSync('stitched.jpg', result);
 ```
 
 JPEG output features:
+
 - **Lossy compression** with configurable quality (1-100)
 - **Smaller file sizes** compared to PNG for photos
 - **8-bit RGBA format** (automatically converts higher bit depths)
@@ -120,21 +119,22 @@ import { concatToBuffer, type PositionedImage } from 'image-stitch';
 
 const inputs: PositionedImage[] = [
   { x: 0, y: 0, source: 'background.png' },
-  { x: 50, y: 50, zIndex: 10, source: 'overlay.png' },      // Overlaps background with explicit zIndex
-  { x: 200, y: 100, source: imageBuffer }
+  { x: 50, y: 50, zIndex: 10, source: 'overlay.png' }, // Overlaps background with explicit zIndex
+  { x: 200, y: 100, source: imageBuffer },
 ];
 
 const result = await concatToBuffer({
   inputs,
   layout: {
-    width: 500,    // Optional: canvas width (auto-calculated if omitted)
-    height: 400    // Optional: canvas height (auto-calculated if omitted)
+    width: 500, // Optional: canvas width (auto-calculated if omitted)
+    height: 400, // Optional: canvas height (auto-calculated if omitted)
   },
-  enableAlphaBlending: true  // Default: true (blend overlapping images)
+  enableAlphaBlending: true, // Default: true (blend overlapping images)
 });
 ```
 
 Positioned image features:
+
 - **Arbitrary placement** - position images anywhere on the canvas using x,y coordinates
 - **Overlapping support** - images can overlap with proper alpha blending (z-order = input order or custom `zIndex`)
 - **Auto canvas sizing** - canvas dimensions calculated from image bounds if not specified
@@ -147,11 +147,11 @@ Positioned image features:
 const composite = await concatToBuffer({
   inputs: [
     { x: 0, y: 0, source: 'photo.jpg' },
-    { x: 420, y: 380, source: 'watermark.png' }  // Bottom-right corner
+    { x: 420, y: 380, source: 'watermark.png' }, // Bottom-right corner
   ],
-  layout: {},  // Canvas auto-sized to fit all images
+  layout: {}, // Canvas auto-sized to fit all images
   outputFormat: 'jpeg',
-  jpegQuality: 90
+  jpegQuality: 90,
 });
 ```
 
@@ -166,7 +166,7 @@ await concatToBuffer({
   layout: { rows: 4, columns: 4 },
   onProgress(current, total) {
     console.log(`Stitched ${current}/${total}`);
-  }
+  },
 });
 ```
 
@@ -186,7 +186,7 @@ import { heicDecoder } from 'image-stitch/decoders/heic';
 await concatToBuffer({
   inputs: [pngBytes, jpegBytes, heicBytes],
   layout: { columns: 3 },
-  decoders: [pngDecoder, jpegDecoder, heicDecoder]
+  decoders: [pngDecoder, jpegDecoder, heicDecoder],
 });
 ```
 

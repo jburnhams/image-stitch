@@ -4,7 +4,7 @@ import {
   unfilterScanline,
   filterScanline,
   getBytesPerPixel,
-  FilterType
+  FilterType,
 } from '../../src/png-filter.js';
 import { ColorType } from '../../src/types.js';
 
@@ -42,9 +42,9 @@ test('unfilterScanline handles Up filter', () => {
   const result = unfilterScanline(FilterType.Up, scanline, previousLine, 1);
 
   assert.strictEqual(result[0], 105); // 5 + 100
-  assert.strictEqual(result[1], 60);  // 10 + 50
-  assert.strictEqual(result[2], 95);  // 15 + 80
-  assert.strictEqual(result[3], 50);  // 20 + 30
+  assert.strictEqual(result[1], 60); // 10 + 50
+  assert.strictEqual(result[2], 95); // 15 + 80
+  assert.strictEqual(result[3], 50); // 20 + 30
 });
 
 test('unfilterScanline handles Up filter with no previous line', () => {
@@ -77,10 +77,7 @@ test('unfilterScanline handles Paeth filter', () => {
 
 test('unfilterScanline throws on invalid filter type', () => {
   const scanline = new Uint8Array([1, 2, 3]);
-  assert.throws(
-    () => unfilterScanline(99 as FilterType, scanline, null, 1),
-    /Unknown filter type/
-  );
+  assert.throws(() => unfilterScanline(99 as FilterType, scanline, null, 1), /Unknown filter type/);
 });
 
 test('filterScanline returns valid filter type and data', () => {
@@ -135,8 +132,5 @@ test('filterScanline with RGBA data and previous line', () => {
 });
 
 test('getBytesPerPixel throws on invalid color type', () => {
-  assert.throws(
-    () => getBytesPerPixel(8, 99),
-    /Unknown color type/
-  );
+  assert.throws(() => getBytesPerPixel(8, 99), /Unknown color type/);
 });

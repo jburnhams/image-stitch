@@ -5,9 +5,9 @@ import {
   serializeChunk,
   createIHDR,
   createIEND,
-  buildPng
+  buildPng,
 } from '../../src/png-writer.js';
-import { PngHeader, ColorType } from '../../src/types.js';
+import { type PngHeader, ColorType } from '../../src/types.js';
 import { stringToBytes, isPngSignature, pngCrc32 } from '../../src/utils.js';
 
 test('createChunk creates valid chunk structure', () => {
@@ -36,14 +36,11 @@ test('createChunk calculates CRC correctly', () => {
 
 test('createChunk throws on invalid type length', () => {
   const data = new Uint8Array([1, 2, 3]);
-  assert.throws(
-    () => createChunk('TOOLONG', data),
-    /Chunk type must be exactly 4 characters/
-  );
+  assert.throws(() => createChunk('TOOLONG', data), /Chunk type must be exactly 4 characters/);
 });
 
 test('serializeChunk produces correct byte structure', () => {
-  const data = new Uint8Array([0xAA, 0xBB]);
+  const data = new Uint8Array([0xaa, 0xbb]);
   const chunk = createChunk('TEST', data);
   const bytes = serializeChunk(chunk);
 
@@ -63,8 +60,8 @@ test('serializeChunk produces correct byte structure', () => {
   assert.strictEqual(bytes[7], 84); // 'T'
 
   // Check data
-  assert.strictEqual(bytes[8], 0xAA);
-  assert.strictEqual(bytes[9], 0xBB);
+  assert.strictEqual(bytes[8], 0xaa);
+  assert.strictEqual(bytes[9], 0xbb);
 });
 
 test('createIHDR creates valid header chunk', () => {
@@ -75,7 +72,7 @@ test('createIHDR creates valid header chunk', () => {
     colorType: ColorType.RGBA,
     compressionMethod: 0,
     filterMethod: 0,
-    interlaceMethod: 0
+    interlaceMethod: 0,
   };
 
   const chunk = createIHDR(header);
@@ -93,7 +90,7 @@ test('createIHDR encodes dimensions correctly', () => {
     colorType: ColorType.RGB,
     compressionMethod: 0,
     filterMethod: 0,
-    interlaceMethod: 0
+    interlaceMethod: 0,
   };
 
   const chunk = createIHDR(header);
@@ -133,7 +130,7 @@ test('buildPng creates valid PNG file structure', () => {
     colorType: ColorType.RGBA,
     compressionMethod: 0,
     filterMethod: 0,
-    interlaceMethod: 0
+    interlaceMethod: 0,
   };
 
   const ihdr = createIHDR(header);
@@ -163,7 +160,7 @@ test('buildPng preserves chunk order', () => {
   const chunks = [
     createChunk('TEST', new Uint8Array([1])),
     createChunk('DATA', new Uint8Array([2])),
-    createChunk('ENDS', new Uint8Array([3]))
+    createChunk('ENDS', new Uint8Array([3])),
   ];
 
   const png = buildPng(chunks);

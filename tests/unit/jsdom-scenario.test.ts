@@ -42,19 +42,18 @@ test('createDecompressionStream falls back to pako when native API is missing', 
     })();
 
     const chunks = [];
-    while(true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        chunks.push(value);
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      chunks.push(value);
     }
     await writePromise;
 
     const output = Buffer.concat(chunks);
     assert.strictEqual(new TextDecoder().decode(output), 'Hello World');
-
   } finally {
     if (originalDS) {
-        (globalThis as any).DecompressionStream = originalDS;
+      (globalThis as any).DecompressionStream = originalDS;
     }
   }
 });
@@ -87,10 +86,10 @@ test('JPEG decoder uses custom constructors when provided', async () => {
       this.height = h;
     }
     getContext() {
-        return {
-            drawImage: () => {},
-            getImageData: () => ({ data: new Uint8Array(this.width * this.height * 4) })
-        };
+      return {
+        drawImage: () => {},
+        getImageData: () => ({ data: new Uint8Array(this.width * this.height * 4) }),
+      };
     }
   };
 
@@ -100,16 +99,36 @@ test('JPEG decoder uses custom constructors when provided', async () => {
   // SOI: FF D8
   // SOF0: FF C0, length 00 11, precision 08, height 00 0A, width 00 0A, components 03 ...
   const jpegData = new Uint8Array([
-      0xFF, 0xD8, // SOI
-      0xFF, 0xC0, 0x00, 0x11, 0x08, 0x00, 0x0A, 0x00, 0x0A, 0x03, 0x01, 0x11, 0x00, 0x02, 0x11, 0x01, 0x03, 0x11, 0x01, // SOF0 (10x10)
-      0xFF, 0xD9 // EOI
+    0xff,
+    0xd8, // SOI
+    0xff,
+    0xc0,
+    0x00,
+    0x11,
+    0x08,
+    0x00,
+    0x0a,
+    0x00,
+    0x0a,
+    0x03,
+    0x01,
+    0x11,
+    0x00,
+    0x02,
+    0x11,
+    0x01,
+    0x03,
+    0x11,
+    0x01, // SOF0 (10x10)
+    0xff,
+    0xd9, // EOI
   ]);
 
   const decoder = new JpegBufferDecoder(jpegData, {
-      customConstructors: {
-          Image: MockImage as any,
-          Canvas: MockCanvas as any
-      }
+    customConstructors: {
+      Image: MockImage as any,
+      Canvas: MockCanvas as any,
+    },
   });
 
   // scanlines() calls decodeJpeg() which should check customConstructors
@@ -147,10 +166,10 @@ test('HEIC decoder uses custom constructors when provided', async () => {
       this.height = h;
     }
     getContext() {
-        return {
-            drawImage: () => {},
-            getImageData: () => ({ data: new Uint8Array(this.width * this.height * 4) })
-        };
+      return {
+        drawImage: () => {},
+        getImageData: () => ({ data: new Uint8Array(this.width * this.height * 4) }),
+      };
     }
   };
 
@@ -161,10 +180,10 @@ test('HEIC decoder uses custom constructors when provided', async () => {
   const heicData = new Uint8Array([0x00]); // Dummy data
 
   const decoder = new HeicBufferDecoder(heicData, {
-      customConstructors: {
-          Image: MockImage as any,
-          Canvas: MockCanvas as any
-      }
+    customConstructors: {
+      Image: MockImage as any,
+      Canvas: MockCanvas as any,
+    },
   });
 
   const iterator = decoder.scanlines();
@@ -184,11 +203,11 @@ test('HEIC decoder uses custom constructors when provided', async () => {
   (globalThis as any).URL.revokeObjectURL = () => {};
 
   try {
-      await iterator.next();
-      assert.strictEqual(imageConstructed, true, 'Should use custom Image constructor');
-      assert.strictEqual(canvasConstructed, true, 'Should use custom Canvas constructor');
+    await iterator.next();
+    assert.strictEqual(imageConstructed, true, 'Should use custom Image constructor');
+    assert.strictEqual(canvasConstructed, true, 'Should use custom Canvas constructor');
   } finally {
-      if (originalCreateObjectURL) (globalThis as any).URL.createObjectURL = originalCreateObjectURL;
-      if (originalRevokeObjectURL) (globalThis as any).URL.revokeObjectURL = originalRevokeObjectURL;
+    if (originalCreateObjectURL) (globalThis as any).URL.createObjectURL = originalCreateObjectURL;
+    if (originalRevokeObjectURL) (globalThis as any).URL.revokeObjectURL = originalRevokeObjectURL;
   }
 });

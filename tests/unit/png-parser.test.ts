@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert';
 import { PngParser, parsePngHeader, parsePngChunks } from '../../src/png-parser.js';
 import { createIHDR, createIEND, buildPng } from '../../src/png-writer.js';
-import { PngHeader, ColorType } from '../../src/types.js';
+import { type PngHeader, ColorType } from '../../src/types.js';
 
 // Helper to create a minimal valid PNG
 function createMinimalPng(header: PngHeader): Uint8Array {
@@ -13,10 +13,7 @@ function createMinimalPng(header: PngHeader): Uint8Array {
 
 test('PngParser rejects invalid signature', () => {
   const invalid = new Uint8Array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
-  assert.throws(
-    () => new PngParser(invalid),
-    /Invalid PNG signature/
-  );
+  assert.throws(() => new PngParser(invalid), /Invalid PNG signature/);
 });
 
 test('PngParser accepts valid PNG signature', () => {
@@ -27,7 +24,7 @@ test('PngParser accepts valid PNG signature', () => {
     colorType: ColorType.RGBA,
     compressionMethod: 0,
     filterMethod: 0,
-    interlaceMethod: 0
+    interlaceMethod: 0,
   };
   const png = createMinimalPng(header);
 
@@ -42,7 +39,7 @@ test('PngParser.readChunk reads IHDR correctly', () => {
     colorType: ColorType.RGB,
     compressionMethod: 0,
     filterMethod: 0,
-    interlaceMethod: 0
+    interlaceMethod: 0,
   };
   const png = createMinimalPng(header);
   const parser = new PngParser(png);
@@ -63,7 +60,7 @@ test('PngParser.readChunk reads multiple chunks', () => {
     colorType: ColorType.RGBA,
     compressionMethod: 0,
     filterMethod: 0,
-    interlaceMethod: 0
+    interlaceMethod: 0,
   };
   const png = createMinimalPng(header);
   const parser = new PngParser(png);
@@ -86,7 +83,7 @@ test('PngParser.readChunk returns null at end', () => {
     colorType: ColorType.RGBA,
     compressionMethod: 0,
     filterMethod: 0,
-    interlaceMethod: 0
+    interlaceMethod: 0,
   };
   const png = createMinimalPng(header);
   const parser = new PngParser(png);
@@ -106,7 +103,7 @@ test('PngParser.readAllChunks reads all chunks', () => {
     colorType: ColorType.RGBA,
     compressionMethod: 0,
     filterMethod: 0,
-    interlaceMethod: 0
+    interlaceMethod: 0,
   };
   const png = createMinimalPng(header);
   const parser = new PngParser(png);
@@ -126,7 +123,7 @@ test('PngParser.parseHeader parses IHDR chunk correctly', () => {
     colorType: ColorType.RGBA,
     compressionMethod: 0,
     filterMethod: 0,
-    interlaceMethod: 0
+    interlaceMethod: 0,
   };
 
   const ihdrChunk = createIHDR(expectedHeader);
@@ -137,10 +134,7 @@ test('PngParser.parseHeader parses IHDR chunk correctly', () => {
 
 test('PngParser.parseHeader throws on non-IHDR chunk', () => {
   const chunk = createIEND();
-  assert.throws(
-    () => PngParser.parseHeader(chunk),
-    /Not an IHDR chunk/
-  );
+  assert.throws(() => PngParser.parseHeader(chunk), /Not an IHDR chunk/);
 });
 
 test('PngParser.getHeader extracts header from PNG', () => {
@@ -151,7 +145,7 @@ test('PngParser.getHeader extracts header from PNG', () => {
     colorType: ColorType.RGB,
     compressionMethod: 0,
     filterMethod: 0,
-    interlaceMethod: 0
+    interlaceMethod: 0,
   };
 
   const png = createMinimalPng(expectedHeader);
@@ -169,7 +163,7 @@ test('parsePngHeader helper function works', () => {
     colorType: ColorType.GRAYSCALE,
     compressionMethod: 0,
     filterMethod: 0,
-    interlaceMethod: 0
+    interlaceMethod: 0,
   };
 
   const png = createMinimalPng(expectedHeader);
@@ -186,7 +180,7 @@ test('parsePngChunks helper function works', () => {
     colorType: ColorType.RGBA,
     compressionMethod: 0,
     filterMethod: 0,
-    interlaceMethod: 0
+    interlaceMethod: 0,
   };
 
   const png = createMinimalPng(header);
@@ -205,21 +199,18 @@ test('PngParser validates CRC', () => {
     colorType: ColorType.RGBA,
     compressionMethod: 0,
     filterMethod: 0,
-    interlaceMethod: 0
+    interlaceMethod: 0,
   };
 
   const png = createMinimalPng(header);
 
   // Corrupt the CRC of the IHDR chunk
   // CRC is at offset: 8(sig) + 4(len) + 4(type) + 13(data) = 29
-  png[29] ^= 0xFF;
+  png[29] ^= 0xff;
 
   const parser = new PngParser(png);
 
-  assert.throws(
-    () => parser.readChunk(),
-    /CRC mismatch/
-  );
+  assert.throws(() => parser.readChunk(), /CRC mismatch/);
 });
 
 test('PngParser throws on incomplete chunk', () => {
@@ -231,7 +222,7 @@ test('PngParser throws on incomplete chunk', () => {
     colorType: ColorType.RGBA,
     compressionMethod: 0,
     filterMethod: 0,
-    interlaceMethod: 0
+    interlaceMethod: 0,
   };
 
   const png = createMinimalPng(header);
@@ -239,8 +230,5 @@ test('PngParser throws on incomplete chunk', () => {
 
   const parser = new PngParser(truncated);
 
-  assert.throws(
-    () => parser.readChunk(),
-    /Incomplete PNG chunk/
-  );
+  assert.throws(() => parser.readChunk(), /Incomplete PNG chunk/);
 });

@@ -20,7 +20,14 @@ const browserDistDir = path.join(distDir, 'browser');
 const docsSourceDir = path.join(projectRoot, 'docs');
 const docsDistDir = path.join(projectRoot, 'docs-dist');
 const pngsuiteDir = path.join(projectRoot, 'pngsuite', 'png');
-const jpegWasmPath = path.join(projectRoot, 'node_modules', 'jpeg-encoder-wasm', 'pkg', 'esm', 'jpeg_encoder_bg.wasm');
+const jpegWasmPath = path.join(
+  projectRoot,
+  'node_modules',
+  'jpeg-encoder-wasm',
+  'pkg',
+  'esm',
+  'jpeg_encoder_bg.wasm'
+);
 
 function assertExists(targetPath, message) {
   if (!fs.existsSync(targetPath)) {
@@ -75,7 +82,7 @@ function copyImages() {
     'f04n2c08.png',
     'g03n2c08.png',
     'g04n2c08.png',
-    'g05n2c08.png'
+    'g05n2c08.png',
   ];
 
   for (const imageName of requiredImages) {
@@ -93,7 +100,7 @@ function copyBrowserBundles() {
     'image-stitch.js',
     'image-stitch.js.map',
     'image-stitch.min.js',
-    'image-stitch.min.js.map'
+    'image-stitch.min.js.map',
   ];
 
   for (const file of outputs) {

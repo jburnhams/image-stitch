@@ -17,12 +17,12 @@ describe('ImageSource Integration', () => {
       factory: async () => {
         factoryCalled = true;
         return pngBytes;
-      }
+      },
     };
 
     const result = await concat({
       inputs: [source, source], // Concatenate 2 red squares
-      layout: { columns: 2 }
+      layout: { columns: 2 },
     });
 
     assert.ok(result.length > 0, 'Should produce output');
@@ -31,7 +31,7 @@ describe('ImageSource Integration', () => {
     // Check if result is a valid PNG (simple signature check)
     assert.strictEqual(result[0], 0x89);
     assert.strictEqual(result[1], 0x50);
-    assert.strictEqual(result[2], 0x4E);
+    assert.strictEqual(result[2], 0x4e);
     assert.strictEqual(result[3], 0x47);
   });
 });

@@ -1,10 +1,5 @@
-import { PngChunk, PngHeader } from './types.js';
-import {
-  pngCrc32,
-  writeUInt32BE,
-  stringToBytes,
-  PNG_SIGNATURE
-} from './utils.js';
+import type { PngChunk, PngHeader } from './types.js';
+import { pngCrc32, writeUInt32BE, stringToBytes, PNG_SIGNATURE } from './utils.js';
 
 /**
  * Create a PNG chunk
@@ -25,7 +20,7 @@ export function createChunk(type: string, data: Uint8Array): PngChunk {
     length: data.length,
     type,
     data,
-    crc
+    crc,
   };
 }
 

@@ -26,10 +26,7 @@ export interface PngHeader {
 /**
  * Multi-format image input source type
  */
-export type ImageInputSource =
-  | Array<ImageInput>
-  | Iterable<ImageInput>
-  | AsyncIterable<ImageInput>;
+export type ImageInputSource = Array<ImageInput> | Iterable<ImageInput> | AsyncIterable<ImageInput>;
 
 /**
  * Legacy PNG-only input source type (for backward compatibility)
@@ -163,5 +160,5 @@ export enum ColorType {
   RGB = 2,
   PALETTE = 3,
   GRAYSCALE_ALPHA = 4,
-  RGBA = 6
+  RGBA = 6,
 }

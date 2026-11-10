@@ -96,7 +96,7 @@ export function calculateCanvasSize(
 
   return {
     width: explicitWidth ?? Math.max(1, maxRight),
-    height: explicitHeight ?? Math.max(1, maxBottom)
+    height: explicitHeight ?? Math.max(1, maxBottom),
   };
 }
 
@@ -145,7 +145,7 @@ export function clipImagesToCanvas(
         clippedHeight: fullyClipped ? 0 : bottom - top,
         sourceOffsetX: Math.max(0, -x),
         sourceOffsetY: Math.max(0, -y),
-        fullyClipped
+        fullyClipped,
       };
       clippedImages.push(clipInfo);
 
@@ -161,7 +161,8 @@ export function clipImagesToCanvas(
         if (x < 0) clippedParts.push(`left by ${-x}px`);
         if (y < 0) clippedParts.push(`top by ${-y}px`);
         if (x + width > canvasWidth) clippedParts.push(`right by ${x + width - canvasWidth}px`);
-        if (y + height > canvasHeight) clippedParts.push(`bottom by ${y + height - canvasHeight}px`);
+        if (y + height > canvasHeight)
+          clippedParts.push(`bottom by ${y + height - canvasHeight}px`);
 
         logger(
           `Image #${i + 1} clipped (${clippedParts.join(', ')}): ` +
@@ -181,7 +182,7 @@ export function clipImagesToCanvas(
         width: right - left,
         height: bottom - top,
         currentScanline: 0,
-        zIndex: positions[i]?.zIndex ?? i
+        zIndex: positions[i]?.zIndex ?? i,
       });
     }
   }
@@ -219,7 +220,7 @@ export function buildScanlineIndex(
           localY,
           startX: img.x,
           endX: img.x + img.width,
-          zIndex: img.zIndex
+          zIndex: img.zIndex,
         });
       }
     }

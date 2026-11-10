@@ -186,12 +186,7 @@ test('PngSuite: Parse 9x9 pixel image (s09n3p02.png)', () => {
 
 // Test chunk reading
 test('PngSuite: All basic images have valid chunks', () => {
-  const basicFiles = [
-    'basn0g08.png',
-    'basn2c08.png',
-    'basn4a08.png',
-    'basn6a08.png'
-  ];
+  const basicFiles = ['basn0g08.png', 'basn2c08.png', 'basn4a08.png', 'basn6a08.png'];
 
   for (const filename of basicFiles) {
     const png = loadPngSuite(filename);
@@ -203,7 +198,7 @@ test('PngSuite: All basic images have valid chunks', () => {
     assert.strictEqual(chunks[chunks.length - 1].type, 'IEND', `${filename} should end with IEND`);
 
     // Should have at least one IDAT chunk
-    const hasIDAT = chunks.some(chunk => chunk.type === 'IDAT');
+    const hasIDAT = chunks.some((chunk) => chunk.type === 'IDAT');
     assert.ok(hasIDAT, `${filename} should have IDAT chunk(s)`);
   }
 });
@@ -215,7 +210,7 @@ test('PngSuite: Concatenate two identical grayscale images', async () => {
 
   const result = await concatToBuffer({
     inputs: [png1, png2],
-    layout: { columns: 2 }
+    layout: { columns: 2 },
   });
 
   const header = parsePngHeader(result);
@@ -232,7 +227,7 @@ test('PngSuite: Concatenate two identical RGB images', async () => {
 
   const result = await concatToBuffer({
     inputs: [png1, png2],
-    layout: { columns: 2 }
+    layout: { columns: 2 },
   });
 
   const header = parsePngHeader(result);
@@ -249,7 +244,7 @@ test('PngSuite: Concatenate two identical RGBA images', async () => {
 
   const result = await concatToBuffer({
     inputs: [png1, png2],
-    layout: { columns: 2 }
+    layout: { columns: 2 },
   });
 
   const header = parsePngHeader(result);
@@ -264,7 +259,7 @@ test('PngSuite: Concatenate four RGBA images in a 2x2 grid', async () => {
 
   const result = await concatToBuffer({
     inputs: [png, png, png, png],
-    layout: { columns: 2 }
+    layout: { columns: 2 },
   });
 
   const header = parsePngHeader(result);
@@ -280,7 +275,7 @@ test('PngSuite: Concatenate 16-bit RGB images', async () => {
 
   const result = await concatToBuffer({
     inputs: [png1, png2],
-    layout: { columns: 2 }
+    layout: { columns: 2 },
   });
 
   const header = parsePngHeader(result);
@@ -298,7 +293,7 @@ test('PngSuite: Concatenate vertical layout', async () => {
 
   const result = await concatToBuffer({
     inputs: [png1, png2, png3],
-    layout: { rows: 3 }
+    layout: { rows: 3 },
   });
 
   const header = parsePngHeader(result);
@@ -319,7 +314,7 @@ test('PngSuite: Concatenate interlaced grayscale PNG (basi0g08.png)', async () =
   // Should successfully process interlaced image
   const result = await concatToBuffer({
     inputs: [png],
-    layout: { columns: 1 }
+    layout: { columns: 1 },
   });
 
   const resultHeader = parsePngHeader(result);
@@ -336,7 +331,7 @@ test('PngSuite: Concatenate interlaced RGB PNG (basi2c08.png)', async () => {
 
   const result = await concatToBuffer({
     inputs: [png],
-    layout: { columns: 1 }
+    layout: { columns: 1 },
   });
 
   const resultHeader = parsePngHeader(result);
@@ -350,7 +345,7 @@ test('PngSuite: Concatenate two interlaced images', async () => {
 
   const result = await concatToBuffer({
     inputs: [png1, png2],
-    layout: { columns: 2 }
+    layout: { columns: 2 },
   });
 
   const resultHeader = parsePngHeader(result);
@@ -366,7 +361,7 @@ test('PngSuite: Mix interlaced and non-interlaced PNGs', async () => {
   // Should handle mixed interlaced and non-interlaced
   const result = await concatToBuffer({
     inputs: [normalPng, interlacedPng],
-    layout: { columns: 2 }
+    layout: { columns: 2 },
   });
 
   const resultHeader = parsePngHeader(result);
@@ -377,14 +372,14 @@ test('PngSuite: Mix interlaced and non-interlaced PNGs', async () => {
 // Summary test to validate available images
 test('PngSuite: Verify basic test suite is available', () => {
   const requiredFiles = [
-    'basn0g08.png',  // Grayscale 8-bit
-    'basn0g16.png',  // Grayscale 16-bit
-    'basn2c08.png',  // RGB 8-bit
-    'basn2c16.png',  // RGB 16-bit
-    'basn4a08.png',  // Grayscale+Alpha 8-bit
-    'basn4a16.png',  // Grayscale+Alpha 16-bit
-    'basn6a08.png',  // RGBA 8-bit
-    'basn6a16.png',  // RGBA 16-bit
+    'basn0g08.png', // Grayscale 8-bit
+    'basn0g16.png', // Grayscale 16-bit
+    'basn2c08.png', // RGB 8-bit
+    'basn2c16.png', // RGB 16-bit
+    'basn4a08.png', // Grayscale+Alpha 8-bit
+    'basn4a16.png', // Grayscale+Alpha 16-bit
+    'basn6a08.png', // RGBA 8-bit
+    'basn6a16.png', // RGBA 16-bit
   ];
 
   for (const filename of requiredFiles) {

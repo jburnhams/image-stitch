@@ -30,13 +30,13 @@ function validateOutputPng(pngData: Uint8Array, expectedWidth: number, expectedH
  */
 function validateOutputJpeg(jpegData: Uint8Array) {
   // Check JPEG SOI marker (0xFF 0xD8)
-  assert.strictEqual(jpegData[0], 0xFF, 'JPEG should start with 0xFF');
-  assert.strictEqual(jpegData[1], 0xD8, 'JPEG should have SOI marker 0xD8');
+  assert.strictEqual(jpegData[0], 0xff, 'JPEG should start with 0xFF');
+  assert.strictEqual(jpegData[1], 0xd8, 'JPEG should have SOI marker 0xD8');
 
   // Check JPEG EOI marker at end (0xFF 0xD9)
   const len = jpegData.length;
-  assert.strictEqual(jpegData[len - 2], 0xFF, 'JPEG should end with 0xFF');
-  assert.strictEqual(jpegData[len - 1], 0xD9, 'JPEG should have EOI marker 0xD9');
+  assert.strictEqual(jpegData[len - 2], 0xff, 'JPEG should end with 0xFF');
+  assert.strictEqual(jpegData[len - 1], 0xd9, 'JPEG should have EOI marker 0xD9');
 
   assert.ok(jpegData.length > 100, 'JPEG should have reasonable size');
 
@@ -50,7 +50,7 @@ describe('Mixed Formats - PNG + JPEG', () => {
 
     const result = await concatToBuffer({
       inputs: [pngImage, jpegImage],
-      layout: { columns: 2 }
+      layout: { columns: 2 },
     });
 
     assert.ok(result instanceof Uint8Array, 'Should return Uint8Array');
@@ -69,7 +69,7 @@ describe('Mixed Formats - PNG + JPEG', () => {
 
     const result = await concatToBuffer({
       inputs: [png1, jpeg1, png2, jpeg2],
-      layout: { columns: 2 } // 2x2 grid
+      layout: { columns: 2 }, // 2x2 grid
     });
 
     // 2 columns × 8px = 16px wide
@@ -84,7 +84,7 @@ describe('Mixed Formats - PNG + JPEG', () => {
 
     const result = await concatToBuffer({
       inputs: [smallPng, largeJpeg, mediumPng],
-      layout: { columns: 3 }
+      layout: { columns: 3 },
     });
 
     // Column widths: 5 + 10 + 7 = 22 (each column sized to its widest image)
@@ -101,7 +101,7 @@ describe('Mixed Formats - All PNG vs All JPEG', () => {
 
     const result = await concatToBuffer({
       inputs: [png1, png2, png3],
-      layout: { columns: 3 }
+      layout: { columns: 3 },
     });
 
     validateOutputPng(result, 36, 12);
@@ -114,7 +114,7 @@ describe('Mixed Formats - All PNG vs All JPEG', () => {
 
     const result = await concatToBuffer({
       inputs: [jpeg1, jpeg2, jpeg3],
-      layout: { columns: 3 }
+      layout: { columns: 3 },
     });
 
     validateOutputPng(result, 36, 12);
@@ -128,7 +128,7 @@ describe('Mixed Formats - Layout Options', () => {
 
     const result = await concatToBuffer({
       inputs: [pngImage, jpegImage],
-      layout: { rows: 2 }
+      layout: { rows: 2 },
     });
 
     // Max width = 10
@@ -143,12 +143,12 @@ describe('Mixed Formats - Layout Options', () => {
       await createTestPng(8, 8, new Uint8Array([0, 0, 255, 255])),
       await createTestJpeg(8, 8, new Uint8Array([255, 255, 0, 255])),
       await createTestPng(8, 8, new Uint8Array([255, 0, 255, 255])),
-      await createTestJpeg(8, 8, new Uint8Array([0, 255, 255, 255]))
+      await createTestJpeg(8, 8, new Uint8Array([0, 255, 255, 255])),
     ];
 
     const result = await concatToBuffer({
       inputs: imgs,
-      layout: { columns: 3 } // 3 columns, 2 rows
+      layout: { columns: 3 }, // 3 columns, 2 rows
     });
 
     // 3 columns × 8px = 24px wide
@@ -164,7 +164,7 @@ describe('Mixed Formats - Streaming Output', () => {
 
     const stream = concatToStream({
       inputs: [pngImage, jpegImage],
-      layout: { columns: 2 }
+      layout: { columns: 2 },
     });
 
     assert.ok(stream, 'Should return stream');
@@ -187,7 +187,7 @@ describe('Mixed Formats - Edge Cases', () => {
 
     const result = await concatToBuffer({
       inputs: [jpegImage],
-      layout: { columns: 1 }
+      layout: { columns: 1 },
     });
 
     validateOutputPng(result, 20, 15);
@@ -206,7 +206,7 @@ describe('Mixed Formats - Edge Cases', () => {
 
     const result = await concatToBuffer({
       inputs,
-      layout: { columns: 3 }
+      layout: { columns: 3 },
     });
 
     // 3 columns × 10px = 30px wide
@@ -227,7 +227,7 @@ describe('Mixed Formats - Edge Cases', () => {
 
     const result = await concatToBuffer({
       inputs,
-      layout: { columns: 5 }
+      layout: { columns: 5 },
     });
 
     // 5 columns × 4px = 20px wide
@@ -247,9 +247,9 @@ describe('Mixed Formats - Decoder Options', () => {
       decoderOptions: {
         jpeg: {
           useImageDecoderAPI: false,
-          preferWasm: false
-        }
-      }
+          preferWasm: false,
+        },
+      },
     });
 
     validateOutputPng(result, 16, 8);
@@ -261,7 +261,7 @@ describe('Mixed Formats - Decoder Options', () => {
 
     const result = await concatToBuffer({
       inputs: [pngImage, jpegImage],
-      layout: { columns: 2 }
+      layout: { columns: 2 },
     });
 
     validateOutputPng(result, 16, 8);
@@ -271,13 +271,16 @@ describe('Mixed Formats - Decoder Options', () => {
 describe('Mixed Formats - ArrayBuffer Input', () => {
   test('accepts PNG as ArrayBuffer and JPEG as Uint8Array', async () => {
     const pngBytes = await createTestPng(10, 10, new Uint8Array([255, 0, 0, 255]));
-    const pngBuffer = pngBytes.buffer.slice(pngBytes.byteOffset, pngBytes.byteOffset + pngBytes.byteLength) as ArrayBuffer;
+    const pngBuffer = pngBytes.buffer.slice(
+      pngBytes.byteOffset,
+      pngBytes.byteOffset + pngBytes.byteLength
+    ) as ArrayBuffer;
 
     const jpegBytes = await createTestJpeg(10, 10, new Uint8Array([0, 255, 0, 255]));
 
     const result = await concatToBuffer({
       inputs: [pngBuffer, jpegBytes],
-      layout: { columns: 2 }
+      layout: { columns: 2 },
     });
 
     validateOutputPng(result, 20, 10);
@@ -292,7 +295,7 @@ describe('JPEG Output Format', () => {
     const result = await concatToBuffer({
       inputs: [png1, png2],
       layout: { columns: 2 },
-      outputFormat: 'jpeg'
+      outputFormat: 'jpeg',
     });
 
     assert.ok(result instanceof Uint8Array, 'Should return Uint8Array');
@@ -307,7 +310,7 @@ describe('JPEG Output Format', () => {
       inputs: [png1, png2],
       layout: { columns: 2 },
       outputFormat: 'jpeg',
-      jpegQuality: 95
+      jpegQuality: 95,
     });
 
     validateOutputJpeg(result);
@@ -321,7 +324,7 @@ describe('JPEG Output Format', () => {
       inputs: [png, jpeg],
       layout: { columns: 2 },
       outputFormat: 'jpeg',
-      jpegQuality: 85
+      jpegQuality: 85,
     });
 
     validateOutputJpeg(result);
@@ -338,7 +341,7 @@ describe('JPEG Output Format', () => {
       inputs,
       layout: { columns: 3 },
       outputFormat: 'jpeg',
-      jpegQuality: 90
+      jpegQuality: 90,
     });
 
     validateOutputJpeg(result);
@@ -351,7 +354,7 @@ describe('JPEG Output Format', () => {
     const result = await concatToBuffer({
       inputs: [small, large],
       layout: { columns: 2 },
-      outputFormat: 'jpeg'
+      outputFormat: 'jpeg',
     });
 
     validateOutputJpeg(result);
@@ -365,7 +368,7 @@ describe('JPEG Output Format', () => {
       inputs: [png1, png2],
       layout: { columns: 2 },
       outputFormat: 'jpeg',
-      jpegQuality: 85
+      jpegQuality: 85,
     });
 
     assert.ok(stream, 'Should return stream');
@@ -389,7 +392,7 @@ describe('JPEG Output Format', () => {
       inputs: [png1],
       layout: { columns: 1 },
       outputFormat: 'jpeg',
-      jpegQuality: 90
+      jpegQuality: 90,
     });
 
     validateOutputJpeg(result);
@@ -405,7 +408,7 @@ describe('JPEG Output Format', () => {
       inputs: [png],
       layout: { columns: 1 },
       outputFormat: 'jpeg',
-      jpegQuality: 85
+      jpegQuality: 85,
     });
 
     validateOutputJpeg(result);

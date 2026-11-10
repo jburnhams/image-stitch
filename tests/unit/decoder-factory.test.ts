@@ -13,11 +13,11 @@ import {
   JpegBufferDecoder,
   pngDecoder,
   jpegDecoder,
-  heicDecoder
+  heicDecoder,
 } from '../../src/decoders/index.js';
 import {
   clearDefaultDecoderPlugins,
-  setDefaultDecoderPlugins
+  setDefaultDecoderPlugins,
 } from '../../src/decoders/plugin-registry.js';
 import { createTestPng, createTestJpeg } from '../utils/image-fixtures.js';
 
@@ -54,7 +54,10 @@ describe('Decoder Factory - createDecoder', () => {
 
   test('creates decoder from ArrayBuffer', async () => {
     const pngBytes = await createTestPng(15, 15, new Uint8Array([0, 0, 255, 255]));
-    const buffer = pngBytes.buffer.slice(pngBytes.byteOffset, pngBytes.byteOffset + pngBytes.byteLength) as ArrayBuffer;
+    const buffer = pngBytes.buffer.slice(
+      pngBytes.byteOffset,
+      pngBytes.byteOffset + pngBytes.byteLength
+    ) as ArrayBuffer;
 
     const decoder = await createDecoder(buffer);
 
@@ -141,7 +144,7 @@ describe('Decoder Factory - createDecoders (array)', () => {
 
     assert.strictEqual(decoders.length, 3, 'Should create 3 decoders');
 
-    const headers = await Promise.all(decoders.map(d => d.getHeader()));
+    const headers = await Promise.all(decoders.map((d) => d.getHeader()));
 
     assert.strictEqual(headers[0].format, 'png');
     assert.strictEqual(headers[0].width, 10);
@@ -153,7 +156,7 @@ describe('Decoder Factory - createDecoders (array)', () => {
     assert.strictEqual(headers[2].width, 10);
 
     // Cleanup
-    await Promise.all(decoders.map(d => d.close()));
+    await Promise.all(decoders.map((d) => d.close()));
   });
 
   test('handles empty array', async () => {
@@ -181,8 +184,8 @@ describe('Decoder Factory - Format-specific options', () => {
     const decoder = await createDecoder(jpegBytes, {
       jpeg: {
         useImageDecoderAPI: false,
-        preferWasm: true
-      }
+        preferWasm: true,
+      },
     });
 
     assert.ok(decoder instanceof JpegBufferDecoder);

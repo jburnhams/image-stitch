@@ -8,8 +8,9 @@ const originalCompressionStream = globalThis.CompressionStream;
 
 function resetCompressionStream(): void {
   if (originalCompressionStream) {
-    (globalThis as typeof globalThis & { CompressionStream: typeof originalCompressionStream }).CompressionStream =
-      originalCompressionStream;
+    (
+      globalThis as typeof globalThis & { CompressionStream: typeof originalCompressionStream }
+    ).CompressionStream = originalCompressionStream;
   } else {
     Reflect.deleteProperty(globalThis as Record<string, unknown>, 'CompressionStream');
   }
@@ -27,9 +28,7 @@ test('StreamingDeflator rejects push before initialize', serial, async () => {
 
 test('StreamingDeflator fallback compresses data and flushes batches', serial, async () => {
   Reflect.deleteProperty(globalThis as Record<string, unknown>, 'CompressionStream');
-  const inputs = [
-    Uint8Array.from({ length: 12 }, (_, i) => i + 1)
-  ];
+  const inputs = [Uint8Array.from({ length: 12 }, (_, i) => i + 1)];
   const collected: Uint8Array[] = [];
   const deflator = new StreamingDeflator({ maxBatchSize: 8 });
   await deflator.initialize((chunk) => collected.push(chunk));
@@ -43,10 +42,7 @@ test('StreamingDeflator fallback compresses data and flushes batches', serial, a
   await deflator.flush();
   await deflator.finish();
 
-  await assert.rejects(
-    () => deflator.push(new Uint8Array([0])),
-    /Cannot push after finish\(\)/
-  );
+  await assert.rejects(() => deflator.push(new Uint8Array([0])), /Cannot push after finish\(\)/);
 
   const pako = await import('pako');
   const total = collected.reduce((sum, chunk) => sum + chunk.length, 0);
@@ -84,9 +80,6 @@ test('compressStreaming yields compressed output for async generator', serial, a
   }
 
   const inflated = pako.inflate(joined);
-  assert.deepStrictEqual(
-    Array.from(inflated),
-    [1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89]
-  );
+  assert.deepStrictEqual(Array.from(inflated), [1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89]);
   resetCompressionStream();
 });

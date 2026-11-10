@@ -53,7 +53,7 @@ export function takeSnapshot(): MemorySnapshot {
     external: usage.external,
     arrayBuffers: usage.arrayBuffers,
     rss: usage.rss,
-    timestamp: Date.now()
+    timestamp: Date.now(),
   };
 }
 
@@ -80,7 +80,7 @@ export async function monitorMemory<T>(
 ): Promise<{ result: T; measurement: MemoryMeasurement }> {
   // Force GC before measurement if available
   forceGC();
-  await new Promise(resolve => setTimeout(resolve, 100));
+  await new Promise((resolve) => setTimeout(resolve, 100));
   forceGC();
 
   const before = takeSnapshot();
@@ -90,7 +90,7 @@ export async function monitorMemory<T>(
   // Start monitoring in background
   const monitoringTask = (async () => {
     while (!isComplete) {
-      await new Promise(resolve => setTimeout(resolve, sampleInterval));
+      await new Promise((resolve) => setTimeout(resolve, sampleInterval));
       const current = takeSnapshot();
       if (current.heapUsed > peak.heapUsed) {
         peak = current;
@@ -107,7 +107,7 @@ export async function monitorMemory<T>(
 
   // Force GC after operation
   forceGC();
-  await new Promise(resolve => setTimeout(resolve, 100));
+  await new Promise((resolve) => setTimeout(resolve, 100));
 
   const after = takeSnapshot();
 
@@ -118,8 +118,8 @@ export async function monitorMemory<T>(
     delta: {
       heapUsed: peak.heapUsed - before.heapUsed,
       external: peak.external - before.external,
-      arrayBuffers: peak.arrayBuffers - before.arrayBuffers
-    }
+      arrayBuffers: peak.arrayBuffers - before.arrayBuffers,
+    },
   };
 
   return { result, measurement };
@@ -141,12 +141,12 @@ export function assertMemoryBelow(
   if (delta > maxBytes) {
     throw new Error(
       `Memory usage exceeded threshold:\n` +
-      `  Metric: ${metric}\n` +
-      `  Expected: < ${formatBytes(maxBytes)}\n` +
-      `  Actual: ${formatBytes(delta)}\n` +
-      `  Before: ${formatBytes(measurement.before[metric])}\n` +
-      `  Peak: ${formatBytes(measurement.peak[metric])}\n` +
-      `  After: ${formatBytes(measurement.after[metric])}\n`
+        `  Metric: ${metric}\n` +
+        `  Expected: < ${formatBytes(maxBytes)}\n` +
+        `  Actual: ${formatBytes(delta)}\n` +
+        `  Before: ${formatBytes(measurement.before[metric])}\n` +
+        `  Peak: ${formatBytes(measurement.peak[metric])}\n` +
+        `  After: ${formatBytes(measurement.after[metric])}\n`
     );
   }
 }
@@ -175,7 +175,7 @@ export function calculateExpectedMemory(
   return {
     uncompressedSize,
     compressedSize,
-    reasonableLimit
+    reasonableLimit,
   };
 }
 
@@ -221,14 +221,14 @@ export function assertStreamingEfficiency(
   if (delta > threshold) {
     throw new Error(
       `Memory usage suggests non-streaming behavior:\n` +
-      `  Output size: ${formatBytes(outputSizeBytes)}\n` +
-      `  Expected max: ${formatBytes(threshold)} (${maxMultiplier}x output)\n` +
-      `  Actual peak delta: ${formatBytes(delta)}\n` +
-      `  Ratio: ${(delta / outputSizeBytes).toFixed(2)}x\n` +
-      `\n` +
-      `This suggests intermediate buffers are too large.\n` +
-      `For true streaming, memory should be proportional to output size,\n` +
-      `not intermediate uncompressed data size.`
+        `  Output size: ${formatBytes(outputSizeBytes)}\n` +
+        `  Expected max: ${formatBytes(threshold)} (${maxMultiplier}x output)\n` +
+        `  Actual peak delta: ${formatBytes(delta)}\n` +
+        `  Ratio: ${(delta / outputSizeBytes).toFixed(2)}x\n` +
+        `\n` +
+        `This suggests intermediate buffers are too large.\n` +
+        `For true streaming, memory should be proportional to output size,\n` +
+        `not intermediate uncompressed data size.`
     );
   }
 }

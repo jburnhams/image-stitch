@@ -80,7 +80,10 @@
     "smoke": "npm run smoke:esm && npm run smoke:cjs",
     "coverage": "npm run build:tests && c8 node --expose-gc --test build/tests/tests/unit/*.test.js",
     "size": "npm run build && node scripts/check-bundle-size.mjs",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "lint": "biome check . && oxlint --type-aware --deny-warnings src",
+    "format": "biome format --write .",
+    "typecheck": "tsc -p tsconfig.tests.json --noEmit"
   },
   "keywords": [
     "png",
@@ -98,6 +101,7 @@
   "author": "Jonathan Burnhams",
   "license": "MIT",
   "devDependencies": {
+    "@biomejs/biome": "^2.6.6",
     "@types/node": "^24.19.2",
     "@types/pngjs": "^6.0.5",
     "c8": "^12.0.0",
@@ -105,6 +109,8 @@
     "happy-dom": "^21.0.4",
     "heic-decode": "^2.1.0",
     "libheif-js": "^1.23.5",
+    "oxlint": "^1.93.0",
+    "oxlint-tsgolint": "^7.0.2006",
     "pngjs": "^7.0.0",
     "typescript": "^7.0.2"
   },
@@ -112,7 +118,7 @@
     "node": ">=20.0.0"
   },
   "dependencies": {
-    "jpeg-encoder-wasm": "^0.1.0",
+    "jpeg-encoder-wasm": "^0.1.2",
     "jpeg-js": "^0.4.4",
     "pako": "^3.0.3"
   },
@@ -131,5 +137,9 @@
     "heic-decode": {
       "optional": true
     }
+  },
+  "overrides": {
+    "glob": "^14.0.4",
+    "minimatch": "^11.0.5"
   }
 }

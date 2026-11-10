@@ -14,10 +14,27 @@ import { heicDecoder } from './heic-decoder.js';
 setDefaultDecoderPlugins([pngDecoder, jpegDecoder, heicDecoder]);
 
 // Core types
-export type { ImageDecoder, ImageHeader, ImageFormat, ImageInput, PositionedImage, ImageFactory, ImageSource, DecoderOptions, JpegDecoderOptions, HeicDecoderOptions, DecoderPlugin } from './types.js';
+export type {
+  ImageDecoder,
+  ImageHeader,
+  ImageFormat,
+  ImageInput,
+  PositionedImage,
+  ImageFactory,
+  ImageSource,
+  DecoderOptions,
+  JpegDecoderOptions,
+  HeicDecoderOptions,
+  DecoderPlugin,
+} from './types.js';
 
 // Format detection
-export { detectImageFormat, detectFormat, readMagicBytes, validateFormat } from './format-detection.js';
+export {
+  detectImageFormat,
+  detectFormat,
+  readMagicBytes,
+  validateFormat,
+} from './format-detection.js';
 
 // PNG decoders
 export { PngFileDecoder, PngBufferDecoder, pngDecoder } from './png-decoder.js';
@@ -29,4 +46,9 @@ export { JpegFileDecoder, JpegBufferDecoder, jpegDecoder } from './jpeg-decoder.
 export { HeicFileDecoder, HeicBufferDecoder, heicDecoder } from './heic-decoder.js';
 
 // Factory functions (main API)
-export { createDecoder, createDecoders, createDecodersFromAsyncIterable, createDecodersFromIterable } from './decoder-factory.js';
+export {
+  createDecoder,
+  createDecoders,
+  createDecodersFromAsyncIterable,
+  createDecodersFromIterable,
+} from './decoder-factory.js';

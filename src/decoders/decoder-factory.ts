@@ -5,7 +5,15 @@
  * Supports PNG, JPEG, and HEIC formats with automatic fallback strategies.
  */
 
-import type { ImageDecoder, ImageInput, DecoderOptions, DecoderPlugin, PositionedImage, ImageSource, ImageHeader } from './types.js';
+import type {
+  ImageDecoder,
+  ImageInput,
+  DecoderOptions,
+  DecoderPlugin,
+  PositionedImage,
+  ImageSource,
+  ImageHeader,
+} from './types.js';
 import { detectFormat, validateFormat } from './format-detection.js';
 import { getDefaultDecoderPlugins } from './plugin-registry.js';
 
@@ -53,7 +61,7 @@ class LazyImageDecoder implements ImageDecoder {
       height: this.source.height,
       channels: 4, // Default to RGBA
       bitDepth: 8, // Default to 8-bit
-      format: 'unknown'
+      format: 'unknown',
     };
   }
 
@@ -70,7 +78,7 @@ class LazyImageDecoder implements ImageDecoder {
     // Pass the plugins to the inner decoder to ensure consistency
     const decoder = await createDecoder(input, this.options, this.plugins);
     try {
-      yield *decoder.scanlines();
+      yield* decoder.scanlines();
     } finally {
       await decoder.close();
     }
@@ -84,7 +92,9 @@ class LazyImageDecoder implements ImageDecoder {
 /**
  * Extract the actual image source from input (unwraps PositionedImage)
  */
-function extractSource(input: ImageInput): string | Uint8Array | ArrayBuffer | Blob | ImageDecoder | ImageSource {
+function extractSource(
+  input: ImageInput
+): string | Uint8Array | ArrayBuffer | Blob | ImageDecoder | ImageSource {
   if (isPositionedImage(input)) {
     return input.source;
   }
@@ -144,7 +154,7 @@ export async function createDecoder(
     const format = await detectFormat(source);
     validateFormat(format);
 
-    const plugin = availablePlugins.find(candidate => candidate.format === format);
+    const plugin = availablePlugins.find((candidate) => candidate.format === format);
     if (!plugin) {
       throw new Error(
         `No decoder registered for format "${format}". Provide a matching plugin via options.decoders.`
@@ -167,7 +177,7 @@ export async function createDecoder(
     const format = await detectFormat(magicBytes);
     validateFormat(format);
 
-    const plugin = availablePlugins.find(candidate => candidate.format === format);
+    const plugin = availablePlugins.find((candidate) => candidate.format === format);
     if (!plugin) {
       throw new Error(
         `No decoder registered for format "${format}". Provide a matching plugin via options.decoders.`
@@ -182,7 +192,7 @@ export async function createDecoder(
     const format = await detectFormat(processedSource);
     validateFormat(format);
 
-    const plugin = availablePlugins.find(candidate => candidate.format === format);
+    const plugin = availablePlugins.find((candidate) => candidate.format === format);
     if (!plugin) {
       throw new Error(
         `No decoder registered for format "${format}". Provide a matching plugin via options.decoders.`
@@ -293,7 +303,7 @@ export function hasPositionedImages(inputs: ImageInput[]): boolean {
 export function extractPositions(
   inputs: ImageInput[]
 ): Array<{ x: number; y: number; zIndex?: number } | undefined> {
-  return inputs.map(input => {
+  return inputs.map((input) => {
     if (isPositionedImage(input)) {
       return { x: input.x, y: input.y, zIndex: input.zIndex };
     }
@@ -311,8 +321,8 @@ export function validatePositionedInputs(inputs: ImageInput[]): void {
   if (positionedCount > 0 && positionedCount < inputs.length) {
     throw new Error(
       'Cannot mix positioned and non-positioned images. ' +
-      'All inputs must be PositionedImage objects or none can be. ' +
-      `Found ${positionedCount} positioned and ${inputs.length - positionedCount} non-positioned images.`
+        'All inputs must be PositionedImage objects or none can be. ' +
+        `Found ${positionedCount} positioned and ${inputs.length - positionedCount} non-positioned images.`
     );
   }
 }

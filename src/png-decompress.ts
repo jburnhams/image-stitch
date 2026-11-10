@@ -1,5 +1,10 @@
-import { PngChunk, PngHeader } from './types.js';
-import { unfilterScanline, filterScanline, getBytesPerPixel, FilterType } from './png-filter.js';
+import type { PngChunk, PngHeader } from './types.js';
+import {
+  unfilterScanline,
+  filterScanline,
+  getBytesPerPixel,
+  type FilterType,
+} from './png-filter.js';
 import { getSamplesPerPixel } from './utils.js';
 import { deinterlaceAdam7 } from './adam7.js';
 import { createDecompressionStream } from './streaming-inflate.js';
@@ -20,11 +25,13 @@ export async function decompressData(data: Uint8Array): Promise<Uint8Array> {
       start(controller) {
         controller.enqueue(data);
         controller.close();
-      }
+      },
     });
   }
 
-  const decompressedStream = stream.pipeThrough(createDecompressionStream('deflate') as ReadableWritablePair<Uint8Array, Uint8Array>);
+  const decompressedStream = stream.pipeThrough(
+    createDecompressionStream('deflate') as ReadableWritablePair<Uint8Array, Uint8Array>
+  );
   const chunks: Uint8Array[] = [];
   const reader = decompressedStream.getReader();
 
@@ -75,7 +82,10 @@ async function compressData(data: Uint8Array): Promise<Uint8Array> {
  * @param header PNG header information
  * @returns Unfiltered raw pixel data
  */
-export async function decompressImageData(idatChunks: PngChunk[], header: PngHeader): Promise<Uint8Array> {
+export async function decompressImageData(
+  idatChunks: PngChunk[],
+  header: PngHeader
+): Promise<Uint8Array> {
   // Concatenate all IDAT chunk data
   let totalLength = 0;
   for (const chunk of idatChunks) {
@@ -103,7 +113,9 @@ export async function decompressImageData(idatChunks: PngChunk[], header: PngHea
 
   // Handle non-interlaced images
   const bytesPerPixel = getBytesPerPixel(header.bitDepth, header.colorType);
-  const scanlineLength = Math.ceil((header.width * header.bitDepth * getSamplesPerPixel(header.colorType)) / 8);
+  const scanlineLength = Math.ceil(
+    (header.width * header.bitDepth * getSamplesPerPixel(header.colorType)) / 8
+  );
   const unfilteredData = new Uint8Array(header.height * scanlineLength);
 
   let previousLine: Uint8Array | null = null;
@@ -135,9 +147,14 @@ export async function decompressImageData(idatChunks: PngChunk[], header: PngHea
  * @param header PNG header information
  * @returns Compressed IDAT chunk data
  */
-export async function compressImageData(pixelData: Uint8Array, header: PngHeader): Promise<Uint8Array> {
+export async function compressImageData(
+  pixelData: Uint8Array,
+  header: PngHeader
+): Promise<Uint8Array> {
   const bytesPerPixel = getBytesPerPixel(header.bitDepth, header.colorType);
-  const scanlineLength = Math.ceil((header.width * header.bitDepth * getSamplesPerPixel(header.colorType)) / 8);
+  const scanlineLength = Math.ceil(
+    (header.width * header.bitDepth * getSamplesPerPixel(header.colorType)) / 8
+  );
 
   // Add filter type bytes and filter each scanline
   const filteredData = new Uint8Array(header.height * (scanlineLength + 1));
@@ -168,7 +185,7 @@ export async function compressImageData(pixelData: Uint8Array, header: PngHeader
  * Extract pixel data from a PNG file
  */
 export async function extractPixelData(chunks: PngChunk[], header: PngHeader): Promise<Uint8Array> {
-  const idatChunks = chunks.filter(chunk => chunk.type === 'IDAT');
+  const idatChunks = chunks.filter((chunk) => chunk.type === 'IDAT');
   if (idatChunks.length === 0) {
     throw new Error('No IDAT chunks found in PNG');
   }

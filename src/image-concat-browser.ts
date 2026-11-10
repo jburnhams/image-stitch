@@ -1,4 +1,4 @@
-import { ConcatOptions } from './types.js';
+import type { ConcatOptions } from './types.js';
 import type { ImageInput } from './decoders/types.js';
 import { CoreStreamingConcatenator } from './image-concat-core.js';
 
@@ -12,16 +12,13 @@ export type BrowserImageInputSource =
   | Array<BrowserImageInput>
   | AsyncOrSyncIterable<BrowserImageInput>;
 
-type BrowserCanvasInputSource =
-  | Array<BrowserCanvasInput>
-  | AsyncOrSyncIterable<BrowserCanvasInput>;
+type BrowserCanvasInputSource = Array<BrowserCanvasInput> | AsyncOrSyncIterable<BrowserCanvasInput>;
 
 export type BrowserConcatOptions = Omit<ConcatOptions, 'inputs'> & {
   inputs: BrowserImageInputSource;
 };
 
-export interface ConcatCanvasesBaseOptions
-  extends Omit<BrowserConcatOptions, 'inputs'> {
+export interface ConcatCanvasesBaseOptions extends Omit<BrowserConcatOptions, 'inputs'> {
   canvases: BrowserCanvasInputSource;
 }
 
@@ -40,19 +37,17 @@ export interface ConcatCanvasesCanvasOptions extends ConcatCanvasesBaseOptions {
   targetCanvas?: HTMLCanvasElement;
 }
 
-export type ConcatCanvasesOptions =
-  | ConcatCanvasesBlobOptions
-  | ConcatCanvasesCanvasOptions;
+export type ConcatCanvasesOptions = ConcatCanvasesBlobOptions | ConcatCanvasesCanvasOptions;
 
 function isHtmlCanvasElement(value: unknown): value is HTMLCanvasElement {
-  return (
-    typeof HTMLCanvasElement !== 'undefined' &&
-    value instanceof HTMLCanvasElement
-  );
+  return typeof HTMLCanvasElement !== 'undefined' && value instanceof HTMLCanvasElement;
 }
 
 async function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
-  if (typeof (canvas as unknown as { convertToBlob?: () => Promise<Blob> }).convertToBlob === 'function') {
+  if (
+    typeof (canvas as unknown as { convertToBlob?: () => Promise<Blob> }).convertToBlob ===
+    'function'
+  ) {
     return (canvas as unknown as { convertToBlob: () => Promise<Blob> }).convertToBlob();
   }
 
@@ -94,9 +89,7 @@ function isIterable<T>(value: AsyncOrSyncIterable<T>): value is Iterable<T> {
   return typeof (value as Iterable<T>)[Symbol.iterator] === 'function';
 }
 
-async function collectInputs<T>(
-  inputs: AsyncOrSyncIterable<T> | Array<T>
-): Promise<T[]> {
+async function collectInputs<T>(inputs: AsyncOrSyncIterable<T> | Array<T>): Promise<T[]> {
   if (Array.isArray(inputs)) {
     return inputs.slice();
   }
@@ -147,7 +140,7 @@ function normalizeInputSource(inputs: BrowserImageInputSource): AsyncIterable<Im
 function normalizeOptions(options: BrowserConcatOptions): ConcatOptions {
   return {
     ...options,
-    inputs: normalizeInputSource(options.inputs)
+    inputs: normalizeInputSource(options.inputs),
   } satisfies ConcatOptions;
 }
 
@@ -159,16 +152,12 @@ class BrowserStreamingConcatenator extends CoreStreamingConcatenator {
 
 export { BrowserStreamingConcatenator as StreamingConcatenator };
 
-async function* browserConcatStreaming(
-  options: BrowserConcatOptions
-): AsyncGenerator<Uint8Array> {
+async function* browserConcatStreaming(options: BrowserConcatOptions): AsyncGenerator<Uint8Array> {
   const concatenator = new BrowserStreamingConcatenator(options);
   yield* concatenator.stream();
 }
 
-export async function concatToBuffer(
-  options: BrowserConcatOptions
-): Promise<Uint8Array> {
+export async function concatToBuffer(options: BrowserConcatOptions): Promise<Uint8Array> {
   const chunks: Uint8Array[] = [];
   let totalLength = 0;
 
@@ -271,7 +260,7 @@ async function renderPngToCanvas(
           ctx.drawImage(img, 0, 0);
           resolve();
         };
-        img.onerror = (error) => reject(error);
+        img.onerror = (event) => reject(new Error('Failed to load image', { cause: event }));
         img.src = url;
       });
     } finally {
@@ -281,15 +270,15 @@ async function renderPngToCanvas(
     return canvas;
   }
 
-  throw new Error('Canvas rendering is not supported in this environment. Use output: "blob" instead.');
+  throw new Error(
+    'Canvas rendering is not supported in this environment. Use output: "blob" instead.'
+  );
 }
 
 export async function concatCanvases(
   options: ConcatCanvasesCanvasOptions
 ): Promise<HTMLCanvasElement>;
-export async function concatCanvases(
-  options: ConcatCanvasesBlobOptions
-): Promise<Blob>;
+export async function concatCanvases(options: ConcatCanvasesBlobOptions): Promise<Blob>;
 export async function concatCanvases(
   options: ConcatCanvasesOptions
 ): Promise<HTMLCanvasElement | Blob> {
@@ -311,7 +300,7 @@ export async function concatCanvases(
 
   const pngBytes = await concatToBuffer({
     ...(forwardOptions as Omit<BrowserConcatOptions, 'inputs'>),
-    inputs: normalizedInputs
+    inputs: normalizedInputs,
   });
 
   if (output === 'canvas') {

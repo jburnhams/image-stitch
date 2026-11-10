@@ -161,7 +161,8 @@
       gap: 0.35rem;
     }
 
-    .control-group label {
+    .control-group label,
+    .control-group .group-label {
       font-weight: 600;
       color: #4c1d95;
       display: flex;
@@ -329,8 +330,8 @@
           </div>
 
           <div class="control-group">
-            <label>Output format:</label>
-            <div style="display: flex; gap: 1rem; align-items: center; margin-top: 0.5rem;">
+            <span class="group-label" id="output-format-label">Output format:</span>
+            <div role="radiogroup" aria-labelledby="output-format-label" style="display: flex; gap: 1rem; align-items: center; margin-top: 0.5rem;">
               <label style="display: inline-flex; align-items: center; gap: 0.35rem; cursor: pointer;">
                 <input type="radio" name="output-format" value="png" checked style="accent-color: #7c3aed;" />
                 <span>PNG (lossless)</span>
@@ -491,7 +492,7 @@
 
     function clearPreview() {
       const resultImg = document.querySelector("#streaming-result img");
-      if (resultImg && resultImg.dataset.url) {
+      if (resultImg?.dataset.url) {
         URL.revokeObjectURL(resultImg.dataset.url);
         delete resultImg.dataset.url;
       }

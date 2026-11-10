@@ -48,7 +48,7 @@ export {
   concatToBuffer,
   concatToFile,
   concatStreaming,
-  concatToStream
+  concatToStream,
 } from './image-concat.js';
 
 // Multi-format decoder system (NEW - supports PNG, JPEG, HEIC)
@@ -60,7 +60,7 @@ export type {
   PositionedImage,
   DecoderOptions,
   JpegDecoderOptions,
-  HeicDecoderOptions
+  HeicDecoderOptions,
 } from './decoders/index.js';
 export {
   // Factory functions (recommended)
@@ -76,7 +76,7 @@ export {
   JpegFileDecoder,
   JpegBufferDecoder,
   HeicFileDecoder,
-  HeicBufferDecoder
+  HeicBufferDecoder,
 } from './decoders/index.js';
 
 // Streaming implementation
@@ -89,25 +89,25 @@ export {
   createIHDR,
   createIEND,
   serializeChunk,
-  buildPng
+  buildPng,
 } from './png-writer.js';
 export {
   decompressImageData,
   compressImageData,
   extractPixelData,
-  decompressData
+  decompressData,
 } from './png-decompress.js';
 export {
   unfilterScanline,
   filterScanline,
   getBytesPerPixel,
-  FilterType
+  FilterType,
 } from './png-filter.js';
 export {
   copyPixelRegion,
   fillPixelRegion,
   createBlankImage,
-  parseBackgroundColor
+  parseBackgroundColor,
 } from './pixel-ops.js';
 export * from './types.js';
 export {
@@ -116,7 +116,7 @@ export {
   readUInt32BE,
   writeUInt32BE,
   isPngSignature,
-  PNG_SIGNATURE
+  PNG_SIGNATURE,
 } from './utils.js';
 
 // JPEG encoder (for advanced use)

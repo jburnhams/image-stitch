@@ -4,7 +4,7 @@ import {
   calculateCanvasSize,
   clipImagesToCanvas,
   buildScanlineIndex,
-  type PositionedImageInfo
+  type PositionedImageInfo,
 } from '../../src/positioned-layout.js';
 import type { PngHeader } from '../../src/types.js';
 import { ColorType } from '../../src/types.js';
@@ -17,14 +17,14 @@ function createHeader(width: number, height: number): PngHeader {
     colorType: ColorType.RGBA,
     compressionMethod: 0,
     filterMethod: 0,
-    interlaceMethod: 0
+    interlaceMethod: 0,
   };
 }
 
 test('calculateCanvasSize: explicit dimensions', () => {
   const positions = [
     { x: 0, y: 0, width: 100, height: 100 },
-    { x: 150, y: 150, width: 50, height: 50 }
+    { x: 150, y: 150, width: 50, height: 50 },
   ];
 
   const size = calculateCanvasSize(positions, 500, 400);
@@ -35,7 +35,7 @@ test('calculateCanvasSize: explicit dimensions', () => {
 test('calculateCanvasSize: auto-calculate from image bounds', () => {
   const positions = [
     { x: 0, y: 0, width: 100, height: 100 },
-    { x: 150, y: 50, width: 50, height: 75 }
+    { x: 150, y: 50, width: 50, height: 75 },
   ];
 
   const size = calculateCanvasSize(positions);
@@ -46,7 +46,7 @@ test('calculateCanvasSize: auto-calculate from image bounds', () => {
 test('calculateCanvasSize: explicit width only', () => {
   const positions = [
     { x: 0, y: 0, width: 100, height: 100 },
-    { x: 0, y: 150, width: 50, height: 50 }
+    { x: 0, y: 150, width: 50, height: 50 },
   ];
 
   const size = calculateCanvasSize(positions, 300, undefined);
@@ -56,19 +56,16 @@ test('calculateCanvasSize: explicit width only', () => {
 
 test('calculateCanvasSize: empty positions', () => {
   const size = calculateCanvasSize([]);
-  assert.strictEqual(size.width, 1);  // Minimum size
+  assert.strictEqual(size.width, 1); // Minimum size
   assert.strictEqual(size.height, 1);
 });
 
 test('clipImagesToCanvas: no clipping needed', () => {
   const positions = [
     { x: 0, y: 0 },
-    { x: 100, y: 0 }
+    { x: 100, y: 0 },
   ];
-  const headers = [
-    createHeader(100, 100),
-    createHeader(100, 100)
-  ];
+  const headers = [createHeader(100, 100), createHeader(100, 100)];
 
   const result = clipImagesToCanvas(positions, headers, 200, 100, () => {});
 
@@ -81,7 +78,7 @@ test('clipImagesToCanvas: no clipping needed', () => {
     width: 100,
     height: 100,
     currentScanline: 0,
-    zIndex: 0
+    zIndex: 0,
   });
 });
 
@@ -206,8 +203,8 @@ test('buildScanlineIndex: single image', () => {
       width: 50,
       height: 30,
       currentScanline: 0,
-      zIndex: 0
-    }
+      zIndex: 0,
+    },
   ];
 
   const index = buildScanlineIndex(positionedImages, 100);
@@ -234,7 +231,7 @@ test('buildScanlineIndex: single image', () => {
 test('buildScanlineIndex: non-overlapping images', () => {
   const positionedImages: PositionedImageInfo[] = [
     { imageIdx: 0, x: 0, y: 0, width: 50, height: 50, currentScanline: 0, zIndex: 0 },
-    { imageIdx: 1, x: 50, y: 0, width: 50, height: 50, currentScanline: 0, zIndex: 1 }
+    { imageIdx: 1, x: 50, y: 0, width: 50, height: 50, currentScanline: 0, zIndex: 1 },
   ];
 
   const index = buildScanlineIndex(positionedImages, 100);
@@ -253,7 +250,7 @@ test('buildScanlineIndex: non-overlapping images', () => {
 test('buildScanlineIndex: overlapping images', () => {
   const positionedImages: PositionedImageInfo[] = [
     { imageIdx: 0, x: 0, y: 0, width: 100, height: 100, currentScanline: 0, zIndex: 0 },
-    { imageIdx: 1, x: 50, y: 50, width: 100, height: 100, currentScanline: 0, zIndex: 1 }
+    { imageIdx: 1, x: 50, y: 50, width: 100, height: 100, currentScanline: 0, zIndex: 1 },
   ];
 
   const index = buildScanlineIndex(positionedImages, 200);
@@ -280,7 +277,7 @@ test('buildScanlineIndex: overlapping images', () => {
 test('buildScanlineIndex: empty scanlines', () => {
   const positionedImages: PositionedImageInfo[] = [
     { imageIdx: 0, x: 0, y: 0, width: 50, height: 50, currentScanline: 0, zIndex: 0 },
-    { imageIdx: 1, x: 0, y: 100, width: 50, height: 50, currentScanline: 0, zIndex: 1 }
+    { imageIdx: 1, x: 0, y: 100, width: 50, height: 50, currentScanline: 0, zIndex: 1 },
   ];
 
   const index = buildScanlineIndex(positionedImages, 200);
@@ -302,7 +299,7 @@ test('buildScanlineIndex: z-order preservation', () => {
   const positionedImages: PositionedImageInfo[] = [
     { imageIdx: 2, x: 0, y: 0, width: 100, height: 100, currentScanline: 0, zIndex: 5 },
     { imageIdx: 5, x: 25, y: 25, width: 100, height: 100, currentScanline: 0, zIndex: 1 },
-    { imageIdx: 1, x: 50, y: 50, width: 100, height: 100, currentScanline: 0, zIndex: 3 }
+    { imageIdx: 1, x: 50, y: 50, width: 100, height: 100, currentScanline: 0, zIndex: 3 },
   ];
 
   const index = buildScanlineIndex(positionedImages, 200);

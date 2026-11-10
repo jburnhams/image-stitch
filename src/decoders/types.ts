@@ -154,7 +154,14 @@ export interface ImageSource {
 /**
  * Type for image input sources
  */
-export type ImageInput = string | Uint8Array | ArrayBuffer | Blob | ImageDecoder | PositionedImage | ImageSource;
+export type ImageInput =
+  | string
+  | Uint8Array
+  | ArrayBuffer
+  | Blob
+  | ImageDecoder
+  | PositionedImage
+  | ImageSource;
 
 /**
  * Plugin interface for registering decoder implementations.

@@ -5,8 +5,8 @@
  * Adam7 divides an image into 7 passes, each containing a subset of pixels.
  */
 
-import { PngHeader } from './types.js';
-import { unfilterScanline, getBytesPerPixel, FilterType } from './png-filter.js';
+import type { PngHeader } from './types.js';
+import { unfilterScanline, getBytesPerPixel, type FilterType } from './png-filter.js';
 import { getSamplesPerPixel } from './utils.js';
 
 /**
@@ -33,12 +33,16 @@ const ADAM7_PASSES: Adam7Pass[] = [
 /**
  * Calculate dimensions of a specific Adam7 pass
  */
-function getPassDimensions(width: number, height: number, pass: Adam7Pass): { width: number; height: number } {
+function getPassDimensions(
+  width: number,
+  height: number,
+  pass: Adam7Pass
+): { width: number; height: number } {
   const passWidth = Math.ceil((width - pass.xStart) / pass.xStep);
   const passHeight = Math.ceil((height - pass.yStart) / pass.yStep);
   return {
     width: Math.max(0, passWidth),
-    height: Math.max(0, passHeight)
+    height: Math.max(0, passHeight),
   };
 }
 
@@ -77,7 +81,9 @@ export function deinterlaceAdam7(decompressed: Uint8Array, header: PngHeader): U
     // Process each scanline in this pass
     for (let passY = 0; passY < passDims.height; passY++) {
       if (srcOffset >= decompressed.length) {
-        throw new Error(`Unexpected end of decompressed data at pass ${passIndex + 1}, line ${passY}`);
+        throw new Error(
+          `Unexpected end of decompressed data at pass ${passIndex + 1}, line ${passY}`
+        );
       }
 
       // Read filter type
@@ -88,21 +94,19 @@ export function deinterlaceAdam7(decompressed: Uint8Array, header: PngHeader): U
       srcOffset += passScanlineLength;
 
       // Unfilter the scanline
-      const unfilteredLine = unfilterScanline(filterType, filteredLine, previousLine, bytesPerPixel);
+      const unfilteredLine = unfilterScanline(
+        filterType,
+        filteredLine,
+        previousLine,
+        bytesPerPixel
+      );
       previousLine = unfilteredLine;
 
       // Calculate actual Y coordinate in final image
       const finalY = pass.yStart + passY * pass.yStep;
 
       // Distribute pixels from this scanline to final image
-      distributePassPixels(
-        unfilteredLine,
-        output,
-        header,
-        finalY,
-        pass,
-        passDims.width
-      );
+      distributePassPixels(unfilteredLine, output, header, finalY, pass, passDims.width);
     }
   }
 
@@ -179,7 +183,8 @@ function distributeSubBytePixels(
     const finalBitOffset = (pixelsPerByte - 1 - (finalX % pixelsPerByte)) * bitDepth;
 
     // Clear the bits and set the new value
-    output[finalByteIndex] = (output[finalByteIndex] & ~(mask << finalBitOffset)) | (pixelValue << finalBitOffset);
+    output[finalByteIndex] =
+      (output[finalByteIndex] & ~(mask << finalBitOffset)) | (pixelValue << finalBitOffset);
   }
 }
 

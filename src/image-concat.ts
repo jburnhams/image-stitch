@@ -1,9 +1,9 @@
 import { Readable } from 'node:stream';
-import { ConcatOptions } from './types.js';
+import type { ConcatOptions } from './types.js';
 import {
   CoreStreamingConcatenator,
   concat as concatUint8Array,
-  concatStreaming as concatStreamingCore
+  concatStreaming as concatStreamingCore,
 } from './image-concat-core.js';
 
 class NodeStreamingConcatenator extends CoreStreamingConcatenator {
@@ -50,14 +50,17 @@ export function concatToFile(options: ConcatOptions, outputPath: string): Promis
  * Use {@link concatToStream} for a stream, or pass `outputPath` to write a file.
  */
 export function concatToFile(options: ConcatOptions): Promise<Readable>;
-export async function concatToFile(options: ConcatOptions, outputPath?: string): Promise<string | Readable> {
+export async function concatToFile(
+  options: ConcatOptions,
+  outputPath?: string
+): Promise<string | Readable> {
   if (outputPath === undefined) {
     return concatToStream(options);
   }
 
   const [{ createWriteStream }, { pipeline }] = await Promise.all([
     import('node:fs'),
-    import('node:stream/promises')
+    import('node:stream/promises'),
   ]);
   await pipeline(concatToStream(options), createWriteStream(outputPath));
   return outputPath;
