@@ -95,6 +95,7 @@ export class JpegEncoder {
    * NOTE: The WASM encoder includes the JPEG header in the first encode_strip() call,
    * so we don't call header_bytes() to avoid duplicate SOI markers.
    */
+  // biome-ignore lint/correctness/useYield: same generator API as the PNG encoder; the WASM encoder emits the header with the first strip
   async *header(): AsyncGenerator<Uint8Array> {
     if (this.initialized) {
       throw new Error('Encoder already initialized');
@@ -127,7 +128,10 @@ export class JpegEncoder {
    * Note: The WASM encoder handles partial strips internally and will pad
    * using edge pixel repetition to avoid white blending artifacts.
    */
-  async *encodeStrip(strip: Uint8Array, _lastScanline: Uint8Array | null = null): AsyncGenerator<Uint8Array> {
+  async *encodeStrip(
+    strip: Uint8Array,
+    _lastScanline: Uint8Array | null = null
+  ): AsyncGenerator<Uint8Array> {
     if (!this.initialized || !this.encoder) {
       throw new Error('Encoder not initialized. Call header() first.');
     }

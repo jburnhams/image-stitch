@@ -86,7 +86,10 @@ describe('JPEG Decoder - Scanline Iteration', () => {
       }
 
       // Check that scanline has pixel data (may not match exactly due to JPEG compression)
-      assert.ok(scanline.some(byte => byte > 0), 'Scanline should contain non-zero pixel data');
+      assert.ok(
+        scanline.some((byte) => byte > 0),
+        'Scanline should contain non-zero pixel data'
+      );
     }
 
     assert.ok(firstScanline, 'Should have at least one scanline');
@@ -191,7 +194,7 @@ describe('JPEG Decoder - Decoder Options', () => {
 
     const decoder = new JpegBufferDecoder(jpegBytes, {
       useImageDecoderAPI: false,
-      preferWasm: true
+      preferWasm: true,
     });
 
     const header = await decoder.getHeader();

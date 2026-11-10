@@ -80,7 +80,7 @@ describe('HEIC Decoder - Constructor', () => {
     const heicBytes = createMagicBytesTest('heic');
     const decoder = new HeicBufferDecoder(heicBytes, {
       useNativeIfAvailable: true,
-      wasmPath: '/custom/path/to/libheif.wasm'
+      wasmPath: '/custom/path/to/libheif.wasm',
     });
 
     assert.ok(decoder, 'Should create decoder with options');
@@ -124,11 +124,20 @@ if (heicSupported) {
 describe('HEIC Decoder - Error Handling', () => {
   test('handles invalid HEIC data gracefully', async () => {
     const invalidHeic = new Uint8Array([
-      0x00, 0x00, 0x00, 0x18,
-      0x66, 0x74, 0x79, 0x70, // 'ftyp'
-      0x68, 0x65, 0x69, 0x63, // 'heic'
+      0x00,
+      0x00,
+      0x00,
+      0x18,
+      0x66,
+      0x74,
+      0x79,
+      0x70, // 'ftyp'
+      0x68,
+      0x65,
+      0x69,
+      0x63, // 'heic'
       // ... truncated/invalid data
-      ...new Array(100).fill(0x00)
+      ...new Array(100).fill(0x00),
     ]);
 
     const decoder = new HeicBufferDecoder(invalidHeic);
@@ -157,7 +166,7 @@ describe('HEIC Decoder - Integration Notes', () => {
   test('documents required dependencies', () => {
     const requiredDeps = {
       nodejs: ['sharp', 'heic-decode'],
-      browser: ['libheif-js']
+      browser: ['libheif-js'],
     };
 
     assert.ok(requiredDeps.nodejs.length > 0, 'Should document Node.js dependencies');

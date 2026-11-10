@@ -30,11 +30,11 @@ describe('Background Color - PNG Output', () => {
     // Create a grid with variable sizes - will require padding
     const result = await concat({
       inputs: [
-        loadImage('basn0g08.png'),  // 32x32 grayscale
-        loadImage('basn2c08.png')   // 32x32 RGB
+        loadImage('basn0g08.png'), // 32x32 grayscale
+        loadImage('basn2c08.png'), // 32x32 RGB
       ],
       layout: { columns: 2 },
-      backgroundColor: 'white'
+      backgroundColor: 'white',
     });
 
     // Verify it's a valid PNG
@@ -52,11 +52,11 @@ describe('Background Color - PNG Output', () => {
     // Mix different sized images to force padding
     const result = await concat({
       inputs: [
-        loadImage('basn0g01.png'),  // 32x32 1-bit grayscale (smaller)
-        loadImage('basn2c08.png')   // 32x32 RGB
+        loadImage('basn0g01.png'), // 32x32 1-bit grayscale (smaller)
+        loadImage('basn2c08.png'), // 32x32 RGB
       ],
       layout: { columns: 1, rows: 2 }, // Stack vertically
-      backgroundColor: '#FF0000'
+      backgroundColor: '#FF0000',
     });
 
     const png = decodePng(result);
@@ -67,12 +67,9 @@ describe('Background Color - PNG Output', () => {
 
   test('uses RGB array format for background color', async () => {
     const result = await concat({
-      inputs: [
-        loadImage('basn0g08.png'),
-        loadImage('basn2c08.png')
-      ],
+      inputs: [loadImage('basn0g08.png'), loadImage('basn2c08.png')],
       layout: { columns: 2 },
-      backgroundColor: [0, 255, 0] // Green
+      backgroundColor: [0, 255, 0], // Green
     });
 
     const png = decodePng(result);
@@ -82,11 +79,9 @@ describe('Background Color - PNG Output', () => {
 
   test('uses RGBA array with transparency', async () => {
     const result = await concat({
-      inputs: [
-        loadImage('basn0g08.png')
-      ],
+      inputs: [loadImage('basn0g08.png')],
       layout: { columns: 1 },
-      backgroundColor: [255, 0, 0, 128] // Semi-transparent red
+      backgroundColor: [255, 0, 0, 128], // Semi-transparent red
     });
 
     const png = decodePng(result);
@@ -95,12 +90,9 @@ describe('Background Color - PNG Output', () => {
 
   test('uses named color - blue', async () => {
     const result = await concat({
-      inputs: [
-        loadImage('basn0g08.png'),
-        loadImage('basn2c08.png')
-      ],
+      inputs: [loadImage('basn0g08.png'), loadImage('basn2c08.png')],
       layout: { columns: 2 },
-      backgroundColor: 'blue'
+      backgroundColor: 'blue',
     });
 
     const png = decodePng(result);
@@ -109,11 +101,8 @@ describe('Background Color - PNG Output', () => {
 
   test('defaults to transparent when backgroundColor is not specified', async () => {
     const result = await concat({
-      inputs: [
-        loadImage('basn0g08.png'),
-        loadImage('basn2c08.png')
-      ],
-      layout: { columns: 2 }
+      inputs: [loadImage('basn0g08.png'), loadImage('basn2c08.png')],
+      layout: { columns: 2 },
       // No backgroundColor specified
     });
 
@@ -126,20 +115,17 @@ describe('Background Color - PNG Output', () => {
 describe('Background Color - JPEG Output', () => {
   test('uses white background color for padding in JPEG', async () => {
     const result = await concat({
-      inputs: [
-        loadImage('basn0g08.png'),
-        loadImage('basn2c08.png')
-      ],
+      inputs: [loadImage('basn0g08.png'), loadImage('basn2c08.png')],
       layout: { columns: 2 },
       outputFormat: 'jpeg',
-      backgroundColor: 'white'
+      backgroundColor: 'white',
     });
 
     // Verify it's a valid JPEG
-    assert.strictEqual(result[0], 0xFF, 'Should start with JPEG SOI marker');
-    assert.strictEqual(result[1], 0xD8, 'Should start with JPEG SOI marker');
-    assert.strictEqual(result[result.length - 2], 0xFF, 'Should end with JPEG EOI marker');
-    assert.strictEqual(result[result.length - 1], 0xD9, 'Should end with JPEG EOI marker');
+    assert.strictEqual(result[0], 0xff, 'Should start with JPEG SOI marker');
+    assert.strictEqual(result[1], 0xd8, 'Should start with JPEG SOI marker');
+    assert.strictEqual(result[result.length - 2], 0xff, 'Should end with JPEG EOI marker');
+    assert.strictEqual(result[result.length - 1], 0xd9, 'Should end with JPEG EOI marker');
 
     const decoded = decodeJpeg(Buffer.from(result));
     assert.strictEqual(decoded.width, 64);
@@ -148,16 +134,14 @@ describe('Background Color - JPEG Output', () => {
 
   test('uses red background color in JPEG with hex format', async () => {
     const result = await concat({
-      inputs: [
-        loadImage('basn0g08.png')
-      ],
+      inputs: [loadImage('basn0g08.png')],
       layout: { columns: 1 },
       outputFormat: 'jpeg',
-      backgroundColor: '#FF0000'
+      backgroundColor: '#FF0000',
     });
 
-    assert.strictEqual(result[0], 0xFF, 'Should be valid JPEG');
-    assert.strictEqual(result[1], 0xD8, 'Should be valid JPEG');
+    assert.strictEqual(result[0], 0xff, 'Should be valid JPEG');
+    assert.strictEqual(result[1], 0xd8, 'Should be valid JPEG');
 
     const decoded = decodeJpeg(Buffer.from(result));
     assert.strictEqual(decoded.width, 32);
@@ -165,13 +149,10 @@ describe('Background Color - JPEG Output', () => {
 
   test('uses RGB array for JPEG background', async () => {
     const result = await concat({
-      inputs: [
-        loadImage('basn0g08.png'),
-        loadImage('basn2c08.png')
-      ],
+      inputs: [loadImage('basn0g08.png'), loadImage('basn2c08.png')],
       layout: { columns: 2 },
       outputFormat: 'jpeg',
-      backgroundColor: [0, 255, 0] // Green
+      backgroundColor: [0, 255, 0], // Green
     });
 
     const decoded = decodeJpeg(Buffer.from(result));
@@ -182,12 +163,10 @@ describe('Background Color - JPEG Output', () => {
   test('handles semi-transparent color in JPEG (alpha is ignored)', async () => {
     // JPEG doesn't support transparency, so alpha channel is ignored
     const result = await concat({
-      inputs: [
-        loadImage('basn0g08.png')
-      ],
+      inputs: [loadImage('basn0g08.png')],
       layout: { columns: 1 },
       outputFormat: 'jpeg',
-      backgroundColor: [255, 0, 0, 128] // Semi-transparent red (alpha ignored)
+      backgroundColor: [255, 0, 0, 128], // Semi-transparent red (alpha ignored)
     });
 
     const decoded = decodeJpeg(Buffer.from(result));
@@ -197,13 +176,10 @@ describe('Background Color - JPEG Output', () => {
 
   test('uses named color in JPEG output', async () => {
     const result = await concat({
-      inputs: [
-        loadImage('basn0g08.png'),
-        loadImage('basn2c08.png')
-      ],
+      inputs: [loadImage('basn0g08.png'), loadImage('basn2c08.png')],
       layout: { columns: 2 },
       outputFormat: 'jpeg',
-      backgroundColor: 'cyan'
+      backgroundColor: 'cyan',
     });
 
     const decoded = decodeJpeg(Buffer.from(result));
@@ -213,52 +189,54 @@ describe('Background Color - JPEG Output', () => {
 
 describe('Background Color - Edge Cases', () => {
   test('validates invalid color format', async () => {
-    await assert.rejects(
-      async () => {
-        await concat({
-          inputs: [loadImage('basn0g08.png')],
-          layout: { columns: 1 },
-          backgroundColor: 'invalid-color' as any
-        });
-      },
-      /Unsupported color format/
-    );
+    await assert.rejects(async () => {
+      await concat({
+        inputs: [loadImage('basn0g08.png')],
+        layout: { columns: 1 },
+        backgroundColor: 'invalid-color' as any,
+      });
+    }, /Unsupported color format/);
   });
 
   test('validates invalid RGB array values', async () => {
-    await assert.rejects(
-      async () => {
-        await concat({
-          inputs: [loadImage('basn0g08.png')],
-          layout: { columns: 1 },
-          backgroundColor: [256, 0, 0] as any
-        });
-      },
-      /integers between 0 and 255/
-    );
+    await assert.rejects(async () => {
+      await concat({
+        inputs: [loadImage('basn0g08.png')],
+        layout: { columns: 1 },
+        backgroundColor: [256, 0, 0] as any,
+      });
+    }, /integers between 0 and 255/);
   });
 
   test('validates invalid hex format', async () => {
-    await assert.rejects(
-      async () => {
-        await concat({
-          inputs: [loadImage('basn0g08.png')],
-          layout: { columns: 1 },
-          backgroundColor: '#GGGGGG'
-        });
-      },
-      /Invalid hex color/
-    );
+    await assert.rejects(async () => {
+      await concat({
+        inputs: [loadImage('basn0g08.png')],
+        layout: { columns: 1 },
+        backgroundColor: '#GGGGGG',
+      });
+    }, /Invalid hex color/);
   });
 
   test('accepts all supported named colors', async () => {
-    const namedColors = ['black', 'white', 'red', 'green', 'blue', 'yellow', 'cyan', 'magenta', 'gray', 'grey'];
+    const namedColors = [
+      'black',
+      'white',
+      'red',
+      'green',
+      'blue',
+      'yellow',
+      'cyan',
+      'magenta',
+      'gray',
+      'grey',
+    ];
 
     for (const color of namedColors) {
       const result = await concat({
         inputs: [loadImage('basn0g08.png')],
         layout: { columns: 1 },
-        backgroundColor: color
+        backgroundColor: color,
       });
 
       assert.ok(result.length > 0, `Should work with color: ${color}`);
@@ -268,11 +246,11 @@ describe('Background Color - Edge Cases', () => {
   test('works with 16-bit PNG images', async () => {
     const result = await concat({
       inputs: [
-        loadImage('basn0g16.png'),  // 16-bit grayscale
-        loadImage('basn2c16.png')   // 16-bit RGB
+        loadImage('basn0g16.png'), // 16-bit grayscale
+        loadImage('basn2c16.png'), // 16-bit RGB
       ],
       layout: { columns: 2 },
-      backgroundColor: 'white'
+      backgroundColor: 'white',
     });
 
     const png = decodePng(result);
@@ -282,12 +260,12 @@ describe('Background Color - Edge Cases', () => {
   test('works with mixed bit depths', async () => {
     const result = await concat({
       inputs: [
-        loadImage('basn0g01.png'),  // 1-bit
-        loadImage('basn0g08.png'),  // 8-bit
-        loadImage('basn2c16.png')   // 16-bit
+        loadImage('basn0g01.png'), // 1-bit
+        loadImage('basn0g08.png'), // 8-bit
+        loadImage('basn2c16.png'), // 16-bit
       ],
       layout: { columns: 3 },
-      backgroundColor: '#808080' // Gray
+      backgroundColor: '#808080', // Gray
     });
 
     const png = decodePng(result);
@@ -300,7 +278,7 @@ describe('Background Color - Hex Variations', () => {
     const result = await concat({
       inputs: [loadImage('basn0g08.png')],
       layout: { columns: 1 },
-      backgroundColor: '#F00' // Red shorthand
+      backgroundColor: '#F00', // Red shorthand
     });
 
     assert.ok(result.length > 0);
@@ -310,7 +288,7 @@ describe('Background Color - Hex Variations', () => {
     const result = await concat({
       inputs: [loadImage('basn0g08.png')],
       layout: { columns: 1 },
-      backgroundColor: '#F008' // Red with alpha
+      backgroundColor: '#F008', // Red with alpha
     });
 
     assert.ok(result.length > 0);
@@ -320,7 +298,7 @@ describe('Background Color - Hex Variations', () => {
     const result = await concat({
       inputs: [loadImage('basn0g08.png')],
       layout: { columns: 1 },
-      backgroundColor: '#FF0000' // Red
+      backgroundColor: '#FF0000', // Red
     });
 
     assert.ok(result.length > 0);
@@ -330,7 +308,7 @@ describe('Background Color - Hex Variations', () => {
     const result = await concat({
       inputs: [loadImage('basn0g08.png')],
       layout: { columns: 1 },
-      backgroundColor: '#FF000080' // Red with alpha
+      backgroundColor: '#FF000080', // Red with alpha
     });
 
     assert.ok(result.length > 0);

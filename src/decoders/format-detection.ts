@@ -45,7 +45,18 @@ export function detectImageFormat(bytes: Uint8Array): ImageFormat {
       const majorBrand = String.fromCharCode(bytes[8], bytes[9], bytes[10], bytes[11]);
 
       // Common HEIC/HEIF brands
-      const heicBrands = ['heic', 'heix', 'hevc', 'hevx', 'heim', 'heis', 'hevm', 'hevs', 'mif1', 'msf1'];
+      const heicBrands = [
+        'heic',
+        'heix',
+        'hevc',
+        'hevx',
+        'heim',
+        'heis',
+        'hevm',
+        'hevs',
+        'mif1',
+        'msf1',
+      ];
 
       if (heicBrands.includes(majorBrand)) {
         return 'heic';
@@ -73,7 +84,9 @@ export function detectImageFormat(bytes: Uint8Array): ImageFormat {
  * @param input - File path, Uint8Array, ArrayBuffer, or Blob
  * @returns Promise resolving to first 32 bytes for format detection
  */
-export async function readMagicBytes(input: string | Uint8Array | ArrayBuffer | Blob): Promise<Uint8Array> {
+export async function readMagicBytes(
+  input: string | Uint8Array | ArrayBuffer | Blob
+): Promise<Uint8Array> {
   // If already bytes, return first 32
   if (input instanceof Uint8Array) {
     return input.slice(0, 32);
@@ -119,7 +132,9 @@ export async function readMagicBytes(input: string | Uint8Array | ArrayBuffer | 
  * @param input - Image source (path, bytes, buffer, or Blob)
  * @returns Promise resolving to detected format
  */
-export async function detectFormat(input: string | Uint8Array | ArrayBuffer | Blob): Promise<ImageFormat> {
+export async function detectFormat(
+  input: string | Uint8Array | ArrayBuffer | Blob
+): Promise<ImageFormat> {
   const magicBytes = await readMagicBytes(input);
   return detectImageFormat(magicBytes);
 }
@@ -130,7 +145,9 @@ export async function detectFormat(input: string | Uint8Array | ArrayBuffer | Bl
  * @param format - Format to validate
  * @throws Error if format is unknown or unsupported
  */
-export function validateFormat(format: ImageFormat): asserts format is Exclude<ImageFormat, 'unknown'> {
+export function validateFormat(
+  format: ImageFormat
+): asserts format is Exclude<ImageFormat, 'unknown'> {
   if (format === 'unknown') {
     throw new Error('Unknown or unsupported image format. Supported formats: PNG, JPEG, HEIC');
   }

@@ -1,4 +1,4 @@
-import { PngHeader } from './types.js';
+import type { PngHeader } from './types.js';
 import { getBytesPerPixel } from './png-filter.js';
 import { getSamplesPerPixel } from './utils.js';
 
@@ -17,15 +17,36 @@ export function parseBackgroundColor(
   if (Array.isArray(color)) {
     if (color.length === 3) {
       const [r, g, b] = color;
-      if (!Number.isInteger(r) || !Number.isInteger(g) || !Number.isInteger(b) ||
-          r < 0 || r > 255 || g < 0 || g > 255 || b < 0 || b > 255) {
+      if (
+        !Number.isInteger(r) ||
+        !Number.isInteger(g) ||
+        !Number.isInteger(b) ||
+        r < 0 ||
+        r > 255 ||
+        g < 0 ||
+        g > 255 ||
+        b < 0 ||
+        b > 255
+      ) {
         throw new Error('RGB color values must be integers between 0 and 255');
       }
       return [r, g, b, 255]; // Opaque
     } else if (color.length === 4) {
       const [r, g, b, a] = color;
-      if (!Number.isInteger(r) || !Number.isInteger(g) || !Number.isInteger(b) || !Number.isInteger(a) ||
-          r < 0 || r > 255 || g < 0 || g > 255 || b < 0 || b > 255 || a < 0 || a > 255) {
+      if (
+        !Number.isInteger(r) ||
+        !Number.isInteger(g) ||
+        !Number.isInteger(b) ||
+        !Number.isInteger(a) ||
+        r < 0 ||
+        r > 255 ||
+        g < 0 ||
+        g > 255 ||
+        b < 0 ||
+        b > 255 ||
+        a < 0 ||
+        a > 255
+      ) {
         throw new Error('RGBA color values must be integers between 0 and 255');
       }
       return [r, g, b, a];
@@ -36,16 +57,16 @@ export function parseBackgroundColor(
 
   // Named colors
   const namedColors: Record<string, [number, number, number, number]> = {
-    'black': [0, 0, 0, 255],
-    'white': [255, 255, 255, 255],
-    'red': [255, 0, 0, 255],
-    'green': [0, 255, 0, 255],
-    'blue': [0, 0, 255, 255],
-    'yellow': [255, 255, 0, 255],
-    'cyan': [0, 255, 255, 255],
-    'magenta': [255, 0, 255, 255],
-    'gray': [128, 128, 128, 255],
-    'grey': [128, 128, 128, 255]
+    black: [0, 0, 0, 255],
+    white: [255, 255, 255, 255],
+    red: [255, 0, 0, 255],
+    green: [0, 255, 0, 255],
+    blue: [0, 0, 255, 255],
+    yellow: [255, 255, 0, 255],
+    cyan: [0, 255, 255, 255],
+    magenta: [255, 0, 255, 255],
+    gray: [128, 128, 128, 255],
+    grey: [128, 128, 128, 255],
   };
 
   const lowerColor = color.toLowerCase();
@@ -56,7 +77,10 @@ export function parseBackgroundColor(
   // Hex colors
   if (color.startsWith('#')) {
     const hex = color.slice(1);
-    let r: number, g: number, b: number, a = 255;
+    let r: number,
+      g: number,
+      b: number,
+      a = 255;
 
     if (hex.length === 3 || hex.length === 4) {
       // Short format: #RGB or #RGBA
@@ -75,17 +99,21 @@ export function parseBackgroundColor(
         a = parseInt(hex.slice(6, 8), 16);
       }
     } else {
-      throw new Error(`Invalid hex color format: ${color}. Expected #RGB, #RGBA, #RRGGBB, or #RRGGBBAA`);
+      throw new Error(
+        `Invalid hex color format: ${color}. Expected #RGB, #RGBA, #RRGGBB, or #RRGGBBAA`
+      );
     }
 
-    if (isNaN(r) || isNaN(g) || isNaN(b) || isNaN(a)) {
+    if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b) || Number.isNaN(a)) {
       throw new Error(`Invalid hex color: ${color}`);
     }
 
     return [r, g, b, a];
   }
 
-  throw new Error(`Unsupported color format: ${color}. Use hex (#RRGGBB), RGB array [r,g,b], or named color`);
+  throw new Error(
+    `Unsupported color format: ${color}. Use hex (#RRGGBB), RGB array [r,g,b], or named color`
+  );
 }
 
 /**
@@ -102,19 +130,19 @@ function rgbaToColorType(
   const scale = (value: number): number => {
     if (bitDepth === 16) {
       // Scale 8-bit to 16-bit
-      return Math.round((value * 0xFFFF) / 0xFF);
+      return Math.round((value * 0xffff) / 0xff);
     } else if (bitDepth === 8) {
       return value;
     } else {
       // For bit depths < 8, scale to max value
       const maxVal = (1 << bitDepth) - 1;
-      return Math.round((value * maxVal) / 0xFF);
+      return Math.round((value * maxVal) / 0xff);
     }
   };
 
   // Helper to write 16-bit value
   const write16 = (value: number): [number, number] => {
-    return [(value >> 8) & 0xFF, value & 0xFF];
+    return [(value >> 8) & 0xff, value & 0xff];
   };
 
   switch (colorType) {
@@ -182,8 +210,12 @@ export function copyPixelRegion(
   height: number
 ): void {
   const bytesPerPixel = getBytesPerPixel(srcHeader.bitDepth, srcHeader.colorType);
-  const srcRowBytes = Math.ceil((srcHeader.width * srcHeader.bitDepth * getSamplesPerPixel(srcHeader.colorType)) / 8);
-  const dstRowBytes = Math.ceil((dstHeader.width * dstHeader.bitDepth * getSamplesPerPixel(dstHeader.colorType)) / 8);
+  const srcRowBytes = Math.ceil(
+    (srcHeader.width * srcHeader.bitDepth * getSamplesPerPixel(srcHeader.colorType)) / 8
+  );
+  const dstRowBytes = Math.ceil(
+    (dstHeader.width * dstHeader.bitDepth * getSamplesPerPixel(dstHeader.colorType)) / 8
+  );
   const copyBytes = width * bytesPerPixel;
 
   for (let y = 0; y < height; y++) {
@@ -207,7 +239,9 @@ export function fillPixelRegion(
   color: Uint8Array
 ): void {
   const bytesPerPixel = getBytesPerPixel(dstHeader.bitDepth, dstHeader.colorType);
-  const dstRowBytes = Math.ceil((dstHeader.width * dstHeader.bitDepth * getSamplesPerPixel(dstHeader.colorType)) / 8);
+  const dstRowBytes = Math.ceil(
+    (dstHeader.width * dstHeader.bitDepth * getSamplesPerPixel(dstHeader.colorType)) / 8
+  );
 
   if (color.length !== bytesPerPixel) {
     throw new Error(`Color must have ${bytesPerPixel} bytes`);
@@ -229,7 +263,9 @@ export function createBlankImage(
   backgroundColor: Uint8Array = new Uint8Array([0, 0, 0, 0])
 ): Uint8Array {
   const bytesPerPixel = getBytesPerPixel(header.bitDepth, header.colorType);
-  const rowBytes = Math.ceil((header.width * header.bitDepth * getSamplesPerPixel(header.colorType)) / 8);
+  const rowBytes = Math.ceil(
+    (header.width * header.bitDepth * getSamplesPerPixel(header.colorType)) / 8
+  );
   const totalBytes = header.height * rowBytes;
   const data = new Uint8Array(totalBytes);
 
@@ -290,7 +326,10 @@ export function getTransparentColor(
  * Determine the best common format for a set of PNG headers
  * Returns the bit depth and color type that can represent all images
  */
-export function determineCommonFormat(headers: PngHeader[]): { bitDepth: number; colorType: number } {
+export function determineCommonFormat(headers: PngHeader[]): {
+  bitDepth: number;
+  colorType: number;
+} {
   // Find the maximum bit depth
   let maxBitDepth = 8;
 
@@ -358,7 +397,10 @@ export function convertPixelFormat(
   // Process each pixel
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
-      let r = 0, g = 0, b = 0, a = 255; // Default to opaque
+      let r = 0,
+        g = 0,
+        b = 0,
+        a = 255; // Default to opaque
 
       // Read source pixel based on format
       if (srcColorType === 0) {
@@ -382,17 +424,17 @@ export function convertPixelFormat(
           const gray = (srcData[byteOffset] >> (8 - bitOffset - srcBitDepth)) & mask;
           r = g = b = scaleSample(gray, srcBitDepth, targetBitDepth);
         }
-        a = (targetBitDepth === 16) ? 0xFFFF : 0xFF; // Fully opaque
+        a = targetBitDepth === 16 ? 0xffff : 0xff; // Fully opaque
       } else if (srcColorType === 2) {
         // RGB
-        const srcBytesPerPixel = (srcBitDepth === 16) ? 6 : 3;
+        const srcBytesPerPixel = srcBitDepth === 16 ? 6 : 3;
         const srcRowBytes = width * srcBytesPerPixel;
         const offset = y * srcRowBytes + x * srcBytesPerPixel;
 
         if (srcBitDepth === 16) {
-          r = ((srcData[offset] << 8) | srcData[offset + 1]);
-          g = ((srcData[offset + 2] << 8) | srcData[offset + 3]);
-          b = ((srcData[offset + 4] << 8) | srcData[offset + 5]);
+          r = (srcData[offset] << 8) | srcData[offset + 1];
+          g = (srcData[offset + 2] << 8) | srcData[offset + 3];
+          b = (srcData[offset + 4] << 8) | srcData[offset + 5];
           if (targetBitDepth === 8) {
             r = scaleSample(r, 16, 8);
             g = scaleSample(g, 16, 8);
@@ -408,27 +450,27 @@ export function convertPixelFormat(
             b = scaleSample(b, 8, 16);
           }
         }
-        a = (targetBitDepth === 16) ? 0xFFFF : 0xFF; // Fully opaque
+        a = targetBitDepth === 16 ? 0xffff : 0xff; // Fully opaque
       } else if (srcColorType === 4) {
         // Grayscale + Alpha
-        const srcBytesPerPixel = (srcBitDepth === 16) ? 4 : 2;
+        const srcBytesPerPixel = srcBitDepth === 16 ? 4 : 2;
         const srcRowBytes = width * srcBytesPerPixel;
         const offset = y * srcRowBytes + x * srcBytesPerPixel;
 
         if (srcBitDepth === 16) {
           const gray = (srcData[offset] << 8) | srcData[offset + 1];
-          r = g = b = (targetBitDepth === 16) ? gray : scaleSample(gray, 16, 8);
+          r = g = b = targetBitDepth === 16 ? gray : scaleSample(gray, 16, 8);
           a = (srcData[offset + 2] << 8) | srcData[offset + 3];
           if (targetBitDepth === 8) {
             a = scaleSample(a, 16, 8);
           }
         } else {
-          r = g = b = (targetBitDepth === 16) ? scaleSample(srcData[offset], 8, 16) : srcData[offset];
-          a = (targetBitDepth === 16) ? scaleSample(srcData[offset + 1], 8, 16) : srcData[offset + 1];
+          r = g = b = targetBitDepth === 16 ? scaleSample(srcData[offset], 8, 16) : srcData[offset];
+          a = targetBitDepth === 16 ? scaleSample(srcData[offset + 1], 8, 16) : srcData[offset + 1];
         }
       } else if (srcColorType === 6) {
         // RGBA
-        const srcBytesPerPixel = (srcBitDepth === 16) ? 8 : 4;
+        const srcBytesPerPixel = srcBitDepth === 16 ? 8 : 4;
         const srcRowBytes = width * srcBytesPerPixel;
         const offset = y * srcRowBytes + x * srcBytesPerPixel;
 
@@ -462,14 +504,14 @@ export function convertPixelFormat(
       // Write target pixel (RGBA)
       const targetOffset = y * targetRowBytes + x * targetBytesPerPixel;
       if (targetBitDepth === 16) {
-        targetData[targetOffset] = (r >> 8) & 0xFF;
-        targetData[targetOffset + 1] = r & 0xFF;
-        targetData[targetOffset + 2] = (g >> 8) & 0xFF;
-        targetData[targetOffset + 3] = g & 0xFF;
-        targetData[targetOffset + 4] = (b >> 8) & 0xFF;
-        targetData[targetOffset + 5] = b & 0xFF;
-        targetData[targetOffset + 6] = (a >> 8) & 0xFF;
-        targetData[targetOffset + 7] = a & 0xFF;
+        targetData[targetOffset] = (r >> 8) & 0xff;
+        targetData[targetOffset + 1] = r & 0xff;
+        targetData[targetOffset + 2] = (g >> 8) & 0xff;
+        targetData[targetOffset + 3] = g & 0xff;
+        targetData[targetOffset + 4] = (b >> 8) & 0xff;
+        targetData[targetOffset + 5] = b & 0xff;
+        targetData[targetOffset + 6] = (a >> 8) & 0xff;
+        targetData[targetOffset + 7] = a & 0xff;
       } else {
         targetData[targetOffset] = r;
         targetData[targetOffset + 1] = g;
@@ -483,7 +525,7 @@ export function convertPixelFormat(
   const targetHeader: PngHeader = {
     ...srcHeader,
     bitDepth: targetBitDepth,
-    colorType: targetColorType
+    colorType: targetColorType,
   };
 
   return { data: targetData, header: targetHeader };
@@ -516,7 +558,10 @@ export function convertScanline(
 
   // Process each pixel in the scanline
   for (let x = 0; x < width; x++) {
-    let r = 0, g = 0, b = 0, a = 255; // Default to opaque
+    let r = 0,
+      g = 0,
+      b = 0,
+      a = 255; // Default to opaque
 
     // Read source pixel based on format
     if (srcColorType === 0) {
@@ -536,16 +581,16 @@ export function convertScanline(
         const gray = (srcScanline[byteOffset] >> (8 - bitOffset - srcBitDepth)) & mask;
         r = g = b = scaleSample(gray, srcBitDepth, targetBitDepth);
       }
-      a = (targetBitDepth === 16) ? 0xFFFF : 0xFF; // Fully opaque
+      a = targetBitDepth === 16 ? 0xffff : 0xff; // Fully opaque
     } else if (srcColorType === 2) {
       // RGB
-      const srcBytesPerPixel = (srcBitDepth === 16) ? 6 : 3;
+      const srcBytesPerPixel = srcBitDepth === 16 ? 6 : 3;
       const offset = x * srcBytesPerPixel;
 
       if (srcBitDepth === 16) {
-        r = ((srcScanline[offset] << 8) | srcScanline[offset + 1]);
-        g = ((srcScanline[offset + 2] << 8) | srcScanline[offset + 3]);
-        b = ((srcScanline[offset + 4] << 8) | srcScanline[offset + 5]);
+        r = (srcScanline[offset] << 8) | srcScanline[offset + 1];
+        g = (srcScanline[offset + 2] << 8) | srcScanline[offset + 3];
+        b = (srcScanline[offset + 4] << 8) | srcScanline[offset + 5];
         if (targetBitDepth === 8) {
           r = scaleSample(r, 16, 8);
           g = scaleSample(g, 16, 8);
@@ -561,26 +606,32 @@ export function convertScanline(
           b = scaleSample(b, 8, 16);
         }
       }
-      a = (targetBitDepth === 16) ? 0xFFFF : 0xFF; // Fully opaque
+      a = targetBitDepth === 16 ? 0xffff : 0xff; // Fully opaque
     } else if (srcColorType === 4) {
       // Grayscale + Alpha
-      const srcBytesPerPixel = (srcBitDepth === 16) ? 4 : 2;
+      const srcBytesPerPixel = srcBitDepth === 16 ? 4 : 2;
       const offset = x * srcBytesPerPixel;
 
       if (srcBitDepth === 16) {
         const gray = (srcScanline[offset] << 8) | srcScanline[offset + 1];
-        r = g = b = (targetBitDepth === 16) ? gray : scaleSample(gray, 16, 8);
+        r = g = b = targetBitDepth === 16 ? gray : scaleSample(gray, 16, 8);
         a = (srcScanline[offset + 2] << 8) | srcScanline[offset + 3];
         if (targetBitDepth === 8) {
           a = scaleSample(a, 16, 8);
         }
       } else {
-        r = g = b = (targetBitDepth === 16) ? scaleSample(srcScanline[offset], 8, 16) : srcScanline[offset];
-        a = (targetBitDepth === 16) ? scaleSample(srcScanline[offset + 1], 8, 16) : srcScanline[offset + 1];
+        r =
+          g =
+          b =
+            targetBitDepth === 16 ? scaleSample(srcScanline[offset], 8, 16) : srcScanline[offset];
+        a =
+          targetBitDepth === 16
+            ? scaleSample(srcScanline[offset + 1], 8, 16)
+            : srcScanline[offset + 1];
       }
     } else if (srcColorType === 6) {
       // RGBA
-      const srcBytesPerPixel = (srcBitDepth === 16) ? 8 : 4;
+      const srcBytesPerPixel = srcBitDepth === 16 ? 8 : 4;
       const offset = x * srcBytesPerPixel;
 
       if (srcBitDepth === 16) {
@@ -613,14 +664,14 @@ export function convertScanline(
     // Write target pixel (RGBA)
     const targetOffset = x * targetBytesPerPixel;
     if (targetBitDepth === 16) {
-      targetScanline[targetOffset] = (r >> 8) & 0xFF;
-      targetScanline[targetOffset + 1] = r & 0xFF;
-      targetScanline[targetOffset + 2] = (g >> 8) & 0xFF;
-      targetScanline[targetOffset + 3] = g & 0xFF;
-      targetScanline[targetOffset + 4] = (b >> 8) & 0xFF;
-      targetScanline[targetOffset + 5] = b & 0xFF;
-      targetScanline[targetOffset + 6] = (a >> 8) & 0xFF;
-      targetScanline[targetOffset + 7] = a & 0xFF;
+      targetScanline[targetOffset] = (r >> 8) & 0xff;
+      targetScanline[targetOffset + 1] = r & 0xff;
+      targetScanline[targetOffset + 2] = (g >> 8) & 0xff;
+      targetScanline[targetOffset + 3] = g & 0xff;
+      targetScanline[targetOffset + 4] = (b >> 8) & 0xff;
+      targetScanline[targetOffset + 5] = b & 0xff;
+      targetScanline[targetOffset + 6] = (a >> 8) & 0xff;
+      targetScanline[targetOffset + 7] = a & 0xff;
     } else {
       targetScanline[targetOffset] = r;
       targetScanline[targetOffset + 1] = g;
@@ -667,8 +718,7 @@ export function compositeScanline(
 
     if (is16Bit) {
       // 16-bit RGBA
-      const srcAlpha =
-        ((source[srcIdx + 6] << 8) | source[srcIdx + 7]) / 65535;
+      const srcAlpha = ((source[srcIdx + 6] << 8) | source[srcIdx + 7]) / 65535;
 
       if (srcAlpha >= 0.9999) {
         // Opaque source - just copy
@@ -677,19 +727,15 @@ export function compositeScanline(
         }
       } else if (srcAlpha > 0.0001) {
         // Alpha blend
-        const destAlpha =
-          ((dest[destIdx + 6] << 8) | dest[destIdx + 7]) / 65535;
+        const destAlpha = ((dest[destIdx + 6] << 8) | dest[destIdx + 7]) / 65535;
         const outAlpha = srcAlpha + destAlpha * (1 - srcAlpha);
 
         if (outAlpha > 0.0001) {
           // Blend RGB channels
           for (let c = 0; c < 3; c++) {
-            const srcVal =
-              (source[srcIdx + c * 2] << 8) | source[srcIdx + c * 2 + 1];
-            const destVal =
-              (dest[destIdx + c * 2] << 8) | dest[destIdx + c * 2 + 1];
-            const blended =
-              (srcVal * srcAlpha + destVal * destAlpha * (1 - srcAlpha)) / outAlpha;
+            const srcVal = (source[srcIdx + c * 2] << 8) | source[srcIdx + c * 2 + 1];
+            const destVal = (dest[destIdx + c * 2] << 8) | dest[destIdx + c * 2 + 1];
+            const blended = (srcVal * srcAlpha + destVal * destAlpha * (1 - srcAlpha)) / outAlpha;
             const val = Math.round(Math.max(0, Math.min(65535, blended)));
             dest[destIdx + c * 2] = val >> 8;
             dest[destIdx + c * 2 + 1] = val & 0xff;
@@ -721,8 +767,7 @@ export function compositeScanline(
           for (let c = 0; c < 3; c++) {
             const srcVal = source[srcIdx + c];
             const destVal = dest[destIdx + c];
-            const blended =
-              (srcVal * srcAlpha + destVal * destAlpha * (1 - srcAlpha)) / outAlpha;
+            const blended = (srcVal * srcAlpha + destVal * destAlpha * (1 - srcAlpha)) / outAlpha;
             dest[destIdx + c] = Math.round(Math.max(0, Math.min(255, blended)));
           }
 

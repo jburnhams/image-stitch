@@ -28,17 +28,17 @@ function validatePaths(): void {
   if (!fs.existsSync(PNGSUITE_DIR)) {
     throw new Error(
       `PNG suite directory not found at: ${PNGSUITE_DIR}\n` +
-      `Calculated from REPO_ROOT: ${REPO_ROOT}\n` +
-      `Test may be running from unexpected location.`
+        `Calculated from REPO_ROOT: ${REPO_ROOT}\n` +
+        `Test may be running from unexpected location.`
     );
   }
 
   // Check that we have at least some PNG files
-  const pngFiles = fs.readdirSync(PNGSUITE_DIR).filter(f => f.endsWith('.png'));
+  const pngFiles = fs.readdirSync(PNGSUITE_DIR).filter((f) => f.endsWith('.png'));
   if (pngFiles.length === 0) {
     throw new Error(
       `PNG suite directory exists but contains no PNG files: ${PNGSUITE_DIR}\n` +
-      `Expected to find test images like basi0g08.png, basn2c08.png, etc.`
+        `Expected to find test images like basi0g08.png, basn2c08.png, etc.`
     );
   }
 }
@@ -54,8 +54,8 @@ export function loadPngsuiteImage(filename: string): Uint8Array {
   if (!fs.existsSync(filepath)) {
     throw new Error(
       `PNG suite image not found: ${filename}\n` +
-      `Looked in: ${PNGSUITE_DIR}\n` +
-      `Full path: ${filepath}`
+        `Looked in: ${PNGSUITE_DIR}\n` +
+        `Full path: ${filepath}`
     );
   }
   return fs.readFileSync(filepath);

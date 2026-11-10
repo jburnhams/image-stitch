@@ -5,9 +5,9 @@
  * This creates the reference images that the tests will compare against
  */
 
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { concatToBuffer } from '../../src/image-concat.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -30,12 +30,8 @@ function loadImage(filename) {
 async function generateExample1() {
   console.log('Example 1: Horizontal concatenation...');
   const result = await concatToBuffer({
-    inputs: [
-      loadImage('basn2c08.png'),
-      loadImage('basn0g08.png'),
-      loadImage('basn6a08.png')
-    ],
-    layout: { columns: 3 }
+    inputs: [loadImage('basn2c08.png'), loadImage('basn0g08.png'), loadImage('basn6a08.png')],
+    layout: { columns: 3 },
   });
   fs.writeFileSync(path.join(fixturesDir, 'example1.png'), result);
   console.log(`  ✓ Saved example1.png (${result.length} bytes)`);
@@ -45,12 +41,8 @@ async function generateExample1() {
 async function generateExample2() {
   console.log('Example 2: Vertical concatenation...');
   const result = await concatToBuffer({
-    inputs: [
-      loadImage('basn2c08.png'),
-      loadImage('basn0g08.png'),
-      loadImage('basn6a08.png')
-    ],
-    layout: { rows: 3 }
+    inputs: [loadImage('basn2c08.png'), loadImage('basn0g08.png'), loadImage('basn6a08.png')],
+    layout: { rows: 3 },
   });
   fs.writeFileSync(path.join(fixturesDir, 'example2.png'), result);
   console.log(`  ✓ Saved example2.png (${result.length} bytes)`);
@@ -66,9 +58,9 @@ async function generateExample3() {
       loadImage('basn6a08.png'),
       loadImage('basn4a08.png'),
       loadImage('basn2c16.png'),
-      loadImage('basn0g16.png')
+      loadImage('basn0g16.png'),
     ],
-    layout: { columns: 3 }
+    layout: { columns: 3 },
   });
   fs.writeFileSync(path.join(fixturesDir, 'example3.png'), result);
   console.log(`  ✓ Saved example3.png (${result.length} bytes)`);
@@ -78,12 +70,8 @@ async function generateExample3() {
 async function generateExample4() {
   console.log('Example 4: Different image sizes...');
   const result = await concatToBuffer({
-    inputs: [
-      loadImage('basn0g01.png'),
-      loadImage('basn0g04.png'),
-      loadImage('basn2c08.png')
-    ],
-    layout: { columns: 3 }
+    inputs: [loadImage('basn0g01.png'), loadImage('basn0g04.png'), loadImage('basn2c08.png')],
+    layout: { columns: 3 },
   });
   fs.writeFileSync(path.join(fixturesDir, 'example4.png'), result);
   console.log(`  ✓ Saved example4.png (${result.length} bytes)`);
@@ -97,9 +85,9 @@ async function generateExample5() {
       loadImage('basn2c08.png'),
       loadImage('basn0g08.png'),
       loadImage('basn6a08.png'),
-      loadImage('basn4a08.png')
+      loadImage('basn4a08.png'),
     ],
-    layout: { width: 100 }
+    layout: { width: 100 },
   });
   fs.writeFileSync(path.join(fixturesDir, 'example5.png'), result);
   console.log(`  ✓ Saved example5.png (${result.length} bytes)`);

@@ -7,7 +7,7 @@ export enum FilterType {
   Sub = 1,
   Up = 2,
   Average = 3,
-  Paeth = 4
+  Paeth = 4,
 }
 
 /**
@@ -76,7 +76,7 @@ export function unfilterScanline(
       break;
 
     default:
-      throw new Error(`Unknown filter type: ${filterType}`);
+      throw new Error(`Unknown filter type: ${String(filterType)}`);
   }
 
   return result;
@@ -156,7 +156,7 @@ export function filterScanline(
     { type: FilterType.Sub, data: filterSub(scanline, bytesPerPixel) },
     { type: FilterType.Up, data: filterUp(scanline, previousLine) },
     { type: FilterType.Average, data: filterAverage(scanline, previousLine, bytesPerPixel) },
-    { type: FilterType.Paeth, data: filterPaeth(scanline, previousLine, bytesPerPixel) }
+    { type: FilterType.Paeth, data: filterPaeth(scanline, previousLine, bytesPerPixel) },
   ];
 
   // Calculate sum of absolute values for each filter

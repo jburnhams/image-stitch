@@ -35,7 +35,10 @@ async function loadDocument(htmlPath: string) {
 
 describe('Browser Bundle Tests', () => {
   test('IIFE bundle attaches ImageStitch global', () => {
-    assert.ok(fs.existsSync(iifeBundlePath), 'Minified bundle should exist. Run `npm run build:docs` first.');
+    assert.ok(
+      fs.existsSync(iifeBundlePath),
+      'Minified bundle should exist. Run `npm run build:docs` first.'
+    );
 
     const bundleCode = fs.readFileSync(iifeBundlePath, 'utf8');
     const context: Record<string, any> = { window: {}, globalThis: {} };
@@ -54,7 +57,10 @@ describe('Browser Bundle Tests', () => {
   });
 
   test('ESM bundle can be imported directly', async () => {
-    assert.ok(fs.existsSync(esmBundlePath), 'ESM bundle should exist. Run `npm run build:docs` first.');
+    assert.ok(
+      fs.existsSync(esmBundlePath),
+      'ESM bundle should exist. Run `npm run build:docs` first.'
+    );
 
     const moduleUrl = pathToFileURL(esmBundlePath).href;
     const mod = await import(moduleUrl);
@@ -75,15 +81,25 @@ describe('Browser Bundle Tests', () => {
       'Hero title should display library name'
     );
 
-    const navLinks = Array.from(document.querySelectorAll('nav a')).map((link) => link.getAttribute('href'));
+    const navLinks = Array.from(document.querySelectorAll('nav a')).map((link) =>
+      link.getAttribute('href')
+    );
     assert.deepStrictEqual(
       navLinks,
-      ['examples.html', 'streaming.html', 'guides.html', 'https://github.com/jburnhams/image-stitch'],
+      [
+        'examples.html',
+        'streaming.html',
+        'guides.html',
+        'https://github.com/jburnhams/image-stitch',
+      ],
       'Navigation should link to examples, streaming demo, guides, and GitHub'
     );
 
     assert.ok(document.querySelector('.feature-grid'), 'Feature grid should be present');
-    assert.ok(document.querySelectorAll('.card').length >= 2, 'Landing page should include feature cards');
+    assert.ok(
+      document.querySelectorAll('.card').length >= 2,
+      'Landing page should include feature cards'
+    );
 
     await window.close();
   });
@@ -96,10 +112,17 @@ describe('Browser Bundle Tests', () => {
     const sections = Array.from(document.querySelectorAll('main section'));
     assert.ok(sections.length >= 5, 'Guides page should include multiple sections');
 
-    const navLinks = Array.from(document.querySelectorAll('nav a')).map((link) => link.getAttribute('href'));
+    const navLinks = Array.from(document.querySelectorAll('nav a')).map((link) =>
+      link.getAttribute('href')
+    );
     assert.deepStrictEqual(
       navLinks,
-      ['index.html', 'examples.html', 'streaming.html', 'https://github.com/jburnhams/image-stitch'],
+      [
+        'index.html',
+        'examples.html',
+        'streaming.html',
+        'https://github.com/jburnhams/image-stitch',
+      ],
       'Guides nav should link to overview, examples, streaming demo, and GitHub'
     );
 
@@ -137,7 +160,11 @@ describe('Browser Bundle Tests', () => {
     assert.ok(customInput, 'Custom demo should expose file input');
 
     const resultContainers = document.querySelectorAll('[data-result]');
-    assert.strictEqual(resultContainers.length, 5, 'Each interactive example should render a result container');
+    assert.strictEqual(
+      resultContainers.length,
+      5,
+      'Each interactive example should render a result container'
+    );
     resultContainers.forEach((container) => {
       const img = container.querySelector('img');
       assert.ok(img, 'Result containers should include an image element');
@@ -216,7 +243,9 @@ describe('Browser Bundle Tests', () => {
 
     const { window, document } = await loadDocument(streamingPath);
 
-    const navLinks = Array.from(document.querySelectorAll('nav a')).map((link) => link.getAttribute('href'));
+    const navLinks = Array.from(document.querySelectorAll('nav a')).map((link) =>
+      link.getAttribute('href')
+    );
     assert.deepStrictEqual(
       navLinks,
       ['index.html', 'examples.html', 'guides.html', 'https://github.com/jburnhams/image-stitch'],
@@ -233,7 +262,10 @@ describe('Browser Bundle Tests', () => {
     const moduleScript = document.querySelector('script[type="module"]');
     assert.ok(moduleScript, 'Streaming page should include module script');
     const scriptSource = moduleScript?.textContent ?? '';
-    assert.ok(scriptSource.includes('./image-stitch.esm.js'), 'Streaming page should load the local ESM bundle');
+    assert.ok(
+      scriptSource.includes('./image-stitch.esm.js'),
+      'Streaming page should load the local ESM bundle'
+    );
     assert.ok(
       scriptSource.includes('StreamingConcatenator'),
       'Streaming page should reference the StreamingConcatenator API'
@@ -246,11 +278,12 @@ describe('Browser Bundle Tests', () => {
     await window.close();
   });
 
-
   test('examples page provides code samples for each demo', async () => {
     const { window, document } = await loadDocument(examplesPath);
 
-    const codeBlocks = Array.from(document.querySelectorAll('section.example .code-block[data-code]'));
+    const codeBlocks = Array.from(
+      document.querySelectorAll('section.example .code-block[data-code]')
+    );
     assert.strictEqual(
       codeBlocks.length,
       6,
@@ -270,7 +303,6 @@ describe('Browser Bundle Tests', () => {
     // Bundle should be more than 10KB (sanity check)
     assert.ok(sizeKB > 10, `Bundle size (${sizeKB.toFixed(2)}KB) seems too small`);
   });
-
 });
 
 describe('Functional Tests - Verify Examples Work Correctly', () => {
@@ -296,11 +328,9 @@ describe('Functional Tests - Verify Examples Work Correctly', () => {
         return false;
       }
 
-      // @ts-ignore
       if (actualPng.colorType !== undefined && expectedPng.colorType !== undefined) {
         if (actualPng.colorType !== expectedPng.colorType) return false;
       }
-      // @ts-ignore
       if (actualPng.depth !== undefined && expectedPng.depth !== undefined) {
         if (actualPng.depth !== expectedPng.depth) return false;
       }
@@ -314,7 +344,7 @@ describe('Functional Tests - Verify Examples Work Correctly', () => {
       }
 
       return true;
-    } catch (err) {
+    } catch {
       // Fall back to built-in parser + decompressor (more tolerant)
       const parser = await import(path.join(DIST_DIR, 'esm', 'png-parser.js'));
       const decompressor = await import(path.join(DIST_DIR, 'esm', 'png-decompress.js'));
@@ -329,7 +359,10 @@ describe('Functional Tests - Verify Examples Work Correctly', () => {
       const actualHeader = parsePngHeader(actual);
       const expectedHeader = parsePngHeader(expected);
 
-      if (actualHeader.width !== expectedHeader.width || actualHeader.height !== expectedHeader.height) {
+      if (
+        actualHeader.width !== expectedHeader.width ||
+        actualHeader.height !== expectedHeader.height
+      ) {
         return false;
       }
 
@@ -353,32 +386,24 @@ describe('Functional Tests - Verify Examples Work Correctly', () => {
     assert.ok(typeof bundle.concat === 'function', 'Browser bundle should export concat');
 
     const result = await bundle.concat({
-      inputs: [
-        loadImage('basn2c08.png'),
-        loadImage('basn0g08.png'),
-        loadImage('basn6a08.png')
-      ],
-      layout: { columns: 3 }
+      inputs: [loadImage('basn2c08.png'), loadImage('basn0g08.png'), loadImage('basn6a08.png')],
+      layout: { columns: 3 },
     });
 
-  const expected = fs.readFileSync(path.join(fixturesDir, 'example1.png'));
-  assert.ok(await comparePngs(result, expected), 'Example 1 output should match expected image');
+    const expected = fs.readFileSync(path.join(fixturesDir, 'example1.png'));
+    assert.ok(await comparePngs(result, expected), 'Example 1 output should match expected image');
   });
 
   test('Example 2: Vertical concatenation produces correct output', async () => {
     const bundle = await loadBundleModule();
 
     const result = await bundle.concat({
-      inputs: [
-        loadImage('basn2c08.png'),
-        loadImage('basn0g08.png'),
-        loadImage('basn6a08.png')
-      ],
-      layout: { rows: 3 }
+      inputs: [loadImage('basn2c08.png'), loadImage('basn0g08.png'), loadImage('basn6a08.png')],
+      layout: { rows: 3 },
     });
 
-  const expected = fs.readFileSync(path.join(fixturesDir, 'example2.png'));
-  assert.ok(await comparePngs(result, expected), 'Example 2 output should match expected image');
+    const expected = fs.readFileSync(path.join(fixturesDir, 'example2.png'));
+    assert.ok(await comparePngs(result, expected), 'Example 2 output should match expected image');
   });
 
   test('Example 3: Grid layout produces correct output', async () => {
@@ -391,29 +416,25 @@ describe('Functional Tests - Verify Examples Work Correctly', () => {
         loadImage('basn6a08.png'),
         loadImage('basn4a08.png'),
         loadImage('basn2c16.png'),
-        loadImage('basn0g16.png')
+        loadImage('basn0g16.png'),
       ],
-      layout: { columns: 3 }
+      layout: { columns: 3 },
     });
 
-  const expected = fs.readFileSync(path.join(fixturesDir, 'example3.png'));
-  assert.ok(await comparePngs(result, expected), 'Example 3 output should match expected image');
+    const expected = fs.readFileSync(path.join(fixturesDir, 'example3.png'));
+    assert.ok(await comparePngs(result, expected), 'Example 3 output should match expected image');
   });
 
   test('Example 4: Different image sizes produces correct output', async () => {
     const bundle = await loadBundleModule();
 
     const result = await bundle.concat({
-      inputs: [
-        loadImage('basn0g01.png'),
-        loadImage('basn0g04.png'),
-        loadImage('basn2c08.png')
-      ],
-      layout: { columns: 3 }
+      inputs: [loadImage('basn0g01.png'), loadImage('basn0g04.png'), loadImage('basn2c08.png')],
+      layout: { columns: 3 },
     });
 
-  const expected = fs.readFileSync(path.join(fixturesDir, 'example4.png'));
-  assert.ok(await comparePngs(result, expected), 'Example 4 output should match expected image');
+    const expected = fs.readFileSync(path.join(fixturesDir, 'example4.png'));
+    assert.ok(await comparePngs(result, expected), 'Example 4 output should match expected image');
   });
 
   test('Bundle can emit JPEG output when requested', async () => {
@@ -423,7 +444,7 @@ describe('Functional Tests - Verify Examples Work Correctly', () => {
       inputs: [loadImage('basn2c08.png'), loadImage('basn0g08.png')],
       layout: { columns: 2 },
       outputFormat: 'jpeg',
-      jpegQuality: 80
+      jpegQuality: 80,
     });
 
     assert.ok(result.length > 4, 'JPEG output should contain data');
@@ -437,12 +458,12 @@ describe('Functional Tests - Verify Examples Work Correctly', () => {
     // Use color images to ensure we can detect if output is grey
     const result = await bundle.concat({
       inputs: [
-        loadImage('basn2c08.png'),  // RGB color image
-        loadImage('basn6a08.png')   // RGBA color image
+        loadImage('basn2c08.png'), // RGB color image
+        loadImage('basn6a08.png'), // RGBA color image
       ],
       layout: { columns: 2 },
       outputFormat: 'jpeg',
-      jpegQuality: 85
+      jpegQuality: 85,
     });
 
     // Verify it's a valid JPEG
@@ -498,13 +519,13 @@ describe('Functional Tests - Verify Examples Work Correctly', () => {
         loadImage('basn2c08.png'),
         loadImage('basn0g08.png'),
         loadImage('basn6a08.png'),
-        loadImage('basn4a08.png')
+        loadImage('basn4a08.png'),
       ],
-      layout: { width: 100 }
+      layout: { width: 100 },
     });
 
-  const expected = fs.readFileSync(path.join(fixturesDir, 'example5.png'));
-  assert.ok(await comparePngs(result, expected), 'Example 5 output should match expected image');
+    const expected = fs.readFileSync(path.join(fixturesDir, 'example5.png'));
+    assert.ok(await comparePngs(result, expected), 'Example 5 output should match expected image');
   });
 
   test('Library handles mixed color types correctly', async () => {
@@ -513,19 +534,19 @@ describe('Functional Tests - Verify Examples Work Correctly', () => {
     // Mix RGB, Grayscale, and RGBA images
     const result = await bundle.concat({
       inputs: [
-        loadImage('basn2c08.png'),  // RGB 8-bit
-        loadImage('basn0g08.png'),  // Grayscale 8-bit
-        loadImage('basn6a08.png'),  // RGBA 8-bit
-        loadImage('basn4a08.png')   // Grayscale+Alpha 8-bit
+        loadImage('basn2c08.png'), // RGB 8-bit
+        loadImage('basn0g08.png'), // Grayscale 8-bit
+        loadImage('basn6a08.png'), // RGBA 8-bit
+        loadImage('basn4a08.png'), // Grayscale+Alpha 8-bit
       ],
-      layout: { columns: 2 }
+      layout: { columns: 2 },
     });
 
     // Just verify it produces a valid PNG (signature check)
     assert.ok(result.length > 8, 'Output should have content');
     assert.strictEqual(result[0], 0x89, 'PNG signature byte 1');
     assert.strictEqual(result[1], 0x50, 'PNG signature byte 2');
-    assert.strictEqual(result[2], 0x4E, 'PNG signature byte 3');
+    assert.strictEqual(result[2], 0x4e, 'PNG signature byte 3');
     assert.strictEqual(result[3], 0x47, 'PNG signature byte 4');
   });
 
@@ -535,10 +556,10 @@ describe('Functional Tests - Verify Examples Work Correctly', () => {
     // Mix 8-bit and 16-bit images
     const result = await bundle.concat({
       inputs: [
-        loadImage('basn2c08.png'),  // RGB 8-bit
-        loadImage('basn2c16.png')   // RGB 16-bit
+        loadImage('basn2c08.png'), // RGB 8-bit
+        loadImage('basn2c16.png'), // RGB 16-bit
       ],
-      layout: { columns: 2 }
+      layout: { columns: 2 },
     });
 
     // Verify it produces a valid PNG
@@ -553,11 +574,11 @@ describe('Functional Tests - Verify Examples Work Correctly', () => {
     // Mix different grayscale bit depths
     const result = await bundle.concat({
       inputs: [
-        loadImage('basn0g01.png'),  // 1-bit grayscale
-        loadImage('basn0g04.png'),  // 4-bit grayscale
-        loadImage('basn0g08.png')   // 8-bit grayscale
+        loadImage('basn0g01.png'), // 1-bit grayscale
+        loadImage('basn0g04.png'), // 4-bit grayscale
+        loadImage('basn0g08.png'), // 8-bit grayscale
       ],
-      layout: { columns: 3 }
+      layout: { columns: 3 },
     });
 
     // Verify it produces a valid PNG
@@ -571,18 +592,18 @@ describe('Functional Tests - Verify Examples Work Correctly', () => {
     // Load interlaced images (basi prefix)
     const result = await bundle.concat({
       inputs: [
-        loadImage('basi0g08.png'),  // Interlaced grayscale 8-bit
-        loadImage('basi2c08.png'),  // Interlaced RGB 8-bit
-        loadImage('basi4a16.png')   // Interlaced grayscale+alpha 16-bit
+        loadImage('basi0g08.png'), // Interlaced grayscale 8-bit
+        loadImage('basi2c08.png'), // Interlaced RGB 8-bit
+        loadImage('basi4a16.png'), // Interlaced grayscale+alpha 16-bit
       ],
-      layout: { columns: 3 }
+      layout: { columns: 3 },
     });
 
     // Verify it produces a valid PNG
     assert.ok(result.length > 8, 'Output should have content');
     assert.strictEqual(result[0], 0x89, 'PNG signature byte 1');
     assert.strictEqual(result[1], 0x50, 'PNG signature byte 2');
-    assert.strictEqual(result[2], 0x4E, 'PNG signature byte 3');
+    assert.strictEqual(result[2], 0x4e, 'PNG signature byte 3');
     assert.strictEqual(result[3], 0x47, 'PNG signature byte 4');
   });
 
@@ -592,11 +613,11 @@ describe('Functional Tests - Verify Examples Work Correctly', () => {
     // Mix interlaced and non-interlaced
     const result = await bundle.concat({
       inputs: [
-        loadImage('basn2c08.png'),  // Non-interlaced
-        loadImage('basi2c08.png'),  // Interlaced
-        loadImage('basn6a08.png')   // Non-interlaced
+        loadImage('basn2c08.png'), // Non-interlaced
+        loadImage('basi2c08.png'), // Interlaced
+        loadImage('basn6a08.png'), // Non-interlaced
       ],
-      layout: { columns: 3 }
+      layout: { columns: 3 },
     });
 
     // Verify it produces a valid PNG

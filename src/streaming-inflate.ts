@@ -20,7 +20,9 @@ async function loadPako(): Promise<PakoModule> {
 /**
  * Create a decompression stream (native or polyfilled via pako)
  */
-export function createDecompressionStream(format: 'deflate' | 'gzip' | 'deflate-raw' = 'deflate'): ReadableWritablePair<Uint8Array, BufferSource> {
+export function createDecompressionStream(
+  format: 'deflate' | 'gzip' | 'deflate-raw' = 'deflate'
+): ReadableWritablePair<Uint8Array, BufferSource> {
   if (typeof DecompressionStream !== 'undefined') {
     return new DecompressionStream(format);
   }
@@ -71,6 +73,6 @@ export function createDecompressionStream(format: 'deflate' | 'gzip' | 'deflate-
           throw new Error(`Inflate error: ${inflator.msg}`);
         }
       }
-    }
+    },
   });
 }

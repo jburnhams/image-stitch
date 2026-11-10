@@ -9,10 +9,5 @@
     "removeComments": false
   },
   "include": ["src/**/*.ts", "tests/**/*.ts"],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "build/tests",
-    "build/browser-tests"
-  ]
+  "exclude": ["node_modules", "dist", "build/tests", "build/browser-tests"]
 }

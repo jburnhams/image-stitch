@@ -10,7 +10,7 @@ import {
   detectImageFormat,
   detectFormat,
   validateFormat,
-  readMagicBytes
+  readMagicBytes,
 } from '../../src/decoders/format-detection.js';
 import { createMagicBytesTest, createTestPng, createTestJpeg } from '../utils/image-fixtures.js';
 
@@ -67,7 +67,10 @@ describe('Format Detection - detectFormat function', () => {
 
   test('detects format from ArrayBuffer', async () => {
     const pngBytes = await createTestPng(10, 10, new Uint8Array([255, 0, 0, 255]));
-    const buffer = pngBytes.buffer.slice(pngBytes.byteOffset, pngBytes.byteOffset + pngBytes.byteLength) as ArrayBuffer;
+    const buffer = pngBytes.buffer.slice(
+      pngBytes.byteOffset,
+      pngBytes.byteOffset + pngBytes.byteLength
+    ) as ArrayBuffer;
     const format = await detectFormat(buffer);
     assert.strictEqual(format, 'png');
   });
@@ -101,7 +104,10 @@ describe('Magic Bytes Reading', () => {
 
   test('reads magic bytes from ArrayBuffer', async () => {
     const fullImage = await createTestPng(10, 10, new Uint8Array([255, 0, 0, 255]));
-    const buffer = fullImage.buffer.slice(fullImage.byteOffset, fullImage.byteOffset + fullImage.byteLength) as ArrayBuffer;
+    const buffer = fullImage.buffer.slice(
+      fullImage.byteOffset,
+      fullImage.byteOffset + fullImage.byteLength
+    ) as ArrayBuffer;
     const magicBytes = await readMagicBytes(buffer);
 
     assert.ok(magicBytes instanceof Uint8Array, 'Should return Uint8Array');
@@ -119,30 +125,57 @@ describe('Magic Bytes Reading', () => {
 describe('HEIC Brand Variations', () => {
   test('detects heic brand', () => {
     const heicBytes = new Uint8Array([
-      0x00, 0x00, 0x00, 0x18,
-      0x66, 0x74, 0x79, 0x70, // ftyp
-      0x68, 0x65, 0x69, 0x63, // heic
-      ...new Array(20).fill(0)
+      0x00,
+      0x00,
+      0x00,
+      0x18,
+      0x66,
+      0x74,
+      0x79,
+      0x70, // ftyp
+      0x68,
+      0x65,
+      0x69,
+      0x63, // heic
+      ...new Array(20).fill(0),
     ]);
     assert.strictEqual(detectImageFormat(heicBytes), 'heic');
   });
 
   test('detects heix brand', () => {
     const heixBytes = new Uint8Array([
-      0x00, 0x00, 0x00, 0x18,
-      0x66, 0x74, 0x79, 0x70, // ftyp
-      0x68, 0x65, 0x69, 0x78, // heix
-      ...new Array(20).fill(0)
+      0x00,
+      0x00,
+      0x00,
+      0x18,
+      0x66,
+      0x74,
+      0x79,
+      0x70, // ftyp
+      0x68,
+      0x65,
+      0x69,
+      0x78, // heix
+      ...new Array(20).fill(0),
     ]);
     assert.strictEqual(detectImageFormat(heixBytes), 'heic');
   });
 
   test('detects mif1 brand (HEIF)', () => {
     const mif1Bytes = new Uint8Array([
-      0x00, 0x00, 0x00, 0x18,
-      0x66, 0x74, 0x79, 0x70, // ftyp
-      0x6d, 0x69, 0x66, 0x31, // mif1
-      ...new Array(20).fill(0)
+      0x00,
+      0x00,
+      0x00,
+      0x18,
+      0x66,
+      0x74,
+      0x79,
+      0x70, // ftyp
+      0x6d,
+      0x69,
+      0x66,
+      0x31, // mif1
+      ...new Array(20).fill(0),
     ]);
     assert.strictEqual(detectImageFormat(mif1Bytes), 'heic');
   });

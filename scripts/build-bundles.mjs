@@ -60,9 +60,18 @@ function renameCjsArtifacts() {
       }
 
       let content = fs.readFileSync(destPath, 'utf8');
-      content = content.replace(/require\((['"]\.\.?(?:\/[^'"\\]+)*)\.js(['"])\)/g, 'require($1.cjs$2)');
-      content = content.replace(/import\((['"]\.\.?(?:\/[^'"\\]+)*)\.js(['"])\)/g, 'import($1.cjs$2)');
-      content = content.replace(/\/\/# sourceMappingURL=.*$/gm, `//# sourceMappingURL=${base}.cjs.map`);
+      content = content.replace(
+        /require\((['"]\.\.?(?:\/[^'"\\]+)*)\.js(['"])\)/g,
+        'require($1.cjs$2)'
+      );
+      content = content.replace(
+        /import\((['"]\.\.?(?:\/[^'"\\]+)*)\.js(['"])\)/g,
+        'import($1.cjs$2)'
+      );
+      content = content.replace(
+        /\/\/# sourceMappingURL=.*$/gm,
+        `//# sourceMappingURL=${base}.cjs.map`
+      );
       if (!content.endsWith('\n')) {
         content += '\n';
       }
@@ -75,7 +84,14 @@ function renameCjsArtifacts() {
 
 // Copy JPEG encoder WASM files
 function copyJpegWasmArtifacts() {
-  const jpegEncoderWasm = path.join(projectRoot, 'node_modules', 'jpeg-encoder-wasm', 'pkg', 'esm', 'jpeg_encoder_bg.wasm');
+  const jpegEncoderWasm = path.join(
+    projectRoot,
+    'node_modules',
+    'jpeg-encoder-wasm',
+    'pkg',
+    'esm',
+    'jpeg_encoder_bg.wasm'
+  );
 
   if (!fs.existsSync(jpegEncoderWasm)) {
     console.warn('JPEG encoder WASM missing; skipping copy step.');
@@ -84,7 +100,7 @@ function copyJpegWasmArtifacts() {
 
   const targets = [
     path.join(bundlesDir, 'jpeg_encoder_bg.wasm'),
-    path.join(browserDir, 'jpeg_encoder_bg.wasm')
+    path.join(browserDir, 'jpeg_encoder_bg.wasm'),
   ];
 
   for (const target of targets) {
@@ -97,11 +113,13 @@ const optionalDependencyStubPlugin = {
   name: 'optional-dependency-browser-stubs',
   setup(build) {
     const optionalDeps = ['pako', 'jpeg-js', 'sharp'];
-    const filter = new RegExp(`^(?:${optionalDeps.map((dep) => dep.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')).join('|')})(?:/.*)?$`);
+    const filter = new RegExp(
+      `^(?:${optionalDeps.map((dep) => dep.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')).join('|')})(?:/.*)?$`
+    );
 
     build.onResolve({ filter }, (args) => ({
       path: args.path,
-      namespace: 'optional-dep-browser-stub'
+      namespace: 'optional-dep-browser-stub',
     }));
 
     build.onLoad({ filter: /.*/, namespace: 'optional-dep-browser-stub' }, (args) => {
@@ -138,24 +156,24 @@ export default function optionalDependencyStub() {
 
       return {
         contents,
-        loader: 'js'
+        loader: 'js',
       };
     });
-  }
+  },
 };
 
 const nodeBuiltinsPlugin = {
   name: 'node-builtins-handler',
   setup(build) {
     // For dynamic imports of node built-ins, keep them external so they work at runtime in Node.js
-    build.onResolve({ filter: /^node:(fs|path|fs\/promises)$/ }, args => {
+    build.onResolve({ filter: /^node:(fs|path|fs\/promises)$/ }, (args) => {
       if (args.kind === 'dynamic-import') {
         return { path: args.path, external: true };
       }
       // For static imports, provide a shim
       return {
         path: args.path,
-        namespace: 'node-builtin-shim'
+        namespace: 'node-builtin-shim',
       };
     });
 
@@ -165,15 +183,22 @@ const nodeBuiltinsPlugin = {
         export const readFileSync = () => { throw new Error('File system access is not available in the browser'); };
         export class FileHandle { async close() { /* no-op */ } }
       `,
-      loader: 'js'
+      loader: 'js',
     }));
 
     // Allow deep import for jpeg-encoder-wasm (resolve to actual file)
-    build.onResolve({ filter: /^jpeg-encoder-wasm\/pkg\/esm\/jpeg_encoder\.js$/ }, args => ({
-      path: path.join(projectRoot, 'node_modules', 'jpeg-encoder-wasm', 'pkg', 'esm', 'jpeg_encoder.js'),
-      external: false
+    build.onResolve({ filter: /^jpeg-encoder-wasm\/pkg\/esm\/jpeg_encoder\.js$/ }, (_args) => ({
+      path: path.join(
+        projectRoot,
+        'node_modules',
+        'jpeg-encoder-wasm',
+        'pkg',
+        'esm',
+        'jpeg_encoder.js'
+      ),
+      external: false,
     }));
-  }
+  },
 };
 
 // Build bundles using esbuild
@@ -189,7 +214,7 @@ async function buildBundles() {
     sourcemap: true,
     platform: 'browser',
     target: 'es2020',
-    plugins: [optionalDependencyStubPlugin, nodeBuiltinsPlugin]
+    plugins: [optionalDependencyStubPlugin, nodeBuiltinsPlugin],
   };
 
   // ESM bundle
@@ -202,8 +227,8 @@ async function buildBundles() {
       js: `/**
  * image-stitch ESM bundle
  * Generated on ${new Date().toISOString()}
- */`
-    }
+ */`,
+    },
   });
 
   // IIFE bundle for browser
@@ -217,15 +242,15 @@ async function buildBundles() {
       js: `/**
  * image-stitch browser bundle
  * Generated on ${new Date().toISOString()}
- */`
+ */`,
     },
     footer: {
       js: `
 if (typeof window !== 'undefined') { window.ImageStitch = ImageStitch; }
 if (typeof globalThis !== 'undefined') { globalThis.ImageStitch = ImageStitch; }
 if (typeof global !== 'undefined') { global.ImageStitch = ImageStitch; }
-`
-    }
+`,
+    },
   });
 
   // Minified IIFE bundle
@@ -237,11 +262,11 @@ if (typeof global !== 'undefined') { global.ImageStitch = ImageStitch; }
     outfile: path.join(browserDir, 'image-stitch.min.js'),
     minify: true,
     banner: {
-      js: `/* image-stitch v${getVersion()} | Generated ${new Date().toISOString()} */`
+      js: `/* image-stitch v${getVersion()} | Generated ${new Date().toISOString()} */`,
     },
     footer: {
-      js: `if(typeof window!=='undefined'){window.ImageStitch=ImageStitch;}if(typeof globalThis!=='undefined'){globalThis.ImageStitch=ImageStitch;}if(typeof global!=='undefined'){global.ImageStitch=ImageStitch;}`
-    }
+      js: `if(typeof window!=='undefined'){window.ImageStitch=ImageStitch;}if(typeof globalThis!=='undefined'){globalThis.ImageStitch=ImageStitch;}if(typeof global!=='undefined'){global.ImageStitch=ImageStitch;}`,
+    },
   });
 
   copyJpegWasmArtifacts();

@@ -6,7 +6,7 @@
 
 import { createIHDR, createIEND, createChunk, buildPng } from '../../src/png-writer.js';
 import { compressImageData } from '../../src/png-decompress.js';
-import { PngHeader, ColorType } from '../../src/types.js';
+import { type PngHeader, ColorType } from '../../src/types.js';
 
 /**
  * Create a simple solid-color PNG for testing
@@ -23,7 +23,7 @@ export async function createTestPng(
     colorType: ColorType.RGBA,
     compressionMethod: 0,
     filterMethod: 0,
-    interlaceMethod: 0
+    interlaceMethod: 0,
   };
 
   const pixelData = new Uint8Array(width * height * 4);
@@ -71,7 +71,7 @@ export async function createTestJpeg(
       {
         data: pixelData,
         width,
-        height
+        height,
       },
       90 // quality
     );
@@ -89,7 +89,17 @@ export function createMagicBytesTest(format: 'png' | 'jpeg' | 'heic'): Uint8Arra
   switch (format) {
     case 'png':
       // PNG signature: 89 50 4E 47 0D 0A 1A 0A
-      return new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, ...new Array(24).fill(0)]);
+      return new Uint8Array([
+        0x89,
+        0x50,
+        0x4e,
+        0x47,
+        0x0d,
+        0x0a,
+        0x1a,
+        0x0a,
+        ...new Array(24).fill(0),
+      ]);
 
     case 'jpeg':
       // JPEG SOI: FF D8 FF
@@ -98,12 +108,27 @@ export function createMagicBytesTest(format: 'png' | 'jpeg' | 'heic'): Uint8Arra
     case 'heic':
       // HEIC: [size] ftyp heic
       return new Uint8Array([
-        0x00, 0x00, 0x00, 0x18, // Box size (24 bytes)
-        0x66, 0x74, 0x79, 0x70, // 'ftyp'
-        0x68, 0x65, 0x69, 0x63, // 'heic' (major brand)
-        0x00, 0x00, 0x00, 0x00, // Minor version
-        0x68, 0x65, 0x69, 0x63, // 'heic' (compatible brand)
-        ...new Array(8).fill(0)
+        0x00,
+        0x00,
+        0x00,
+        0x18, // Box size (24 bytes)
+        0x66,
+        0x74,
+        0x79,
+        0x70, // 'ftyp'
+        0x68,
+        0x65,
+        0x69,
+        0x63, // 'heic' (major brand)
+        0x00,
+        0x00,
+        0x00,
+        0x00, // Minor version
+        0x68,
+        0x65,
+        0x69,
+        0x63, // 'heic' (compatible brand)
+        ...new Array(8).fill(0),
       ]);
 
     default:
@@ -114,10 +139,7 @@ export function createMagicBytesTest(format: 'png' | 'jpeg' | 'heic'): Uint8Arra
 /**
  * Create a gradient PNG for more complex testing
  */
-export async function createGradientPng(
-  width: number,
-  height: number
-): Promise<Uint8Array> {
+export async function createGradientPng(width: number, height: number): Promise<Uint8Array> {
   const header: PngHeader = {
     width,
     height,
@@ -125,7 +147,7 @@ export async function createGradientPng(
     colorType: ColorType.RGBA,
     compressionMethod: 0,
     filterMethod: 0,
-    interlaceMethod: 0
+    interlaceMethod: 0,
   };
 
   const pixelData = new Uint8Array(width * height * 4);

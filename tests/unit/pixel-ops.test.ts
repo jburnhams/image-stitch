@@ -8,23 +8,28 @@ import {
   determineCommonFormat,
   convertPixelFormat,
   convertScanline,
-  parseBackgroundColor
+  parseBackgroundColor,
 } from '../../src/pixel-ops.js';
-import { ColorType, PngHeader } from '../../src/types.js';
+import { ColorType, type PngHeader } from '../../src/types.js';
 
 const baseHeader: Omit<PngHeader, 'width' | 'height' | 'bitDepth' | 'colorType'> = {
   compressionMethod: 0,
   filterMethod: 0,
-  interlaceMethod: 0
+  interlaceMethod: 0,
 };
 
-function createHeader(width: number, height: number, bitDepth: number, colorType: ColorType): PngHeader {
+function createHeader(
+  width: number,
+  height: number,
+  bitDepth: number,
+  colorType: ColorType
+): PngHeader {
   return {
     width,
     height,
     bitDepth,
     colorType,
-    ...baseHeader
+    ...baseHeader,
   };
 }
 
@@ -55,7 +60,10 @@ test('fillPixelRegion fills each pixel in the rectangle', () => {
       if (x >= 1 && y <= 1) {
         assert.deepStrictEqual(dst.slice(offset, offset + bytesPerPixel), color);
       } else {
-        assert.deepStrictEqual(dst.slice(offset, offset + bytesPerPixel), new Uint8Array(bytesPerPixel));
+        assert.deepStrictEqual(
+          dst.slice(offset, offset + bytesPerPixel),
+          new Uint8Array(bytesPerPixel)
+        );
       }
     }
   }
@@ -98,13 +106,13 @@ test('getTransparentColor returns zeroed samples for supported formats', () => {
 test('determineCommonFormat always returns RGBA with the maximum bit depth', () => {
   const eightBit = determineCommonFormat([
     createHeader(1, 1, 8, ColorType.GRAYSCALE),
-    createHeader(1, 1, 8, ColorType.RGB)
+    createHeader(1, 1, 8, ColorType.RGB),
   ]);
   assert.deepStrictEqual(eightBit, { bitDepth: 8, colorType: ColorType.RGBA });
 
   const mixed = determineCommonFormat([
     createHeader(1, 1, 8, ColorType.RGBA),
-    createHeader(1, 1, 16, ColorType.GRAYSCALE)
+    createHeader(1, 1, 16, ColorType.GRAYSCALE),
   ]);
   assert.deepStrictEqual(mixed, { bitDepth: 16, colorType: ColorType.RGBA });
 });
@@ -122,10 +130,7 @@ test('convertPixelFormat converts grayscale variants to RGBA', () => {
   const grayHeader = createHeader(2, 1, 8, ColorType.GRAYSCALE);
   const grayData = Uint8Array.from([10, 20]);
   const grayResult = convertPixelFormat(grayData, grayHeader, 8, ColorType.RGBA);
-  assert.deepStrictEqual(
-    Array.from(grayResult.data),
-    [10, 10, 10, 255, 20, 20, 20, 255]
-  );
+  assert.deepStrictEqual(Array.from(grayResult.data), [10, 10, 10, 255, 20, 20, 20, 255]);
 
   const packedHeader = createHeader(4, 1, 1, ColorType.GRAYSCALE);
   const packedData = Uint8Array.from([0b10100000]);
@@ -148,7 +153,12 @@ test('convertPixelFormat converts RGB and grayscale+alpha 16-bit sources', () =>
   const gaResult = convertPixelFormat(gaData, gaHeader, 8, ColorType.RGBA);
   const expectedGray = Math.round((0x4000 * 0xff) / 0xffff);
   const expectedAlpha = Math.round((0x8000 * 0xff) / 0xffff);
-  assert.deepStrictEqual(Array.from(gaResult.data), [expectedGray, expectedGray, expectedGray, expectedAlpha]);
+  assert.deepStrictEqual(Array.from(gaResult.data), [
+    expectedGray,
+    expectedGray,
+    expectedGray,
+    expectedAlpha,
+  ]);
 });
 
 test('convertPixelFormat upconverts RGBA 8-bit sources to 16-bit', () => {
@@ -156,15 +166,16 @@ test('convertPixelFormat upconverts RGBA 8-bit sources to 16-bit', () => {
   const data = new Uint8Array([10, 20, 30, 40]);
   const result = convertPixelFormat(data, header, 16, ColorType.RGBA);
   const scale = (value: number) => Math.round((value * 0xffff) / 0xff);
-  assert.deepStrictEqual(
-    Array.from(result.data),
-    [
-      scale(10) >> 8, scale(10) & 0xff,
-      scale(20) >> 8, scale(20) & 0xff,
-      scale(30) >> 8, scale(30) & 0xff,
-      scale(40) >> 8, scale(40) & 0xff
-    ]
-  );
+  assert.deepStrictEqual(Array.from(result.data), [
+    scale(10) >> 8,
+    scale(10) & 0xff,
+    scale(20) >> 8,
+    scale(20) & 0xff,
+    scale(30) >> 8,
+    scale(30) & 0xff,
+    scale(40) >> 8,
+    scale(40) & 0xff,
+  ]);
 });
 
 test('convertPixelFormat validates supported configurations', () => {
@@ -206,15 +217,16 @@ test('convertScanline upconverts RGBA samples and validates inputs', () => {
   const rgba = new Uint8Array([1, 2, 3, 4]);
   const result = convertScanline(rgba, 1, 8, ColorType.RGBA, 16, ColorType.RGBA);
   const scale = (value: number) => Math.round((value * 0xffff) / 0xff);
-  assert.deepStrictEqual(
-    Array.from(result),
-    [
-      scale(1) >> 8, scale(1) & 0xff,
-      scale(2) >> 8, scale(2) & 0xff,
-      scale(3) >> 8, scale(3) & 0xff,
-      scale(4) >> 8, scale(4) & 0xff
-    ]
-  );
+  assert.deepStrictEqual(Array.from(result), [
+    scale(1) >> 8,
+    scale(1) & 0xff,
+    scale(2) >> 8,
+    scale(2) & 0xff,
+    scale(3) >> 8,
+    scale(3) & 0xff,
+    scale(4) >> 8,
+    scale(4) & 0xff,
+  ]);
 
   assert.throws(
     () => convertScanline(rgba, 1, 8, ColorType.RGBA, 8, ColorType.RGB),

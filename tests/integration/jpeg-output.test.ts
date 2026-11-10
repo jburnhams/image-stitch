@@ -20,9 +20,9 @@ const loadImage = loadPngsuiteImage;
 function isValidJpeg(data: Uint8Array): boolean {
   if (data.length < 4) return false;
   // JPEG starts with FF D8 (SOI marker)
-  if (data[0] !== 0xFF || data[1] !== 0xD8) return false;
+  if (data[0] !== 0xff || data[1] !== 0xd8) return false;
   // JPEG ends with FF D9 (EOI marker)
-  if (data[data.length - 2] !== 0xFF || data[data.length - 1] !== 0xD9) return false;
+  if (data[data.length - 2] !== 0xff || data[data.length - 1] !== 0xd9) return false;
   return true;
 }
 
@@ -33,7 +33,7 @@ describe('JPEG Output - Format Conversion', () => {
       inputs: [loadImage('basi4a16.png')],
       layout: { columns: 1 },
       outputFormat: 'jpeg',
-      jpegQuality: 85
+      jpegQuality: 85,
     });
 
     assert.ok(isValidJpeg(result), 'Output should be a valid JPEG');
@@ -43,12 +43,12 @@ describe('JPEG Output - Format Conversion', () => {
   test('converts mixed 8-bit and 16-bit PNGs to JPEG', async () => {
     const result = await concat({
       inputs: [
-        loadImage('basn2c08.png'),  // 8-bit RGB
-        loadImage('basn2c16.png')   // 16-bit RGB
+        loadImage('basn2c08.png'), // 8-bit RGB
+        loadImage('basn2c16.png'), // 16-bit RGB
       ],
       layout: { columns: 2 },
       outputFormat: 'jpeg',
-      jpegQuality: 85
+      jpegQuality: 85,
     });
 
     assert.ok(isValidJpeg(result), 'Output should be a valid JPEG');
@@ -58,12 +58,12 @@ describe('JPEG Output - Format Conversion', () => {
   test('converts multiple 16-bit PNGs to JPEG', async () => {
     const result = await concat({
       inputs: [
-        loadImage('basn0g16.png'),  // 16-bit grayscale
-        loadImage('basn2c16.png')   // 16-bit RGB
+        loadImage('basn0g16.png'), // 16-bit grayscale
+        loadImage('basn2c16.png'), // 16-bit RGB
       ],
       layout: { columns: 2 },
       outputFormat: 'jpeg',
-      jpegQuality: 85
+      jpegQuality: 85,
     });
 
     assert.ok(isValidJpeg(result), 'Output should be a valid JPEG');
@@ -75,7 +75,7 @@ describe('JPEG Output - Format Conversion', () => {
       inputs: [loadImage('basn0g16.png')],
       layout: { columns: 1 },
       outputFormat: 'jpeg',
-      jpegQuality: 90
+      jpegQuality: 90,
     });
 
     assert.ok(isValidJpeg(result), 'Output should be a valid JPEG');
@@ -87,13 +87,13 @@ describe('JPEG Output - Filmstrip Examples', () => {
     // This is the exact example from docs/examples.html
     const result = await concat({
       inputs: [
-        loadImage('basi0g08.png'),  // 8-bit grayscale interlaced
-        loadImage('basi2c08.png'),  // 8-bit RGB interlaced
-        loadImage('basi4a16.png')   // 16-bit grayscale+alpha interlaced
+        loadImage('basi0g08.png'), // 8-bit grayscale interlaced
+        loadImage('basi2c08.png'), // 8-bit RGB interlaced
+        loadImage('basi4a16.png'), // 16-bit grayscale+alpha interlaced
       ],
       layout: { columns: 3 },
       outputFormat: 'jpeg',
-      jpegQuality: 85
+      jpegQuality: 85,
     });
 
     assert.ok(isValidJpeg(result), 'Horizontal filmstrip JPEG should be valid');
@@ -104,12 +104,12 @@ describe('JPEG Output - Filmstrip Examples', () => {
     // This is the exact example from docs/examples.html
     const result = await concat({
       inputs: [
-        loadImage('basi2c08.png'),  // 8-bit RGB interlaced
-        loadImage('basi0g08.png')   // 8-bit grayscale interlaced
+        loadImage('basi2c08.png'), // 8-bit RGB interlaced
+        loadImage('basi0g08.png'), // 8-bit grayscale interlaced
       ],
       layout: { rows: 2 },
       outputFormat: 'jpeg',
-      jpegQuality: 85
+      jpegQuality: 85,
     });
 
     assert.ok(isValidJpeg(result), 'Vertical filmstrip JPEG should be valid');
@@ -122,11 +122,11 @@ describe('JPEG Output - Filmstrip Examples', () => {
         loadImage('basi0g08.png'),
         loadImage('basi2c08.png'),
         loadImage('basi4a16.png'),
-        loadImage('basi0g08.png')
+        loadImage('basi0g08.png'),
       ],
       layout: { width: 256 },
       outputFormat: 'jpeg',
-      jpegQuality: 85
+      jpegQuality: 85,
     });
 
     assert.ok(isValidJpeg(result), 'Grid layout JPEG should be valid');
@@ -143,7 +143,7 @@ describe('JPEG Output - Quality Settings', () => {
         inputs: [input],
         layout: { columns: 1 },
         outputFormat: 'jpeg',
-        jpegQuality: quality
+        jpegQuality: quality,
       });
 
       assert.ok(isValidJpeg(result), `JPEG with quality ${quality} should be valid`);
@@ -157,14 +157,14 @@ describe('JPEG Output - Quality Settings', () => {
       inputs: [input],
       layout: { columns: 1 },
       outputFormat: 'jpeg',
-      jpegQuality: 10
+      jpegQuality: 10,
     });
 
     const highQuality = await concat({
       inputs: [input],
       layout: { columns: 1 },
       outputFormat: 'jpeg',
-      jpegQuality: 95
+      jpegQuality: 95,
     });
 
     // Higher quality should generally produce larger files
@@ -177,7 +177,7 @@ describe('JPEG Output - Quality Settings', () => {
     const result = await concat({
       inputs: [loadImage('basn2c08.png')],
       layout: { columns: 1 },
-      outputFormat: 'jpeg'
+      outputFormat: 'jpeg',
       // jpegQuality omitted - should default to 85
     });
 
@@ -191,7 +191,7 @@ describe('JPEG Output - Edge Cases', () => {
       inputs: [loadImage('basi4a16.png')],
       layout: { columns: 1 },
       outputFormat: 'jpeg',
-      jpegQuality: 85
+      jpegQuality: 85,
     });
 
     assert.ok(isValidJpeg(result), 'Interlaced 16-bit JPEG should be valid');
@@ -200,12 +200,12 @@ describe('JPEG Output - Edge Cases', () => {
   test('handles mixed interlaced and non-interlaced with 16-bit', async () => {
     const result = await concat({
       inputs: [
-        loadImage('basn2c16.png'),  // Non-interlaced 16-bit
-        loadImage('basi4a16.png')   // Interlaced 16-bit
+        loadImage('basn2c16.png'), // Non-interlaced 16-bit
+        loadImage('basi4a16.png'), // Interlaced 16-bit
       ],
       layout: { columns: 2 },
       outputFormat: 'jpeg',
-      jpegQuality: 85
+      jpegQuality: 85,
     });
 
     assert.ok(isValidJpeg(result), 'Mixed interlaced JPEG should be valid');
@@ -214,8 +214,8 @@ describe('JPEG Output - Edge Cases', () => {
   test('handles all 16-bit color types', async () => {
     // Test each 16-bit color type
     const images = [
-      'basn0g16.png',  // Grayscale 16-bit
-      'basn2c16.png'   // RGB 16-bit
+      'basn0g16.png', // Grayscale 16-bit
+      'basn2c16.png', // RGB 16-bit
     ];
 
     for (const image of images) {
@@ -223,7 +223,7 @@ describe('JPEG Output - Edge Cases', () => {
         inputs: [loadImage(image)],
         layout: { columns: 1 },
         outputFormat: 'jpeg',
-        jpegQuality: 85
+        jpegQuality: 85,
       });
 
       assert.ok(isValidJpeg(result), `${image} should convert to valid JPEG`);
@@ -234,12 +234,12 @@ describe('JPEG Output - Edge Cases', () => {
     // basn0g01.png is very small (1-bit), mixed with 16-bit
     const result = await concat({
       inputs: [
-        loadImage('basn0g01.png'),  // 1-bit grayscale
-        loadImage('basn0g16.png')   // 16-bit grayscale
+        loadImage('basn0g01.png'), // 1-bit grayscale
+        loadImage('basn0g16.png'), // 16-bit grayscale
       ],
       layout: { columns: 2 },
       outputFormat: 'jpeg',
-      jpegQuality: 85
+      jpegQuality: 85,
     });
 
     assert.ok(isValidJpeg(result), 'Mixed bit depths JPEG should be valid');
@@ -251,12 +251,12 @@ describe('JPEG Output - Color Preservation', () => {
     // This test ensures we're not producing all-grey output
     const result = await concat({
       inputs: [
-        loadImage('basi2c08.png'),  // RGB color image
-        loadImage('basi0g08.png')   // Grayscale image
+        loadImage('basi2c08.png'), // RGB color image
+        loadImage('basi0g08.png'), // Grayscale image
       ],
       layout: { rows: 2 },
       outputFormat: 'jpeg',
-      jpegQuality: 85
+      jpegQuality: 85,
     });
 
     assert.ok(isValidJpeg(result), 'Output should be valid JPEG');
@@ -268,7 +268,7 @@ describe('JPEG Output - Color Preservation', () => {
     // Check that the data section has variation
     // Skip the first 100 bytes (headers) and check for non-zero values
     const dataSection = result.slice(100, Math.min(500, result.length));
-    const hasVariation = dataSection.some(byte => byte > 0x10 && byte < 0xF0);
+    const hasVariation = dataSection.some((byte) => byte > 0x10 && byte < 0xf0);
     assert.ok(hasVariation, 'JPEG data should have variation (not all single color)');
   });
 });

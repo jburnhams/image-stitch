@@ -15,7 +15,7 @@ describe('LazyImageDecoder', () => {
     const source: ImageSource = {
       width: 100,
       height: 50,
-      factory
+      factory,
     };
 
     const decoder = await createDecoder(source);
@@ -43,7 +43,7 @@ describe('LazyImageDecoder', () => {
     const source: ImageSource = {
       width,
       height,
-      factory
+      factory,
     };
 
     const decoder = await createDecoder(source);
@@ -104,11 +104,13 @@ describe('LazyImageDecoder', () => {
     const decoder = await createDecoder(source);
 
     // First scan
-    for await (const _ of decoder.scanlines()) {}
+    for await (const _ of decoder.scanlines()) {
+    }
     assert.strictEqual(callCount, 1);
 
     // Second scan
-    for await (const _ of decoder.scanlines()) {}
+    for await (const _ of decoder.scanlines()) {
+    }
     assert.strictEqual(callCount, 2);
   });
 
@@ -118,16 +120,16 @@ describe('LazyImageDecoder', () => {
     const pngBytes = await createTestPng(width, height, new Uint8Array([255, 255, 255, 255]));
 
     const source: ImageSource = {
-       width,
-       height,
-       factory: async () => pngBytes
+      width,
+      height,
+      factory: async () => pngBytes,
     };
 
     // Using PositionedImage structure
     const positioned = {
-       x: 0,
-       y: 0,
-       source
+      x: 0,
+      y: 0,
+      source,
     };
 
     // createDecoder should handle wrapped PositionedImage

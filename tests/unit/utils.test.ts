@@ -8,7 +8,7 @@ import {
   stringToBytes,
   bytesToString,
   isPngSignature,
-  PNG_SIGNATURE
+  PNG_SIGNATURE,
 } from '../../src/utils.js';
 
 test('pngCrc32 calculates correct checksum', () => {
@@ -33,7 +33,7 @@ test('crc32 alias matches pngCrc32 implementation', () => {
 });
 
 test('readUInt32BE reads big-endian 32-bit integer', () => {
-  const buffer = new Uint8Array([0x00, 0x00, 0x00, 0x0D]);
+  const buffer = new Uint8Array([0x00, 0x00, 0x00, 0x0d]);
   const value = readUInt32BE(buffer, 0);
   assert.strictEqual(value, 13);
 });
@@ -50,7 +50,7 @@ test('writeUInt32BE writes big-endian 32-bit integer', () => {
   assert.strictEqual(buffer[0], 0x00);
   assert.strictEqual(buffer[1], 0x00);
   assert.strictEqual(buffer[2], 0x00);
-  assert.strictEqual(buffer[3], 0x0D);
+  assert.strictEqual(buffer[3], 0x0d);
 });
 
 test('writeUInt32BE and readUInt32BE are symmetric', () => {

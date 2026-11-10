@@ -15,7 +15,7 @@ import type {
   HeicDecoderOptions,
   DecoderPlugin,
   DecoderOptions,
-  CustomConstructors
+  CustomConstructors,
 } from './types.js';
 import { isNode } from '../utils.js';
 
@@ -30,7 +30,12 @@ async function hasNativeHeicSupport(): Promise<boolean> {
   try {
     // Try to decode a minimal HEIC image
     // This is a 1x1 black pixel HEIC (base64 encoded)
-    const minimalHeic = Uint8Array.from(atob('AAAAGGZyeXBoZWljAAAADGhlYzEAAAANTmF2aWdhdG9yAAAAIm1ldGFoZGxyAAAAAAAAAAAAAAAAAAAAAAAAAAAAIm1ldGFoZGxyAAAAAAAAAAAAAAAAAAAAAAAAAAAA'), c => c.charCodeAt(0));
+    const minimalHeic = Uint8Array.from(
+      atob(
+        'AAAAGGZyeXBoZWljAAAADGhlYzEAAAANTmF2aWdhdG9yAAAAIm1ldGFoZGxyAAAAAAAAAAAAAAAAAAAAAAAAAAAAIm1ldGFoZGxyAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
+      ),
+      (c) => c.charCodeAt(0)
+    );
     const blob = new Blob([minimalHeic], { type: 'image/heic' });
     await createImageBitmap(blob);
     return true;
@@ -42,7 +47,9 @@ async function hasNativeHeicSupport(): Promise<boolean> {
 /**
  * Decode HEIC using native browser support (Safari/iOS)
  */
-async function decodeHeicWithNative(data: Uint8Array): Promise<{ pixels: Uint8Array; width: number; height: number }> {
+async function decodeHeicWithNative(
+  data: Uint8Array
+): Promise<{ pixels: Uint8Array; width: number; height: number }> {
   // Create blob from HEIC data - create a copy to ensure it's an ArrayBuffer
   const buffer = data.slice().buffer as ArrayBuffer;
   const blob = new Blob([buffer], { type: 'image/heic' });
@@ -66,7 +73,7 @@ async function decodeHeicWithNative(data: Uint8Array): Promise<{ pixels: Uint8Ar
     return {
       pixels: new Uint8Array(imageData.data),
       width,
-      height
+      height,
     };
   } finally {
     imageBitmap.close();
@@ -128,7 +135,7 @@ async function decodeHeicWithCanvas(
     return {
       pixels: new Uint8Array(imageData.data),
       width: img.width,
-      height: img.height
+      height: img.height,
     };
   } finally {
     URL.revokeObjectURL(url);
@@ -138,7 +145,10 @@ async function decodeHeicWithCanvas(
 /**
  * Decode HEIC using libheif-js WASM (browser fallback)
  */
-async function decodeHeicWithLibheifJs(data: Uint8Array, wasmPath?: string): Promise<{ pixels: Uint8Array; width: number; height: number }> {
+async function decodeHeicWithLibheifJs(
+  data: Uint8Array,
+  wasmPath?: string
+): Promise<{ pixels: Uint8Array; width: number; height: number }> {
   try {
     // Dynamic import to avoid bundling (optional peer dependency)
     // @ts-expect-error - libheif-js is an optional peer dependency
@@ -164,12 +174,16 @@ async function decodeHeicWithLibheifJs(data: Uint8Array, wasmPath?: string): Pro
     const height = image.get_height();
 
     // Get RGBA data
-    const rgbaData = image.display({ data: new Uint8ClampedArray(width * height * 4), width, height });
+    const rgbaData = image.display({
+      data: new Uint8ClampedArray(width * height * 4),
+      width,
+      height,
+    });
 
     return {
       pixels: new Uint8Array(rgbaData.data),
       width,
-      height
+      height,
     };
   } catch (err) {
     if ((err as Error).message?.includes('Cannot find module')) {
@@ -182,13 +196,16 @@ async function decodeHeicWithLibheifJs(data: Uint8Array, wasmPath?: string): Pro
 /**
  * Decode HEIC using sharp (Node.js, requires libheif)
  */
-async function decodeHeicWithSharp(data: Uint8Array): Promise<{ pixels: Uint8Array; width: number; height: number }> {
+async function decodeHeicWithSharp(
+  data: Uint8Array
+): Promise<{ pixels: Uint8Array; width: number; height: number }> {
   try {
     // Dynamic import (optional peer dependency)
     // @ts-expect-error - sharp is an optional peer dependency
     const sharp = await import('sharp');
 
-    const result = await sharp.default(data)
+    const result = await sharp
+      .default(data)
       .raw()
       .ensureAlpha()
       .toBuffer({ resolveWithObject: true });
@@ -196,7 +213,7 @@ async function decodeHeicWithSharp(data: Uint8Array): Promise<{ pixels: Uint8Arr
     return {
       pixels: new Uint8Array(result.data),
       width: result.info.width,
-      height: result.info.height
+      height: result.info.height,
     };
   } catch (err) {
     const errorMsg = (err as Error).message || '';
@@ -204,7 +221,9 @@ async function decodeHeicWithSharp(data: Uint8Array): Promise<{ pixels: Uint8Arr
       throw new Error('sharp module not found. Install with: npm install sharp');
     }
     if (errorMsg.includes('heif') || errorMsg.includes('HEIC')) {
-      throw new Error('sharp installed without HEIF/HEIC support. Reinstall sharp with libheif support.');
+      throw new Error(
+        'sharp installed without HEIF/HEIC support. Reinstall sharp with libheif support.'
+      );
     }
     throw err;
   }
@@ -213,7 +232,9 @@ async function decodeHeicWithSharp(data: Uint8Array): Promise<{ pixels: Uint8Arr
 /**
  * Decode HEIC using heic-decode WASM (Node.js fallback)
  */
-async function decodeHeicWithHeicDecode(data: Uint8Array): Promise<{ pixels: Uint8Array; width: number; height: number }> {
+async function decodeHeicWithHeicDecode(
+  data: Uint8Array
+): Promise<{ pixels: Uint8Array; width: number; height: number }> {
   try {
     // Dynamic import (optional peer dependency)
     // @ts-expect-error - heic-decode is an optional peer dependency
@@ -239,7 +260,7 @@ async function decodeHeicWithHeicDecode(data: Uint8Array): Promise<{ pixels: Uin
     return {
       pixels: new Uint8Array(image.data),
       width: image.width,
-      height: image.height
+      height: image.height,
     };
   } catch (err) {
     if ((err as Error).message?.includes('Cannot find module')) {
@@ -277,7 +298,7 @@ async function decodeHeic(
     // Try sharp first (fastest, but requires libheif)
     try {
       return await decodeHeicWithSharp(data);
-    } catch (err) {
+    } catch {
       // warning suppressed in default flow
     }
 
@@ -344,7 +365,7 @@ abstract class BaseHeicDecoder implements ImageDecoder {
         height: decoded.height,
         channels: 4, // HEIC decoded to RGBA
         bitDepth: 8,
-        format: 'heic'
+        format: 'heic',
       };
     } else {
       this.header = {
@@ -352,7 +373,7 @@ abstract class BaseHeicDecoder implements ImageDecoder {
         height: basicHeader.height,
         channels: 4, // HEIC typically has alpha
         bitDepth: 8,
-        format: 'heic'
+        format: 'heic',
       };
     }
 
@@ -439,7 +460,7 @@ export const heicDecoder: DecoderPlugin = {
   async create(input, options?: DecoderOptions) {
     const heicOptions: HeicDecoderOptions = {
       ...options?.heic,
-      customConstructors: options?.customConstructors
+      customConstructors: options?.customConstructors,
     };
 
     if (typeof input === 'string') {
@@ -456,5 +477,5 @@ export const heicDecoder: DecoderPlugin = {
       return new HeicBufferDecoder(new Uint8Array(buffer), heicOptions);
     }
     throw new Error('Unsupported HEIC input type for decoder plugin');
-  }
+  },
 };

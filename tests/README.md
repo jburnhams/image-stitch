@@ -15,6 +15,7 @@ npm run test:all
 ## What these tests do
 
 The browser tests use happy-dom (a lightweight DOM implementation) to verify:
+
 1. The bundle loads without JavaScript syntax errors
 2. No duplicate declarations exist in the bundled code (specifically checks for the getSamplesPerPixel issue)
 3. The `concat` function is properly exported

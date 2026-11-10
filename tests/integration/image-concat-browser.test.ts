@@ -5,13 +5,13 @@ import {
   concatCanvases,
   concatToBuffer,
   concatStreaming,
-  concat as deprecatedConcat
+  concat as deprecatedConcat,
 } from '../../src/image-concat-browser.js';
 import type { BrowserConcatOptions } from '../../src/image-concat-browser.js';
 import { parsePngHeader } from '../../src/png-parser.js';
 import { createIHDR, createIEND, createChunk, buildPng } from '../../src/png-writer.js';
 import { compressImageData } from '../../src/png-decompress.js';
-import { ColorType, PngHeader } from '../../src/types.js';
+import { ColorType, type PngHeader } from '../../src/types.js';
 
 async function createTestPng(
   width: number,
@@ -25,7 +25,7 @@ async function createTestPng(
     colorType: ColorType.RGBA,
     compressionMethod: 0,
     filterMethod: 0,
-    interlaceMethod: 0
+    interlaceMethod: 0,
   };
 
   const pixelData = new Uint8Array(width * height * 4);
@@ -63,14 +63,14 @@ test('concatCanvases stitches canvas inputs into a PNG blob', async () => {
         const copy = new Uint8Array(png.length);
         copy.set(png);
         callback(new Blob([copy.buffer], { type: 'image/png' }));
-      }
+      },
     });
     return canvas as unknown as HTMLCanvasElement;
   });
 
   const result = await concatCanvases({
     canvases,
-    layout: { rows: 2, columns: 2 }
+    layout: { rows: 2, columns: 2 },
   });
 
   assert.ok(result instanceof Blob);
@@ -105,7 +105,7 @@ test('concatCanvases forwards progress updates from the underlying stitcher', as
         const copy = new Uint8Array(png.length);
         copy.set(png);
         callback(new Blob([copy.buffer], { type: 'image/png' }));
-      }
+      },
     });
     return canvas as unknown as HTMLCanvasElement;
   });
@@ -117,13 +117,13 @@ test('concatCanvases forwards progress updates from the underlying stitcher', as
     layout: { columns: 2 },
     onProgress(current, total) {
       progress.push([current, total]);
-    }
+    },
   });
 
   assert.deepStrictEqual(progress, [
     [1, 3],
     [2, 3],
-    [3, 3]
+    [3, 3],
   ]);
 
   await window.close();
@@ -136,7 +136,7 @@ test('concatStreaming yields stitched PNG chunks', async () => {
   const chunks: Uint8Array[] = [];
   for await (const chunk of concatStreaming({
     inputs: [red, green],
-    layout: { columns: 2 }
+    layout: { columns: 2 },
   })) {
     chunks.push(chunk);
   }
@@ -173,7 +173,7 @@ test('concatToBuffer accepts Blob inputs from async iterables', async () => {
 
   const buffer = await concatToBuffer({
     inputs: inputs(),
-    layout: { columns: 2 }
+    layout: { columns: 2 },
   } satisfies BrowserConcatOptions);
 
   const header = parsePngHeader(buffer);
@@ -197,10 +197,10 @@ test('concatToBuffer accepts HTMLCanvasElement inputs with convertToBlob', async
   canvas.width = 3;
   canvas.height = 3;
   Object.defineProperty(canvas, 'convertToBlob', {
-    value: () => Promise.resolve(new Blob([new Uint8Array(png)], { type: 'image/png' }))
+    value: () => Promise.resolve(new Blob([new Uint8Array(png)], { type: 'image/png' })),
   });
   Object.defineProperty(canvas, 'toBlob', {
-    value: undefined
+    value: undefined,
   });
 
   const set = new Set<HTMLCanvasElement>();
@@ -208,7 +208,7 @@ test('concatToBuffer accepts HTMLCanvasElement inputs with convertToBlob', async
 
   const result = await concatToBuffer({
     inputs: set,
-    layout: { rows: 1, columns: 1 }
+    layout: { rows: 1, columns: 1 },
   } satisfies BrowserConcatOptions);
 
   const header = parsePngHeader(result);
@@ -239,7 +239,7 @@ test('concatCanvases can render directly into a provided canvas using createImag
       const copy = new Uint8Array(png.length);
       copy.set(png);
       callback(new Blob([copy], { type: 'image/png' }));
-    }
+    },
   });
 
   const targetCanvas = window.document.createElement('canvas') as unknown as HTMLCanvasElement;
@@ -250,11 +250,11 @@ test('concatCanvases can render directly into a provided canvas using createImag
         return {
           transferFromImageBitmap() {
             transferred = true;
-          }
+          },
         };
       }
       return null;
-    }
+    },
   });
 
   const previousCreateImageBitmap = globalAny.createImageBitmap;
@@ -263,7 +263,7 @@ test('concatCanvases can render directly into a provided canvas using createImag
     height: 4,
     close() {
       return undefined;
-    }
+    },
   });
 
   try {
@@ -271,7 +271,7 @@ test('concatCanvases can render directly into a provided canvas using createImag
       canvases: [canvasInput as unknown as HTMLCanvasElement],
       layout: { columns: 1 },
       output: 'canvas',
-      targetCanvas
+      targetCanvas,
     });
 
     const rendered = result as HTMLCanvasElement;
@@ -309,14 +309,14 @@ test('concatCanvases accepts async iterable sources', async () => {
         const copy = new Uint8Array(png.length);
         copy.set(png);
         callback(new Blob([copy], { type: 'image/png' }));
-      }
+      },
     });
     yield canvas as unknown as HTMLCanvasElement;
   }
 
   const blob = await concatCanvases({
     canvases: canvases(),
-    layout: { columns: 1 }
+    layout: { columns: 1 },
   });
 
   assert.ok(blob instanceof Blob);
@@ -345,7 +345,7 @@ test('concatCanvases accepts iterable sources', async () => {
       const copy = new Uint8Array(png.length);
       copy.set(png);
       callback(new Blob([copy], { type: 'image/png' }));
-    }
+    },
   });
 
   const set = new Set<HTMLCanvasElement>();
@@ -353,7 +353,7 @@ test('concatCanvases accepts iterable sources', async () => {
 
   const blob = await concatCanvases({
     canvases: set,
-    layout: { rows: 1 }
+    layout: { rows: 1 },
   });
 
   assert.ok(blob instanceof Blob);
@@ -369,7 +369,7 @@ test('concatCanvases rejects unsupported sources', async () => {
     () =>
       concatCanvases({
         canvases: 123 as unknown as HTMLCanvasElement[],
-        layout: { columns: 1 }
+        layout: { columns: 1 },
       }),
     /At least one canvas is required|Unsupported input source/
   );
@@ -379,7 +379,7 @@ test('concat alias delegates to concatToBuffer', async () => {
   const png = await createTestPng(2, 2, new Uint8Array([1, 2, 3, 255]));
   const result = await deprecatedConcat({
     inputs: [png],
-    layout: { columns: 1 }
+    layout: { columns: 1 },
   });
 
   const header = parsePngHeader(result);
@@ -392,7 +392,7 @@ test('concatToBuffer rejects unsupported input sources', async () => {
     () =>
       concatToBuffer({
         inputs: 123 as unknown as BrowserConcatOptions['inputs'],
-        layout: { columns: 1 }
+        layout: { columns: 1 },
       }),
     /Unsupported input source type/
   );

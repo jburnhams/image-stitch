@@ -14,15 +14,20 @@ import { JpegEncoder } from '../../src/jpeg-encoder.js';
 import * as jpegjs from 'jpeg-js';
 
 // Helper to count JPEG markers
-function countMarkers(data: Uint8Array): { soi: number; eoi: number; soiOffsets: number[]; eoiOffsets: number[] } {
+function countMarkers(data: Uint8Array): {
+  soi: number;
+  eoi: number;
+  soiOffsets: number[];
+  eoiOffsets: number[];
+} {
   const soiOffsets: number[] = [];
   const eoiOffsets: number[] = [];
 
   for (let i = 0; i < data.length - 1; i++) {
-    if (data[i] === 0xFF) {
-      if (data[i + 1] === 0xD8) {
+    if (data[i] === 0xff) {
+      if (data[i + 1] === 0xd8) {
         soiOffsets.push(i);
-      } else if (data[i + 1] === 0xD9) {
+      } else if (data[i + 1] === 0xd9) {
         eoiOffsets.push(i);
       }
     }
@@ -32,12 +37,16 @@ function countMarkers(data: Uint8Array): { soi: number; eoi: number; soiOffsets:
     soi: soiOffsets.length,
     eoi: eoiOffsets.length,
     soiOffsets,
-    eoiOffsets
+    eoiOffsets,
   };
 }
 
 // Helper to create test image data
-function createTestImage(width: number, height: number, color: [number, number, number, number]): Uint8Array {
+function createTestImage(
+  width: number,
+  height: number,
+  color: [number, number, number, number]
+): Uint8Array {
   const data = new Uint8Array(width * height * 4);
   for (let i = 0; i < data.length; i += 4) {
     data[i] = color[0];
@@ -55,7 +64,11 @@ describe('JPEG Structure Validation', () => {
     const result = await encoder.encodeToBuffer(data);
 
     const markers = countMarkers(result);
-    assert.strictEqual(markers.soi, 1, `Expected exactly 1 SOI marker, found ${markers.soi} at offsets: ${markers.soiOffsets.join(', ')}`);
+    assert.strictEqual(
+      markers.soi,
+      1,
+      `Expected exactly 1 SOI marker, found ${markers.soi} at offsets: ${markers.soiOffsets.join(', ')}`
+    );
   });
 
   test('JPEG output has exactly one EOI marker', async () => {
@@ -64,7 +77,11 @@ describe('JPEG Structure Validation', () => {
     const result = await encoder.encodeToBuffer(data);
 
     const markers = countMarkers(result);
-    assert.strictEqual(markers.eoi, 1, `Expected exactly 1 EOI marker, found ${markers.eoi} at offsets: ${markers.eoiOffsets.join(', ')}`);
+    assert.strictEqual(
+      markers.eoi,
+      1,
+      `Expected exactly 1 EOI marker, found ${markers.eoi} at offsets: ${markers.eoiOffsets.join(', ')}`
+    );
   });
 
   test('SOI marker is at offset 0', async () => {
@@ -82,7 +99,11 @@ describe('JPEG Structure Validation', () => {
     const result = await encoder.encodeToBuffer(data);
 
     const markers = countMarkers(result);
-    assert.strictEqual(markers.eoiOffsets[0], result.length - 2, 'EOI marker should be at end of file (last 2 bytes)');
+    assert.strictEqual(
+      markers.eoiOffsets[0],
+      result.length - 2,
+      'EOI marker should be at end of file (last 2 bytes)'
+    );
   });
 
   test('JPEG is decodable by jpeg-js', async () => {
@@ -128,7 +149,7 @@ describe('JPEG Structure Validation', () => {
       [32, 32],
       [64, 32],
       [100, 100],
-      [256, 128]
+      [256, 128],
     ];
 
     for (const [width, height] of sizes) {
@@ -224,13 +245,13 @@ describe('JPEG Structure Validation', () => {
     }
 
     // Verify exactly one EOI in footer
-    const footerData = Buffer.concat(footerChunks.map(c => Buffer.from(c)));
+    const footerData = Buffer.concat(footerChunks.map((c) => Buffer.from(c)));
     const footerMarkers = countMarkers(new Uint8Array(footerData));
     assert.strictEqual(footerMarkers.eoi, 1, 'Footer should contain exactly 1 EOI marker');
 
     // Verify combined output has exactly 1 SOI and 1 EOI total
     const allChunks = [...headerChunks, ...stripChunks, ...footerChunks];
-    const combined = Buffer.concat(allChunks.map(c => Buffer.from(c)));
+    const combined = Buffer.concat(allChunks.map((c) => Buffer.from(c)));
     const totalMarkers = countMarkers(new Uint8Array(combined));
     assert.strictEqual(totalMarkers.soi, 1, 'Total output should have exactly 1 SOI marker');
     assert.strictEqual(totalMarkers.eoi, 1, 'Total output should have exactly 1 EOI marker');

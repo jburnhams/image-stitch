@@ -64,7 +64,8 @@ export class StreamingDeflator {
   async initialize(onData: OnDataCallback): Promise<void> {
     if (this.useNative) {
       const compressor = new CompressionStream('deflate');
-      this.nativeWriter = compressor.writable.getWriter() as WritableStreamDefaultWriter<Uint8Array>;
+      this.nativeWriter =
+        compressor.writable.getWriter() as WritableStreamDefaultWriter<Uint8Array>;
       const reader = compressor.readable.getReader();
 
       this.nativeReadLoop = (async () => {
@@ -92,7 +93,7 @@ export class StreamingDeflator {
     this.pakoModule = pako;
     this.deflator = new pako.Deflate({
       level: this.level,
-      chunkSize: 64 * 1024 // 64KB internal chunks
+      chunkSize: 64 * 1024, // 64KB internal chunks
     });
 
     this.deflator.onData = (chunk: Uint8Array) => {
@@ -135,14 +136,16 @@ export class StreamingDeflator {
 
     if (this.useNative) {
       this.pendingBytes += data.length;
-      this.writeChain = this.writeChain.then(async () => {
-        if (!this.nativeWriter) {
-          throw new Error('Native writer not available');
-        }
-        await this.nativeWriter.write(data);
-      }).catch((err) => {
-        this.nativeError = err instanceof Error ? err : new Error(String(err));
-      });
+      this.writeChain = this.writeChain
+        .then(async () => {
+          if (!this.nativeWriter) {
+            throw new Error('Native writer not available');
+          }
+          await this.nativeWriter.write(data);
+        })
+        .catch((err) => {
+          this.nativeError = err instanceof Error ? err : new Error(String(err));
+        });
 
       await this.writeChain;
       if (this.nativeError) {

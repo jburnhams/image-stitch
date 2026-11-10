@@ -13,7 +13,12 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { PNG } from 'pngjs';
 import * as jpegjs from 'jpeg-js';
 import '../../src/decoders/index.js';
-import { concatToBuffer, concatToStream, concatToFile, concatStreaming } from '../../src/image-concat.js';
+import {
+  concatToBuffer,
+  concatToStream,
+  concatToFile,
+  concatStreaming,
+} from '../../src/image-concat.js';
 import type { PositionedImage } from '../../src/decoders/types.js';
 import { createTestPng } from '../utils/image-fixtures.js';
 
@@ -49,7 +54,7 @@ describe('grid output', () => {
     const out = await concatToBuffer({
       inputs: [wide, small, small, wide],
       layout: { columns: 2, alignColumns: true },
-      backgroundColor: '#0000FF'
+      backgroundColor: '#0000FF',
     });
     const png = decodePng(out);
 
@@ -57,21 +62,35 @@ describe('grid output', () => {
     assert.strictEqual(png.height, 8);
     assert.deepStrictEqual(pixelAt(png, 0, 0), [255, 0, 0, 255]);
     assert.deepStrictEqual(pixelAt(png, 20, 0), [0, 255, 0, 255]);
-    assert.deepStrictEqual(pixelAt(png, 30, 0), [0, 0, 255, 255], 'padding to the right of the small image');
+    assert.deepStrictEqual(
+      pixelAt(png, 30, 0),
+      [0, 0, 255, 255],
+      'padding to the right of the small image'
+    );
     assert.deepStrictEqual(pixelAt(png, 0, 4), [0, 255, 0, 255]);
     assert.deepStrictEqual(pixelAt(png, 10, 4), [0, 0, 255, 255], 'padding in column 1, row 2');
-    assert.deepStrictEqual(pixelAt(png, 20, 4), [255, 0, 0, 255], 'column 2 starts at the same x on every row');
+    assert.deepStrictEqual(
+      pixelAt(png, 20, 4),
+      [255, 0, 0, 255],
+      'column 2 starts at the same x on every row'
+    );
   });
 
   test('default grid packs each row side by side', async () => {
     const wide = await createTestPng(20, 4, RED);
     const small = await createTestPng(4, 4, GREEN);
 
-    const png = decodePng(await concatToBuffer({ inputs: [wide, small, small, wide], layout: { columns: 2 } }));
+    const png = decodePng(
+      await concatToBuffer({ inputs: [wide, small, small, wide], layout: { columns: 2 } })
+    );
 
     assert.strictEqual(png.width, 24);
     assert.strictEqual(png.height, 8);
-    assert.deepStrictEqual(pixelAt(png, 4, 4), [255, 0, 0, 255], 'row 2 column 2 starts right after the small image');
+    assert.deepStrictEqual(
+      pixelAt(png, 4, 4),
+      [255, 0, 0, 255],
+      'row 2 column 2 starts right after the small image'
+    );
   });
 
   test('alignRows false: short images leave no gap below them', async () => {
@@ -82,14 +101,22 @@ describe('grid output', () => {
     const png = decodePng(
       await concatToBuffer({
         inputs: [tall, short, blue, blue],
-        layout: { columns: 2, alignColumns: true, alignRows: false }
+        layout: { columns: 2, alignColumns: true, alignRows: false },
       })
     );
 
     assert.strictEqual(png.width, 8);
     assert.strictEqual(png.height, 10);
-    assert.deepStrictEqual(pixelAt(png, 4, 2), [0, 0, 255, 255], 'column 2 image 2 sits right under the short image');
-    assert.deepStrictEqual(pixelAt(png, 0, 8), [0, 0, 255, 255], 'column 1 image 2 sits under the tall image');
+    assert.deepStrictEqual(
+      pixelAt(png, 4, 2),
+      [0, 0, 255, 255],
+      'column 2 image 2 sits right under the short image'
+    );
+    assert.deepStrictEqual(
+      pixelAt(png, 0, 8),
+      [0, 0, 255, 255],
+      'column 1 image 2 sits under the tall image'
+    );
     assert.deepStrictEqual(pixelAt(png, 4, 6), [0, 0, 0, 0], 'gap at the bottom of column 2');
   });
 
@@ -101,7 +128,7 @@ describe('grid output', () => {
     const out = await concatToBuffer({
       inputs: Array.from({ length: 6 }, () => tile),
       layout: { width: 25, rows: 2 },
-      onProgress: (done, total) => progress.push([done, total])
+      onProgress: (done, total) => progress.push([done, total]),
     });
     const png = decodePng(out);
 
@@ -139,13 +166,13 @@ describe('positioned output', () => {
       // Clipped off the bottom-right of the canvas
       { x: 8, y: 8, zIndex: 3, source: base },
       // Entirely outside the canvas
-      { x: 100, y: 100, source: base }
+      { x: 100, y: 100, source: base },
     ];
 
     const out = await concatToBuffer({
       inputs,
       layout: { width: 12, height: 12 },
-      onProgress: (done, total) => progress.push([done, total])
+      onProgress: (done, total) => progress.push([done, total]),
     });
     const png = decodePng(out);
 
@@ -183,7 +210,13 @@ describe('positioned output', () => {
   test('canvas size is auto-calculated from image bounds', async () => {
     const tile = await createTestPng(5, 5, BLUE);
     const out = decodePng(
-      await concatToBuffer({ inputs: [{ x: 0, y: 0, source: tile }, { x: 10, y: 3, source: tile }], layout: {} })
+      await concatToBuffer({
+        inputs: [
+          { x: 0, y: 0, source: tile },
+          { x: 10, y: 3, source: tile },
+        ],
+        layout: {},
+      })
     );
     assert.strictEqual(out.width, 15);
     assert.strictEqual(out.height, 8);
@@ -199,7 +232,7 @@ describe('JPEG output', () => {
       inputs: [red, green],
       layout: { columns: 2 },
       outputFormat: 'jpeg',
-      jpegQuality: 95
+      jpegQuality: 95,
     });
     const img = jpegjs.decode(out, { useTArray: true });
 
@@ -214,10 +247,13 @@ describe('JPEG output', () => {
   test('positioned output encodes as JPEG', async () => {
     const tile = await createTestPng(8, 8, BLUE);
     const out = await concatToBuffer({
-      inputs: [{ x: 0, y: 0, source: tile }, { x: 8, y: 8, source: tile }],
+      inputs: [
+        { x: 0, y: 0, source: tile },
+        { x: 8, y: 8, source: tile },
+      ],
       layout: {},
       outputFormat: 'jpeg',
-      backgroundColor: 'white'
+      backgroundColor: 'white',
     });
     const img = jpegjs.decode(out, { useTArray: true });
     assert.strictEqual(img.width, 16);
@@ -230,7 +266,9 @@ describe('JPEG output', () => {
     const dir = mkdtempSync(path.join(tmpdir(), 'image-stitch-cwd-'));
     try {
       const moduleUrl = pathToFileURL(path.resolve(__dirname, '../../src/image-concat.js')).href;
-      const decodersUrl = pathToFileURL(path.resolve(__dirname, '../../src/decoders/index.js')).href;
+      const decodersUrl = pathToFileURL(
+        path.resolve(__dirname, '../../src/decoders/index.js')
+      ).href;
       const fixtureUrl = pathToFileURL(path.resolve(__dirname, '../utils/image-fixtures.js')).href;
       const script = `
         await import(${JSON.stringify(decodersUrl)});
@@ -240,7 +278,10 @@ describe('JPEG output', () => {
         const out = await concatToBuffer({ inputs: [tile, tile], layout: { columns: 2 }, outputFormat: 'jpeg' });
         process.stdout.write(out[0].toString(16) + out[1].toString(16));
       `;
-      const result = spawnSync(process.execPath, ['--input-type=module', '-e', script], { cwd: dir, encoding: 'utf8' });
+      const result = spawnSync(process.execPath, ['--input-type=module', '-e', script], {
+        cwd: dir,
+        encoding: 'utf8',
+      });
       assert.strictEqual(result.status, 0, result.stderr);
       assert.strictEqual(result.stdout, 'ffd8');
     } finally {
@@ -288,7 +329,13 @@ describe('Node helpers', () => {
     const plugin = {
       format: 'png' as const,
       create: async () => ({
-        getHeader: async () => ({ width: 50, height: 50, channels: 4 as const, bitDepth: 8 as const, format: 'png' as const }),
+        getHeader: async () => ({
+          width: 50,
+          height: 50,
+          channels: 4 as const,
+          bitDepth: 8 as const,
+          format: 'png' as const,
+        }),
         async *scanlines() {
           for (let y = 0; y < 50; y++) {
             yield new Uint8Array(50 * 4);
@@ -296,11 +343,15 @@ describe('Node helpers', () => {
         },
         close: async () => {
           closed++;
-        }
-      })
+        },
+      }),
     };
 
-    for await (const chunk of concatStreaming({ inputs: [tile, tile], layout: { columns: 2 }, decoders: [plugin] })) {
+    for await (const chunk of concatStreaming({
+      inputs: [tile, tile],
+      layout: { columns: 2 },
+      decoders: [plugin],
+    })) {
       assert.ok(chunk.length > 0);
       break;
     }
@@ -313,11 +364,27 @@ describe('option validation', () => {
     ['zero columns', { layout: { columns: 0 } }, /layout\.columns must be a positive integer/],
     ['fractional width', { layout: { width: 10.5 } }, /layout\.width must be a positive integer/],
     ['negative rows', { layout: { rows: -1 } }, /layout\.rows must be a positive integer/],
-    ['non-boolean alignRows', { layout: { columns: 1, alignRows: 'no' } }, /layout\.alignRows must be true or false/],
+    [
+      'non-boolean alignRows',
+      { layout: { columns: 1, alignRows: 'no' } },
+      /layout\.alignRows must be true or false/,
+    ],
     ['missing layout', { layout: undefined }, /layout is required/],
-    ['bad output format', { layout: { columns: 1 }, outputFormat: 'gif' }, /outputFormat must be 'png' or 'jpeg'/],
-    ['quality too high', { layout: { columns: 1 }, jpegQuality: 101 }, /jpegQuality must be a number from 1 to 100/],
-    ['quality not a number', { layout: { columns: 1 }, jpegQuality: '90' }, /jpegQuality must be a number from 1 to 100/]
+    [
+      'bad output format',
+      { layout: { columns: 1 }, outputFormat: 'gif' },
+      /outputFormat must be 'png' or 'jpeg'/,
+    ],
+    [
+      'quality too high',
+      { layout: { columns: 1 }, jpegQuality: 101 },
+      /jpegQuality must be a number from 1 to 100/,
+    ],
+    [
+      'quality not a number',
+      { layout: { columns: 1 }, jpegQuality: '90' },
+      /jpegQuality must be a number from 1 to 100/,
+    ],
   ];
 
   for (const [name, overrides, pattern] of cases) {

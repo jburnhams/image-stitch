@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert';
 import * as pngDecompress from '../../src/png-decompress.js';
 import * as pngFilterModule from '../../src/png-filter.js';
-import { ColorType, PngChunk, PngHeader } from '../../src/types.js';
+import { ColorType, type PngChunk, type PngHeader } from '../../src/types.js';
 
 const serial = { concurrency: false } as const;
 
@@ -93,11 +93,14 @@ class NoopDecompressionStream {
 }
 
 function installStreamStubs(): void {
-  (globalThis as typeof globalThis & { Blob: typeof Blob }).Blob = FakeBlob as unknown as typeof Blob;
-  (globalThis as typeof globalThis & { CompressionStream: typeof CompressionStream }).CompressionStream =
-    NoopCompressionStream as unknown as typeof CompressionStream;
-  (globalThis as typeof globalThis & { DecompressionStream: typeof DecompressionStream }).DecompressionStream =
-    NoopDecompressionStream as unknown as typeof DecompressionStream;
+  (globalThis as typeof globalThis & { Blob: typeof Blob }).Blob =
+    FakeBlob as unknown as typeof Blob;
+  (
+    globalThis as typeof globalThis & { CompressionStream: typeof CompressionStream }
+  ).CompressionStream = NoopCompressionStream as unknown as typeof CompressionStream;
+  (
+    globalThis as typeof globalThis & { DecompressionStream: typeof DecompressionStream }
+  ).DecompressionStream = NoopDecompressionStream as unknown as typeof DecompressionStream;
 }
 
 function restoreStreamStubs(): void {
@@ -108,15 +111,17 @@ function restoreStreamStubs(): void {
   }
 
   if (originalCompressionStream) {
-    (globalThis as typeof globalThis & { CompressionStream: typeof CompressionStream }).CompressionStream =
-      originalCompressionStream;
+    (
+      globalThis as typeof globalThis & { CompressionStream: typeof CompressionStream }
+    ).CompressionStream = originalCompressionStream;
   } else {
     Reflect.deleteProperty(globalThis as Record<string, unknown>, 'CompressionStream');
   }
 
   if (originalDecompressionStream) {
-    (globalThis as typeof globalThis & { DecompressionStream: typeof DecompressionStream }).DecompressionStream =
-      originalDecompressionStream;
+    (
+      globalThis as typeof globalThis & { DecompressionStream: typeof DecompressionStream }
+    ).DecompressionStream = originalDecompressionStream;
   } else {
     Reflect.deleteProperty(globalThis as Record<string, unknown>, 'DecompressionStream');
   }
@@ -131,7 +136,7 @@ function createHeader(overrides: Partial<PngHeader> = {}): PngHeader {
     compressionMethod: 0,
     filterMethod: 0,
     interlaceMethod: 0,
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -140,7 +145,7 @@ function createIdatChunk(data: Uint8Array): PngChunk {
     length: data.length,
     type: 'IDAT',
     data,
-    crc: 0
+    crc: 0,
   };
 }
 
@@ -150,16 +155,9 @@ test('decompressImageData unfilters non-interlaced data', serial, async () => {
     const header = createHeader();
     const row1 = Uint8Array.of(1, 2, 3, 4, 5, 6, 7, 8);
     const row2 = Uint8Array.of(9, 10, 11, 12, 13, 14, 15, 16);
-    const filtered = new Uint8Array([
-      0,
-      ...row1,
-      0,
-      ...row2
-    ]);
+    const filtered = new Uint8Array([0, ...row1, 0, ...row2]);
 
-    const result = await pngDecompress.decompressImageData([
-      createIdatChunk(filtered)
-    ], header);
+    const result = await pngDecompress.decompressImageData([createIdatChunk(filtered)], header);
 
     assert.deepStrictEqual(Array.from(result), [...row1, ...row2]);
   } finally {
@@ -174,9 +172,7 @@ test('decompressImageData throws on truncated data', serial, async () => {
     const truncated = new Uint8Array([0, 1, 2, 3, 4, 5]);
 
     await assert.rejects(
-      () => pngDecompress.decompressImageData([
-        createIdatChunk(truncated)
-      ], header),
+      () => pngDecompress.decompressImageData([createIdatChunk(truncated)], header),
       /Unexpected end of decompressed data/
     );
   } finally {
@@ -188,9 +184,10 @@ test('decompressImageData handles Adam7 interlaced headers', serial, async () =>
   installStreamStubs();
   try {
     const header = createHeader({ interlaceMethod: 1, width: 1, height: 1 });
-    const result = await pngDecompress.decompressImageData([
-      createIdatChunk(new Uint8Array([0]))
-    ], header);
+    const result = await pngDecompress.decompressImageData(
+      [createIdatChunk(new Uint8Array([0]))],
+      header
+    );
 
     assert.deepStrictEqual(Array.from(result), [0, 0, 0, 0]);
   } finally {
@@ -204,10 +201,7 @@ test('compressImageData prepends filter bytes per row', serial, async () => {
     const header = createHeader();
     const bytesPerPixel = 4;
     const rowLength = header.width * bytesPerPixel;
-    const pixels = new Uint8Array([
-      1, 2, 3, 4, 5, 6, 7, 8,
-      9, 10, 11, 12, 13, 14, 15, 16
-    ]);
+    const pixels = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
 
     const expected: number[] = [];
     let offset = 0;
@@ -215,7 +209,11 @@ test('compressImageData prepends filter bytes per row', serial, async () => {
     for (let y = 0; y < header.height; y++) {
       const scanline = pixels.slice(offset, offset + rowLength);
       offset += rowLength;
-      const { filterType, filtered } = pngFilterModule.filterScanline(scanline, previousLine, bytesPerPixel);
+      const { filterType, filtered } = pngFilterModule.filterScanline(
+        scanline,
+        previousLine,
+        bytesPerPixel
+      );
       expected.push(filterType, ...filtered);
       previousLine = scanline;
     }

@@ -28,14 +28,14 @@ import { pipeline } from 'node:stream/promises';
 import { concatToStream } from '../../src/image-concat.js';
 import { createIHDR, createIEND, createChunk, buildPng } from '../../src/png-writer.js';
 import { compressImageData } from '../../src/png-decompress.js';
-import { PngHeader, ColorType, PngInputSource } from '../../src/types.js';
+import { type PngHeader, ColorType, type PngInputSource } from '../../src/types.js';
 
 import {
   monitorMemory,
   assertMemoryBelow,
   calculateExpectedMemory,
   formatBytes,
-  isGCAvailable
+  isGCAvailable,
 } from '../utils/memory-monitor.js';
 
 /**
@@ -53,7 +53,7 @@ async function createTestPng(
     colorType: ColorType.RGBA,
     compressionMethod: 0,
     filterMethod: 0,
-    interlaceMethod: 0
+    interlaceMethod: 0,
   };
 
   const pixelData = new Uint8Array(width * height * 4);
@@ -89,7 +89,7 @@ async function concatToFile(
     inputs,
     layout,
     outputFormat,
-    jpegQuality
+    jpegQuality,
   });
 
   const writeStream = createWriteStream(outputPath);
@@ -107,7 +107,9 @@ const gcAvailable = isGCAvailable();
 if (!gcAvailable) {
   console.warn('⚠️  Warning: Running without --expose-gc flag. Memory assertions will be skipped.');
   console.warn('   Tests will verify functional behavior only.');
-  console.warn('   For full memory validation, run with: node --expose-gc --test build/tests/memory.test.js');
+  console.warn(
+    '   For full memory validation, run with: node --expose-gc --test build/tests/memory.test.js'
+  );
 }
 
 /**
@@ -130,10 +132,7 @@ describe('Memory Usage Tests', () => {
 
     if (gcAvailable) {
       const { result, measurement } = await monitorMemory(async () => {
-        return await concatToFile(
-          [testPng, testPng, testPng, testPng],
-          { columns: 2 }
-        );
+        return await concatToFile([testPng, testPng, testPng, testPng], { columns: 2 });
       });
       outputPath = result;
 
@@ -146,10 +145,7 @@ describe('Memory Usage Tests', () => {
       }
     } else {
       // Just verify functional behavior
-      outputPath = await concatToFile(
-        [testPng, testPng, testPng, testPng],
-        { columns: 2 }
-      );
+      outputPath = await concatToFile([testPng, testPng, testPng, testPng], { columns: 2 });
       try {
         const { access } = await import('node:fs/promises');
         await access(outputPath); // Verify file exists
@@ -167,10 +163,7 @@ describe('Memory Usage Tests', () => {
 
     if (gcAvailable) {
       const { result, measurement } = await monitorMemory(async () => {
-        return await concatToFile(
-          [testPng, testPng, testPng, testPng],
-          { columns: 2 }
-        );
+        return await concatToFile([testPng, testPng, testPng, testPng], { columns: 2 });
       });
       outputPath = result;
 
@@ -183,10 +176,7 @@ describe('Memory Usage Tests', () => {
         await unlink(outputPath).catch(() => {});
       }
     } else {
-      outputPath = await concatToFile(
-        [testPng, testPng, testPng, testPng],
-        { columns: 2 }
-      );
+      outputPath = await concatToFile([testPng, testPng, testPng, testPng], { columns: 2 });
       try {
         const { access } = await import('node:fs/promises');
         await access(outputPath);
@@ -221,18 +211,24 @@ describe('Memory Usage Tests', () => {
         console.log(`\nLarge Image Memory Analysis (5000x5000):`);
         console.log(`  Uncompressed size: ${formatBytes(expectedMem.uncompressedSize)}`);
         console.log(`  Peak memory delta: ${formatBytes(measurement.delta.heapUsed)}`);
-        console.log(`  Ratio (peak/uncompressed): ${(measurement.delta.heapUsed / expectedMem.uncompressedSize).toFixed(2)}x`);
+        console.log(
+          `  Ratio (peak/uncompressed): ${(measurement.delta.heapUsed / expectedMem.uncompressedSize).toFixed(2)}x`
+        );
 
         // With streaming: allow up to 400MB with safety margin
         const THRESHOLD = 400 * 1024 * 1024; // 400MB threshold
         assertMemoryBelow(measurement, THRESHOLD, 'heapUsed');
 
-        console.log(`✓ Large image test passed - STREAMING (${formatBytes(measurement.delta.heapUsed)})`);
+        console.log(
+          `✓ Large image test passed - STREAMING (${formatBytes(measurement.delta.heapUsed)})`
+        );
       } finally {
         await unlink(outputPath).catch(() => {});
       }
     } else {
-      outputPath = await concatToFile(createRepeatedInputStream(smallPng, tilesNeeded), { width: targetSize });
+      outputPath = await concatToFile(createRepeatedInputStream(smallPng, tilesNeeded), {
+        width: targetSize,
+      });
       try {
         const { access } = await import('node:fs/promises');
         await access(outputPath);
@@ -265,18 +261,24 @@ describe('Memory Usage Tests', () => {
         console.log(`\nVery Large Image Memory Analysis (10000x10000):`);
         console.log(`  Uncompressed size: ${formatBytes(expectedMem.uncompressedSize)}`);
         console.log(`  Peak memory delta: ${formatBytes(measurement.delta.heapUsed)}`);
-        console.log(`  Ratio (peak/uncompressed): ${(measurement.delta.heapUsed / expectedMem.uncompressedSize).toFixed(2)}x`);
+        console.log(
+          `  Ratio (peak/uncompressed): ${(measurement.delta.heapUsed / expectedMem.uncompressedSize).toFixed(2)}x`
+        );
 
         // Allow up to 900MB with safety margin
         const THRESHOLD = 900 * 1024 * 1024;
         assertMemoryBelow(measurement, THRESHOLD, 'heapUsed');
 
-        console.log(`✓ Very large image test passed - STREAMING (${formatBytes(measurement.delta.heapUsed)})`);
+        console.log(
+          `✓ Very large image test passed - STREAMING (${formatBytes(measurement.delta.heapUsed)})`
+        );
       } finally {
         await unlink(outputPath).catch(() => {});
       }
     } else {
-      outputPath = await concatToFile(createRepeatedInputStream(smallPng, tilesNeeded), { width: targetSize });
+      outputPath = await concatToFile(createRepeatedInputStream(smallPng, tilesNeeded), {
+        width: targetSize,
+      });
       try {
         const { access } = await import('node:fs/promises');
         await access(outputPath);
@@ -302,7 +304,7 @@ describe('Memory Usage Tests', () => {
     if (gcAvailable) {
       const startTime = Date.now();
       const createInputs = () => createRepeatedInputStream(smallPng, tilesNeeded);
-      const { result, measurement} = await monitorMemory(async () => {
+      const { result, measurement } = await monitorMemory(async () => {
         return await concatToFile(createInputs(), { width: targetSize });
       }, 200);
       const duration = (Date.now() - startTime) / 1000;
@@ -314,19 +316,25 @@ describe('Memory Usage Tests', () => {
         console.log(`\nExtreme Image Memory Analysis (20000x20000):`);
         console.log(`  Uncompressed size: ${formatBytes(expectedMem.uncompressedSize)}`);
         console.log(`  Peak memory delta: ${formatBytes(measurement.delta.heapUsed)}`);
-        console.log(`  Ratio (peak/uncompressed): ${(measurement.delta.heapUsed / expectedMem.uncompressedSize).toFixed(2)}x`);
+        console.log(
+          `  Ratio (peak/uncompressed): ${(measurement.delta.heapUsed / expectedMem.uncompressedSize).toFixed(2)}x`
+        );
         console.log(`  Generation time: ${duration.toFixed(2)}s`);
 
         // Allow up to 1.5GB for extreme images
         const THRESHOLD = 1536 * 1024 * 1024; // 1.5GB threshold
         assertMemoryBelow(measurement, THRESHOLD, 'heapUsed');
 
-        console.log(`✓ Extreme image test passed - STREAMING (${formatBytes(measurement.delta.heapUsed)})`);
+        console.log(
+          `✓ Extreme image test passed - STREAMING (${formatBytes(measurement.delta.heapUsed)})`
+        );
       } finally {
         await unlink(outputPath).catch(() => {});
       }
     } else {
-      outputPath = await concatToFile(createRepeatedInputStream(smallPng, tilesNeeded), { width: targetSize });
+      outputPath = await concatToFile(createRepeatedInputStream(smallPng, tilesNeeded), {
+        width: targetSize,
+      });
       try {
         const { access } = await import('node:fs/promises');
         await access(outputPath);
@@ -346,12 +354,7 @@ describe('JPEG Output Memory Tests', () => {
 
     if (gcAvailable) {
       const { result, measurement } = await monitorMemory(async () => {
-        return await concatToFile(
-          [testPng, testPng, testPng, testPng],
-          { columns: 2 },
-          'jpeg',
-          85
-        );
+        return await concatToFile([testPng, testPng, testPng, testPng], { columns: 2 }, 'jpeg', 85);
       });
       outputPath = result;
 
@@ -386,12 +389,7 @@ describe('JPEG Output Memory Tests', () => {
 
     if (gcAvailable) {
       const { result, measurement } = await monitorMemory(async () => {
-        return await concatToFile(
-          [testPng, testPng, testPng, testPng],
-          { columns: 2 },
-          'jpeg',
-          85
-        );
+        return await concatToFile([testPng, testPng, testPng, testPng], { columns: 2 }, 'jpeg', 85);
       });
       outputPath = result;
 
@@ -442,18 +440,27 @@ describe('JPEG Output Memory Tests', () => {
         console.log(`\nLarge JPEG Memory Analysis (5000x5000):`);
         console.log(`  Uncompressed size: ${formatBytes(expectedMem.uncompressedSize)}`);
         console.log(`  Peak memory delta: ${formatBytes(measurement.delta.heapUsed)}`);
-        console.log(`  Ratio (peak/uncompressed): ${(measurement.delta.heapUsed / expectedMem.uncompressedSize).toFixed(2)}x`);
+        console.log(
+          `  Ratio (peak/uncompressed): ${(measurement.delta.heapUsed / expectedMem.uncompressedSize).toFixed(2)}x`
+        );
 
         // JPEG should use similar or better memory than PNG (400MB threshold)
         const THRESHOLD = 400 * 1024 * 1024;
         assertMemoryBelow(measurement, THRESHOLD, 'heapUsed');
 
-        console.log(`✓ Large JPEG test passed - STREAMING (${formatBytes(measurement.delta.heapUsed)})`);
+        console.log(
+          `✓ Large JPEG test passed - STREAMING (${formatBytes(measurement.delta.heapUsed)})`
+        );
       } finally {
         await unlink(outputPath).catch(() => {});
       }
     } else {
-      outputPath = await concatToFile(createRepeatedInputStream(smallPng, tilesNeeded), { width: targetSize }, 'jpeg', 85);
+      outputPath = await concatToFile(
+        createRepeatedInputStream(smallPng, tilesNeeded),
+        { width: targetSize },
+        'jpeg',
+        85
+      );
       try {
         const { access } = await import('node:fs/promises');
         await access(outputPath);
@@ -486,18 +493,27 @@ describe('JPEG Output Memory Tests', () => {
         console.log(`\nVery Large JPEG Memory Analysis (10000x10000):`);
         console.log(`  Uncompressed size: ${formatBytes(expectedMem.uncompressedSize)}`);
         console.log(`  Peak memory delta: ${formatBytes(measurement.delta.heapUsed)}`);
-        console.log(`  Ratio (peak/uncompressed): ${(measurement.delta.heapUsed / expectedMem.uncompressedSize).toFixed(2)}x`);
+        console.log(
+          `  Ratio (peak/uncompressed): ${(measurement.delta.heapUsed / expectedMem.uncompressedSize).toFixed(2)}x`
+        );
 
         // JPEG should be similar or better than PNG (900MB threshold)
         const THRESHOLD = 900 * 1024 * 1024;
         assertMemoryBelow(measurement, THRESHOLD, 'heapUsed');
 
-        console.log(`✓ Very large JPEG test passed - STREAMING (${formatBytes(measurement.delta.heapUsed)})`);
+        console.log(
+          `✓ Very large JPEG test passed - STREAMING (${formatBytes(measurement.delta.heapUsed)})`
+        );
       } finally {
         await unlink(outputPath).catch(() => {});
       }
     } else {
-      outputPath = await concatToFile(createRepeatedInputStream(smallPng, tilesNeeded), { width: targetSize }, 'jpeg', 85);
+      outputPath = await concatToFile(
+        createRepeatedInputStream(smallPng, tilesNeeded),
+        { width: targetSize },
+        'jpeg',
+        85
+      );
       try {
         const { access } = await import('node:fs/promises');
         await access(outputPath);
@@ -533,7 +549,9 @@ describe('JPEG Output Memory Tests', () => {
         console.log(`\nJPEG vs PNG Memory Comparison (5000x5000):`);
         console.log(`  PNG peak memory:  ${formatBytes(pngMeasurement.delta.heapUsed)}`);
         console.log(`  JPEG peak memory: ${formatBytes(jpegMeasurement.delta.heapUsed)}`);
-        console.log(`  JPEG/PNG ratio: ${(jpegMeasurement.delta.heapUsed / pngMeasurement.delta.heapUsed).toFixed(2)}x`);
+        console.log(
+          `  JPEG/PNG ratio: ${(jpegMeasurement.delta.heapUsed / pngMeasurement.delta.heapUsed).toFixed(2)}x`
+        );
 
         // JPEG should not use significantly more memory than PNG
         // Allow up to 1.5x for WASM overhead and MCU buffering
@@ -550,8 +568,17 @@ describe('JPEG Output Memory Tests', () => {
       }
     } else {
       // Just verify functional behavior
-      const pngPath = await concatToFile(createRepeatedInputStream(smallPng, tilesNeeded), { width: targetSize }, 'png');
-      const jpegPath = await concatToFile(createRepeatedInputStream(smallPng, tilesNeeded), { width: targetSize }, 'jpeg', 85);
+      const pngPath = await concatToFile(
+        createRepeatedInputStream(smallPng, tilesNeeded),
+        { width: targetSize },
+        'png'
+      );
+      const jpegPath = await concatToFile(
+        createRepeatedInputStream(smallPng, tilesNeeded),
+        { width: targetSize },
+        'jpeg',
+        85
+      );
       try {
         const { access } = await import('node:fs/promises');
         await access(pngPath);
@@ -575,18 +602,12 @@ describe('Memory Regression Tests', () => {
     if (gcAvailable) {
       // Test with 10 copies
       const { result: result10, measurement: measurement10 } = await monitorMemory(async () => {
-        return await concatToFile(
-          Array(10).fill(testPng),
-          { columns: 5 }
-        );
+        return await concatToFile(Array(10).fill(testPng), { columns: 5 });
       });
 
       // Test with 100 copies
       const { result: result100, measurement: measurement100 } = await monitorMemory(async () => {
-        return await concatToFile(
-          Array(100).fill(testPng),
-          { columns: 10 }
-        );
+        return await concatToFile(Array(100).fill(testPng), { columns: 10 });
       });
 
       try {
@@ -631,26 +652,17 @@ describe('Memory Regression Tests', () => {
     if (gcAvailable) {
       // Test horizontal layout
       const { result: hResult, measurement: horizontal } = await monitorMemory(async () => {
-        return await concatToFile(
-          [testPng, testPng, testPng, testPng],
-          { columns: 4 }
-        );
+        return await concatToFile([testPng, testPng, testPng, testPng], { columns: 4 });
       });
 
       // Test vertical layout
       const { result: vResult, measurement: vertical } = await monitorMemory(async () => {
-        return await concatToFile(
-          [testPng, testPng, testPng, testPng],
-          { rows: 4 }
-        );
+        return await concatToFile([testPng, testPng, testPng, testPng], { rows: 4 });
       });
 
       // Test grid layout
       const { result: gResult, measurement: grid } = await monitorMemory(async () => {
-        return await concatToFile(
-          [testPng, testPng, testPng, testPng],
-          { columns: 2 }
-        );
+        return await concatToFile([testPng, testPng, testPng, testPng], { columns: 2 });
       });
 
       try {
@@ -665,8 +677,16 @@ describe('Memory Regression Tests', () => {
         // layout can read 0.4 MB on one run and 2.4 MB on the next. Treat anything under
         // the noise floor as the floor so the ratio compares real usage, not GC timing.
         const NOISE_FLOOR = 4 * 1024 * 1024;
-        const max = Math.max(horizontal.delta.heapUsed, vertical.delta.heapUsed, grid.delta.heapUsed);
-        const min = Math.min(horizontal.delta.heapUsed, vertical.delta.heapUsed, grid.delta.heapUsed);
+        const max = Math.max(
+          horizontal.delta.heapUsed,
+          vertical.delta.heapUsed,
+          grid.delta.heapUsed
+        );
+        const min = Math.min(
+          horizontal.delta.heapUsed,
+          vertical.delta.heapUsed,
+          grid.delta.heapUsed
+        );
         const ratio = Math.max(max, NOISE_FLOOR) / Math.max(min, NOISE_FLOOR);
 
         assert.ok(
@@ -729,7 +749,9 @@ describe('Memory Regression Tests', () => {
         await unlink(result).catch(() => {});
       }
     } else {
-      const outputPath = await concatToFile(createRepeatedInputStream(smallPng, tilesNeeded), { width: targetSize });
+      const outputPath = await concatToFile(createRepeatedInputStream(smallPng, tilesNeeded), {
+        width: targetSize,
+      });
       try {
         const { access } = await import('node:fs/promises');
         await access(outputPath);

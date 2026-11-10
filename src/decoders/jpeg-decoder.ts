@@ -15,7 +15,7 @@ import type {
   JpegDecoderOptions,
   DecoderPlugin,
   DecoderOptions,
-  CustomConstructors
+  CustomConstructors,
 } from './types.js';
 import { isNode } from '../utils.js';
 
@@ -36,7 +36,7 @@ const JPEG_SOF_MARKERS = [
   0xcb, // Lossless (arithmetic)
   0xcd, // Differential sequential DCT (arithmetic)
   0xce, // Differential progressive DCT (arithmetic)
-  0xcf // Differential lossless (arithmetic)
+  0xcf, // Differential lossless (arithmetic)
 ];
 
 /**
@@ -106,7 +106,7 @@ function hasImageDecoderAPI(): boolean {
 async function decodeJpegWithImageDecoderAPI(data: Uint8Array): Promise<Uint8Array> {
   const decoder = new globalThis.ImageDecoder({
     data,
-    type: 'image/jpeg'
+    type: 'image/jpeg',
   });
 
   try {
@@ -139,7 +139,10 @@ async function decodeJpegWithImageDecoderAPI(data: Uint8Array): Promise<Uint8Arr
 /**
  * Decode JPEG using Canvas API (fallback for browsers)
  */
-async function decodeJpegWithCanvas(data: Uint8Array, customConstructors?: CustomConstructors): Promise<Uint8Array> {
+async function decodeJpegWithCanvas(
+  data: Uint8Array,
+  customConstructors?: CustomConstructors
+): Promise<Uint8Array> {
   // Resolve constructors
   const ImageCtor = customConstructors?.Image || (typeof Image !== 'undefined' ? Image : null);
 
@@ -203,7 +206,8 @@ async function decodeJpegWithSharp(data: Uint8Array): Promise<Uint8Array> {
     // @ts-expect-error - sharp is an optional peer dependency
     const sharp = await import('sharp');
 
-    const result = await sharp.default(data)
+    const result = await sharp
+      .default(data)
       .raw()
       .ensureAlpha()
       .toBuffer({ resolveWithObject: true });
@@ -252,7 +256,7 @@ async function decodeJpeg(data: Uint8Array, options: JpegDecoderOptions = {}): P
     if (!options.preferWasm) {
       try {
         return await decodeJpegWithSharp(data);
-      } catch (err) {
+      } catch {
         // Sharp not available, continue to fallback
         // Only warn if we're not in a test environment or if strict mode
       }
@@ -308,7 +312,7 @@ abstract class BaseJpegDecoder implements ImageDecoder {
       height: jpegHeader.height,
       channels: jpegHeader.channels === 1 ? 1 : 4, // Grayscale or RGBA
       bitDepth: 8, // JPEG is always 8-bit per channel
-      format: 'jpeg'
+      format: 'jpeg',
     };
 
     return this.header;
@@ -392,7 +396,7 @@ export const jpegDecoder: DecoderPlugin = {
   async create(input, options?: DecoderOptions) {
     const jpegOptions: JpegDecoderOptions = {
       ...options?.jpeg,
-      customConstructors: options?.customConstructors
+      customConstructors: options?.customConstructors,
     };
 
     if (typeof input === 'string') {
@@ -409,5 +413,5 @@ export const jpegDecoder: DecoderPlugin = {
       return new JpegBufferDecoder(new Uint8Array(buffer), jpegOptions);
     }
     throw new Error('Unsupported JPEG input type for decoder plugin');
-  }
+  },
 };

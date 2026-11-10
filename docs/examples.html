@@ -260,7 +260,7 @@
         <h2>Pick your output format</h2>
         <p>Choose between lossless PNG or lossy JPEG for every interactive example. JPEGs support adjustable quality to balance fidelity and file size.</p>
         <div class="controls">
-          <div class="toggle-group" aria-label="Output format">
+          <div class="toggle-group" role="radiogroup" aria-label="Output format">
             <label>
               <input type="radio" name="output-format" value="png" checked /> PNG (lossless)
             </label>
@@ -291,7 +291,7 @@ const output = await concatToBuffer({
 });
         </div>
         <div class="controls">
-          <button data-run="horizontal">Run example</button>
+          <button type="button" data-run="horizontal">Run example</button>
           <span class="status" data-status="horizontal"></span>
         </div>
         <div class="result" data-result="horizontal">
@@ -317,7 +317,7 @@ const output = await concatToBuffer({
 });
         </div>
         <div class="controls">
-          <button data-run="vertical">Run example</button>
+          <button type="button" data-run="vertical">Run example</button>
           <span class="status" data-status="vertical"></span>
         </div>
         <div class="result" data-result="vertical">
@@ -342,7 +342,7 @@ const output = await concatToBuffer({
 });
         </div>
         <div class="controls">
-          <button data-run="grid">Run example</button>
+          <button type="button" data-run="grid">Run example</button>
           <span class="status" data-status="grid"></span>
         </div>
         <div class="progress-row" data-progress-wrapper="grid" hidden>
@@ -380,7 +380,7 @@ const stitched = await concatCanvases({
               <input type="radio" name="canvas-output" value="canvas" /> Canvas preview
             </label>
           </div>
-          <button data-run="canvas">Stitch sample canvases</button>
+          <button type="button" data-run="canvas">Stitch sample canvases</button>
           <span class="status" data-status="canvas"></span>
         </div>
         <div class="progress-row" data-progress-wrapper="canvas" hidden>
@@ -409,7 +409,7 @@ const output = await concatToBuffer({
         </div>
         <div class="controls">
           <input type="file" id="custom-files" accept="image/png, image/jpeg" multiple />
-          <button data-run="custom">Stitch selected files</button>
+          <button type="button" data-run="custom">Stitch selected files</button>
           <span class="status" data-status="custom"></span>
         </div>
         <div class="result" data-result="custom">
@@ -784,7 +784,9 @@ await pipeline(
     document.querySelectorAll('input[name="output-format"]').forEach((radio) => {
       radio.addEventListener('change', () => {
         updateOutputControls();
-        document.querySelectorAll('[data-status]').forEach((el) => (el.textContent = ''));
+        document.querySelectorAll('[data-status]').forEach((el) => {
+          el.textContent = '';
+        });
         document.querySelectorAll('[data-result]').forEach((container) => {
           const id = container.dataset.result;
           if (id) {

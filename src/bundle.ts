@@ -10,7 +10,7 @@ export {
   concatToFile,
   concatStreaming,
   StreamingConcatenator,
-  concatCanvases
+  concatCanvases,
 } from './image-concat-browser.js';
 export type {
   BrowserConcatOptions,
@@ -18,10 +18,20 @@ export type {
   BrowserImageInputSource,
   ConcatCanvasesOptions,
   ConcatCanvasesBlobOptions,
-  ConcatCanvasesCanvasOptions
+  ConcatCanvasesCanvasOptions,
 } from './image-concat-browser.js';
 export type { ConcatOptions } from './types.js';
-export { createDecoder, createDecoders, createDecodersFromAsyncIterable, createDecodersFromIterable } from './decoders/decoder-factory.js';
+export {
+  createDecoder,
+  createDecoders,
+  createDecodersFromAsyncIterable,
+  createDecodersFromIterable,
+} from './decoders/decoder-factory.js';
 export type { DecoderPlugin, DecoderOptions, ImageInput } from './decoders/types.js';
-export { detectFormat, detectImageFormat, readMagicBytes, validateFormat } from './decoders/format-detection.js';
+export {
+  detectFormat,
+  detectImageFormat,
+  readMagicBytes,
+  validateFormat,
+} from './decoders/format-detection.js';
 export { pngDecoder } from './decoders/png-decoder.js';

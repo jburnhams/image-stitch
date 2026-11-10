@@ -7,12 +7,12 @@ import {
   concatToBuffer,
   concatToStream,
   concatToFile,
-  StreamingConcatenator
+  StreamingConcatenator,
 } from '../../src/image-concat.js';
 import { parsePngHeader, parsePngChunks } from '../../src/png-parser.js';
 import { createIHDR, createIEND, createChunk, buildPng } from '../../src/png-writer.js';
 import { compressImageData, extractPixelData } from '../../src/png-decompress.js';
-import { PngHeader, ColorType } from '../../src/types.js';
+import { type PngHeader, ColorType } from '../../src/types.js';
 import { Readable } from 'node:stream';
 import { writeFileSync, unlinkSync } from 'node:fs';
 import type { ImageDecoder } from '../../src/decoders/types.js';
@@ -20,7 +20,11 @@ import type { ImageDecoder } from '../../src/decoders/types.js';
 /**
  * Create a simple test PNG with solid color
  */
-async function createTestPng(width: number, height: number, color: Uint8Array): Promise<Uint8Array> {
+async function createTestPng(
+  width: number,
+  height: number,
+  color: Uint8Array
+): Promise<Uint8Array> {
   const header: PngHeader = {
     width,
     height,
@@ -28,12 +32,12 @@ async function createTestPng(width: number, height: number, color: Uint8Array): 
     colorType: ColorType.RGBA,
     compressionMethod: 0,
     filterMethod: 0,
-    interlaceMethod: 0
+    interlaceMethod: 0,
   };
 
   const pixelData = new Uint8Array(width * height * 4);
   for (let i = 0; i < width * height; i++) {
-    pixelData[i * 4] = color[0];     // R
+    pixelData[i * 4] = color[0]; // R
     pixelData[i * 4 + 1] = color[1]; // G
     pixelData[i * 4 + 2] = color[2]; // B
     pixelData[i * 4 + 3] = color[3]; // A
@@ -77,7 +81,7 @@ function createStubDecoder({
   width,
   height,
   rowsProvided = height,
-  scanlineWidth = width
+  scanlineWidth = width,
 }: {
   width: number;
   height: number;
@@ -91,7 +95,7 @@ function createStubDecoder({
         height,
         channels: 4,
         bitDepth: 8,
-        format: 'png' as const
+        format: 'png' as const,
       };
     },
     async *scanlines() {
@@ -102,32 +106,26 @@ function createStubDecoder({
         yield row;
       }
     },
-    async close() {}
+    async close() {},
   };
 }
 
 // ===== BASIC FUNCTIONALITY TESTS =====
 
 test('concat throws on empty inputs', async () => {
-  await assert.rejects(
-    async () => {
-      const gen = concatStreaming({ inputs: [], layout: { columns: 1 } });
-      await collectChunks(gen);
-    },
-    /At least one input image is required/
-  );
+  await assert.rejects(async () => {
+    const gen = concatStreaming({ inputs: [], layout: { columns: 1 } });
+    await collectChunks(gen);
+  }, /At least one input image is required/);
 });
 
 test('concat throws on missing layout', async () => {
   const testPng = await createTestPng(2, 2, new Uint8Array([255, 0, 0, 255]));
 
-  await assert.rejects(
-    async () => {
-      const gen = concatStreaming({ inputs: [testPng], layout: {} });
-      await collectChunks(gen);
-    },
-    /Grid mode requires layout: columns, rows, width, or height/
-  );
+  await assert.rejects(async () => {
+    const gen = concatStreaming({ inputs: [testPng], layout: {} });
+    await collectChunks(gen);
+  }, /Grid mode requires layout: columns, rows, width, or height/);
 });
 
 test('concatToBuffer surfaces descriptive error when decoder ends early', async () => {
@@ -137,7 +135,7 @@ test('concatToBuffer surfaces descriptive error when decoder ends early', async 
     async () => {
       await concatToBuffer({
         inputs: [stubDecoder],
-        layout: { columns: 1 }
+        layout: { columns: 1 },
       });
     },
     (error: unknown) => {
@@ -160,7 +158,7 @@ test('concatToBuffer surfaces descriptive error when scanline width mismatches h
     async () => {
       await concatToBuffer({
         inputs: [stubDecoder],
-        layout: { columns: 1 }
+        layout: { columns: 1 },
       });
     },
     (error: unknown) => {
@@ -180,7 +178,7 @@ test('concatToBuffer reports progress after each input completes', async () => {
   const decoders = [
     createStubDecoder({ width: 2, height: 2 }),
     createStubDecoder({ width: 2, height: 3 }),
-    createStubDecoder({ width: 2, height: 1 })
+    createStubDecoder({ width: 2, height: 1 }),
   ];
 
   const progress: Array<[number, number]> = [];
@@ -190,23 +188,25 @@ test('concatToBuffer reports progress after each input completes', async () => {
     layout: { columns: 2 },
     onProgress(current, total) {
       progress.push([current, total]);
-    }
+    },
   });
 
   assert.deepStrictEqual(progress, [
     [1, 3],
     [2, 3],
-    [3, 3]
+    [3, 3],
   ]);
 });
 
 test('concat concatenates single image (Uint8Array)', async () => {
   const testPng = await createTestPng(10, 10, new Uint8Array([255, 0, 0, 255]));
 
-  const result = await collectChunks(concatStreaming({
-    inputs: [testPng],
-    layout: { columns: 1 }
-  }));
+  const result = await collectChunks(
+    concatStreaming({
+      inputs: [testPng],
+      layout: { columns: 1 },
+    })
+  );
 
   const header = parsePngHeader(result);
   assert.strictEqual(header.width, 10);
@@ -220,10 +220,12 @@ test('concat concatenates single image (file path)', async () => {
   writeFileSync(tempFile, testPng);
 
   try {
-    const result = await collectChunks(concatStreaming({
-      inputs: [tempFile],
-      layout: { columns: 1 }
-    }));
+    const result = await collectChunks(
+      concatStreaming({
+        inputs: [tempFile],
+        layout: { columns: 1 },
+      })
+    );
 
     const header = parsePngHeader(result);
     assert.strictEqual(header.width, 10);
@@ -237,10 +239,12 @@ test('concat concatenates two images horizontally', async () => {
   const png1 = await createTestPng(10, 10, new Uint8Array([255, 0, 0, 255]));
   const png2 = await createTestPng(10, 10, new Uint8Array([0, 255, 0, 255]));
 
-  const result = await collectChunks(concatStreaming({
-    inputs: [png1, png2],
-    layout: { columns: 2 }
-  }));
+  const result = await collectChunks(
+    concatStreaming({
+      inputs: [png1, png2],
+      layout: { columns: 2 },
+    })
+  );
 
   const header = parsePngHeader(result);
   assert.strictEqual(header.width, 20);
@@ -251,10 +255,12 @@ test('concat concatenates two images vertically', async () => {
   const png1 = await createTestPng(10, 10, new Uint8Array([255, 0, 0, 255]));
   const png2 = await createTestPng(10, 10, new Uint8Array([0, 255, 0, 255]));
 
-  const result = await collectChunks(concatStreaming({
-    inputs: [png1, png2],
-    layout: { rows: 2 }
-  }));
+  const result = await collectChunks(
+    concatStreaming({
+      inputs: [png1, png2],
+      layout: { rows: 2 },
+    })
+  );
 
   const header = parsePngHeader(result);
   assert.strictEqual(header.width, 10);
@@ -267,10 +273,12 @@ test('concat concatenates four images in 2x2 grid', async () => {
   const png3 = await createTestPng(10, 10, new Uint8Array([0, 0, 255, 255]));
   const png4 = await createTestPng(10, 10, new Uint8Array([255, 255, 0, 255]));
 
-  const result = await collectChunks(concatStreaming({
-    inputs: [png1, png2, png3, png4],
-    layout: { columns: 2 }
-  }));
+  const result = await collectChunks(
+    concatStreaming({
+      inputs: [png1, png2, png3, png4],
+      layout: { columns: 2 },
+    })
+  );
 
   const header = parsePngHeader(result);
   assert.strictEqual(header.width, 20);
@@ -290,21 +298,19 @@ test('concat automatically converts mixed bit depths', async () => {
     colorType: ColorType.RGBA,
     compressionMethod: 0,
     filterMethod: 0,
-    interlaceMethod: 0
+    interlaceMethod: 0,
   };
   const pixelData2 = new Uint8Array(10 * 10 * 8); // 16-bit RGBA
   const compressed2 = await compressImageData(pixelData2, header2);
-  const png2 = buildPng([
-    createIHDR(header2),
-    createChunk('IDAT', compressed2),
-    createIEND()
-  ]);
+  const png2 = buildPng([createIHDR(header2), createChunk('IDAT', compressed2), createIEND()]);
 
   // Should successfully concatenate and use the highest bit depth (16-bit)
-  const result = await collectChunks(concatStreaming({
-    inputs: [png1, png2],
-    layout: { columns: 2 }
-  }));
+  const result = await collectChunks(
+    concatStreaming({
+      inputs: [png1, png2],
+      layout: { columns: 2 },
+    })
+  );
 
   const header = parsePngHeader(result);
   assert.strictEqual(header.bitDepth, 16, 'Should use highest bit depth');
@@ -319,10 +325,12 @@ test('concat supports arbitrary dimensions with padding', async () => {
   const png1 = await createTestPng(10, 10, new Uint8Array([255, 0, 0, 255]));
   const png2 = await createTestPng(20, 20, new Uint8Array([0, 255, 0, 255]));
 
-  const result = await collectChunks(concatStreaming({
-    inputs: [png1, png2],
-    layout: { columns: 2 }
-  }));
+  const result = await collectChunks(
+    concatStreaming({
+      inputs: [png1, png2],
+      layout: { columns: 2 },
+    })
+  );
 
   const header = parsePngHeader(result);
   assert.strictEqual(header.width, 30); // 10 + 20
@@ -336,10 +344,12 @@ test('concat with 6 images in 3 columns', async () => {
     pngs.push(await createTestPng(5, 5, new Uint8Array([i * 40, i * 40, i * 40, 255])));
   }
 
-  const result = await collectChunks(concatStreaming({
-    inputs: pngs,
-    layout: { columns: 3 }
-  }));
+  const result = await collectChunks(
+    concatStreaming({
+      inputs: pngs,
+      layout: { columns: 3 },
+    })
+  );
 
   const header = parsePngHeader(result);
   assert.strictEqual(header.width, 15); // 3 columns * 5 pixels
@@ -350,10 +360,12 @@ test('concat result is valid PNG', async () => {
   const png1 = await createTestPng(8, 8, new Uint8Array([255, 0, 0, 255]));
   const png2 = await createTestPng(8, 8, new Uint8Array([0, 255, 0, 255]));
 
-  const result = await collectChunks(concatStreaming({
-    inputs: [png1, png2],
-    layout: { columns: 2 }
-  }));
+  const result = await collectChunks(
+    concatStreaming({
+      inputs: [png1, png2],
+      layout: { columns: 2 },
+    })
+  );
 
   // Should be able to parse the result without errors
   const header = parsePngHeader(result);
@@ -381,39 +393,41 @@ test('concat with RGB images converts to RGBA', async () => {
     colorType: ColorType.RGB,
     compressionMethod: 0,
     filterMethod: 0,
-    interlaceMethod: 0
+    interlaceMethod: 0,
   };
 
   const pixelData1 = new Uint8Array(5 * 5 * 3);
   for (let i = 0; i < 5 * 5; i++) {
-    pixelData1[i * 3] = 255;     // R
-    pixelData1[i * 3 + 1] = 0;   // G
-    pixelData1[i * 3 + 2] = 0;   // B
+    pixelData1[i * 3] = 255; // R
+    pixelData1[i * 3 + 1] = 0; // G
+    pixelData1[i * 3 + 2] = 0; // B
   }
 
   const pixelData2 = new Uint8Array(5 * 5 * 3);
   for (let i = 0; i < 5 * 5; i++) {
-    pixelData2[i * 3] = 0;       // R
+    pixelData2[i * 3] = 0; // R
     pixelData2[i * 3 + 1] = 255; // G
-    pixelData2[i * 3 + 2] = 0;   // B
+    pixelData2[i * 3 + 2] = 0; // B
   }
 
   const png1 = buildPng([
     createIHDR(header),
     createChunk('IDAT', await compressImageData(pixelData1, header)),
-    createIEND()
+    createIEND(),
   ]);
 
   const png2 = buildPng([
     createIHDR(header),
     createChunk('IDAT', await compressImageData(pixelData2, header)),
-    createIEND()
+    createIEND(),
   ]);
 
-  const result = await collectChunks(concatStreaming({
-    inputs: [png1, png2],
-    layout: { columns: 2 }
-  }));
+  const result = await collectChunks(
+    concatStreaming({
+      inputs: [png1, png2],
+      layout: { columns: 2 },
+    })
+  );
 
   const header_result = parsePngHeader(result);
   assert.strictEqual(header_result.width, 10);
@@ -427,10 +441,12 @@ test('concat with different heights in same row', async () => {
   const png2 = await createTestPng(10, 15, new Uint8Array([0, 255, 0, 255]));
   const png3 = await createTestPng(10, 10, new Uint8Array([0, 0, 255, 255]));
 
-  const result = await collectChunks(concatStreaming({
-    inputs: [png1, png2, png3],
-    layout: { columns: 3 }
-  }));
+  const result = await collectChunks(
+    concatStreaming({
+      inputs: [png1, png2, png3],
+      layout: { columns: 3 },
+    })
+  );
 
   const header = parsePngHeader(result);
   assert.strictEqual(header.width, 30); // 10 + 10 + 10
@@ -441,10 +457,12 @@ test('concat with different widths in same column', async () => {
   const png1 = await createTestPng(5, 10, new Uint8Array([255, 0, 0, 255]));
   const png2 = await createTestPng(15, 10, new Uint8Array([0, 255, 0, 255]));
 
-  const result = await collectChunks(concatStreaming({
-    inputs: [png1, png2],
-    layout: { rows: 2 }
-  }));
+  const result = await collectChunks(
+    concatStreaming({
+      inputs: [png1, png2],
+      layout: { rows: 2 },
+    })
+  );
 
   const header = parsePngHeader(result);
   assert.strictEqual(header.width, 15); // max(5, 15)
@@ -458,10 +476,12 @@ test('concat with variable sizes in grid layout', async () => {
   const png3 = await createTestPng(15, 20, new Uint8Array([0, 0, 255, 255]));
   const png4 = await createTestPng(25, 25, new Uint8Array([255, 255, 0, 255]));
 
-  const result = await collectChunks(concatStreaming({
-    inputs: [png1, png2, png3, png4],
-    layout: { columns: 2 }
-  }));
+  const result = await collectChunks(
+    concatStreaming({
+      inputs: [png1, png2, png3, png4],
+      layout: { columns: 2 },
+    })
+  );
 
   const header = parsePngHeader(result);
   assert.strictEqual(header.width, 40);
@@ -473,10 +493,12 @@ test('concat with pixel width limit wraps to new row', async () => {
   const png2 = await createTestPng(30, 10, new Uint8Array([0, 255, 0, 255]));
   const png3 = await createTestPng(30, 10, new Uint8Array([0, 0, 255, 255]));
 
-  const result = await collectChunks(concatStreaming({
-    inputs: [png1, png2, png3],
-    layout: { width: 70 } // Can fit 2 images per row (30+30=60 < 70)
-  }));
+  const result = await collectChunks(
+    concatStreaming({
+      inputs: [png1, png2, png3],
+      layout: { width: 70 }, // Can fit 2 images per row (30+30=60 < 70)
+    })
+  );
 
   const header = parsePngHeader(result);
   assert.strictEqual(header.width, 60); // 30 + 30 (row 1 has 2 images)
@@ -488,10 +510,12 @@ test('concat with pixel height limit stops adding rows', async () => {
   const png2 = await createTestPng(10, 30, new Uint8Array([0, 255, 0, 255]));
   const png3 = await createTestPng(10, 30, new Uint8Array([0, 0, 255, 255]));
 
-  const result = await collectChunks(concatStreaming({
-    inputs: [png1, png2, png3],
-    layout: { height: 70, columns: 1 } // Can fit 2 images (30+30=60 < 70)
-  }));
+  const result = await collectChunks(
+    concatStreaming({
+      inputs: [png1, png2, png3],
+      layout: { height: 70, columns: 1 }, // Can fit 2 images (30+30=60 < 70)
+    })
+  );
 
   const header = parsePngHeader(result);
   assert.strictEqual(header.width, 10);
@@ -503,10 +527,12 @@ test('concat with mixed sizes and transparent padding', async () => {
   const png1 = await createTestPng(5, 5, new Uint8Array([255, 0, 0, 255]));
   const png2 = await createTestPng(20, 20, new Uint8Array([0, 255, 0, 255]));
 
-  const result = await collectChunks(concatStreaming({
-    inputs: [png1, png2],
-    layout: { columns: 2 }
-  }));
+  const result = await collectChunks(
+    concatStreaming({
+      inputs: [png1, png2],
+      layout: { columns: 2 },
+    })
+  );
 
   const header = parsePngHeader(result);
   assert.strictEqual(header.width, 25); // 5 + 20
@@ -531,10 +557,12 @@ test('concat with three rows of different heights', async () => {
   const png2 = await createTestPng(10, 10, new Uint8Array([0, 255, 0, 255]));
   const png3 = await createTestPng(10, 15, new Uint8Array([0, 0, 255, 255]));
 
-  const result = await collectChunks(concatStreaming({
-    inputs: [png1, png2, png3],
-    layout: { columns: 1 } // Vertical stack
-  }));
+  const result = await collectChunks(
+    concatStreaming({
+      inputs: [png1, png2, png3],
+      layout: { columns: 1 }, // Vertical stack
+    })
+  );
 
   const header = parsePngHeader(result);
   assert.strictEqual(header.width, 10);
@@ -547,10 +575,12 @@ test('concat with rows layout and variable widths', async () => {
   const png3 = await createTestPng(15, 10, new Uint8Array([0, 0, 255, 255]));
   const png4 = await createTestPng(20, 10, new Uint8Array([255, 255, 0, 255]));
 
-  const result = await collectChunks(concatStreaming({
-    inputs: [png1, png2, png3, png4],
-    layout: { rows: 2 } // 2 rows, 2 columns (column-first placement)
-  }));
+  const result = await collectChunks(
+    concatStreaming({
+      inputs: [png1, png2, png3, png4],
+      layout: { rows: 2 }, // 2 rows, 2 columns (column-first placement)
+    })
+  );
 
   const header = parsePngHeader(result);
   assert.strictEqual(header.width, 30);
@@ -565,7 +595,7 @@ test('concatToStream returns a Readable stream', async () => {
 
   const stream = concatToStream({
     inputs: [png1, png2],
-    layout: { columns: 2 }
+    layout: { columns: 2 },
   });
 
   assert.ok(stream instanceof Readable);
@@ -590,7 +620,7 @@ test('concat yields chunks in correct order', async () => {
   const chunks: Uint8Array[] = [];
   for await (const chunk of concatStreaming({
     inputs: [png1],
-    layout: { columns: 1 }
+    layout: { columns: 1 },
   })) {
     chunks.push(chunk);
   }
@@ -602,10 +632,12 @@ test('concat yields chunks in correct order', async () => {
   assert.strictEqual(chunks[0][3], 71); // 'G'
 
   // Should be able to parse the complete result
-  const result = await collectChunks(concatStreaming({
-    inputs: [png1],
-    layout: { columns: 1 }
-  }));
+  const result = await collectChunks(
+    concatStreaming({
+      inputs: [png1],
+      layout: { columns: 1 },
+    })
+  );
 
   assert.doesNotThrow(() => parsePngHeader(result));
 });
@@ -615,13 +647,15 @@ test('concat handles multiple images in grid (streaming)', async () => {
     await createTestPng(4, 4, new Uint8Array([255, 0, 0, 255])),
     await createTestPng(4, 4, new Uint8Array([0, 255, 0, 255])),
     await createTestPng(4, 4, new Uint8Array([0, 0, 255, 255])),
-    await createTestPng(4, 4, new Uint8Array([255, 255, 0, 255]))
+    await createTestPng(4, 4, new Uint8Array([255, 255, 0, 255])),
   ];
 
-  const result = await collectChunks(concatStreaming({
-    inputs: pngs,
-    layout: { columns: 2 }
-  }));
+  const result = await collectChunks(
+    concatStreaming({
+      inputs: pngs,
+      layout: { columns: 2 },
+    })
+  );
 
   const header = parsePngHeader(result);
   assert.strictEqual(header.width, 8); // 2 columns * 4 pixels
@@ -638,10 +672,12 @@ test('concat supports mixed input types (file + Uint8Array)', async () => {
   writeFileSync(tempFile, png1);
 
   try {
-    const result = await collectChunks(concatStreaming({
-      inputs: [tempFile, png2], // Mix of file path and Uint8Array
-      layout: { columns: 2 }
-    }));
+    const result = await collectChunks(
+      concatStreaming({
+        inputs: [tempFile, png2], // Mix of file path and Uint8Array
+        layout: { columns: 2 },
+      })
+    );
 
     const header = parsePngHeader(result);
     assert.strictEqual(header.width, 20);
@@ -662,7 +698,7 @@ test('concat accepts async iterable inputs', async () => {
 
   const result = await concatToBuffer({
     inputs: inputStream(),
-    layout: { columns: 2 }
+    layout: { columns: 2 },
   });
 
   const header = parsePngHeader(result as Uint8Array);
@@ -674,10 +710,12 @@ test('concat supports ArrayBuffer inputs (streaming)', async () => {
   const png1 = await createTestPng(12, 12, new Uint8Array([120, 45, 200, 255]));
   const png2 = await createTestPng(12, 12, new Uint8Array([45, 200, 120, 255]));
 
-  const result = await collectChunks(concatStreaming({
-    inputs: [toArrayBuffer(png1), toArrayBuffer(png2)],
-    layout: { columns: 2 }
-  }));
+  const result = await collectChunks(
+    concatStreaming({
+      inputs: [toArrayBuffer(png1), toArrayBuffer(png2)],
+      layout: { columns: 2 },
+    })
+  );
 
   const header = parsePngHeader(result);
   assert.strictEqual(header.width, 24);
@@ -694,10 +732,12 @@ test('concat supports multiple file inputs', async () => {
   writeFileSync(tempFile2, png2);
 
   try {
-    const result = await collectChunks(concatStreaming({
-      inputs: [tempFile1, tempFile2],
-      layout: { rows: 2 }
-    }));
+    const result = await collectChunks(
+      concatStreaming({
+        inputs: [tempFile1, tempFile2],
+        layout: { rows: 2 },
+      })
+    );
 
     const header = parsePngHeader(result);
     assert.strictEqual(header.width, 10);
@@ -716,7 +756,7 @@ test('concat (unified API) returns Uint8Array by default', async () => {
 
   const result = await concatToBuffer({
     inputs: [png1, png2],
-    layout: { columns: 2 }
+    layout: { columns: 2 },
   });
 
   assert.ok(result instanceof Uint8Array);
@@ -732,7 +772,7 @@ test('concatToStream returns Node readable stream', async () => {
 
   const result = concatToStream({
     inputs: [png1, png2],
-    layout: { columns: 2 }
+    layout: { columns: 2 },
   });
 
   assert.ok(result instanceof Readable);
@@ -744,7 +784,7 @@ test('concat (unified API) with small images', async () => {
 
   const result = await concatToBuffer({
     inputs: [png1, png2],
-    layout: { columns: 2 }
+    layout: { columns: 2 },
   });
 
   assert.ok(result instanceof Uint8Array);
@@ -766,7 +806,7 @@ test('concat (unified API) with file paths', async () => {
   try {
     const result = await concatToBuffer({
       inputs: [tempFile1, tempFile2],
-      layout: { columns: 2 }
+      layout: { columns: 2 },
     });
 
     assert.ok(result instanceof Uint8Array);
@@ -786,7 +826,7 @@ test('concat (unified API) accepts ArrayBuffer inputs', async () => {
 
   const result = await concatToBuffer({
     inputs: [toArrayBuffer(png1), toArrayBuffer(png2)],
-    layout: { columns: 2 }
+    layout: { columns: 2 },
   });
 
   assert.ok(result instanceof Uint8Array);
@@ -801,7 +841,7 @@ test('concatToFile returns a stream', async () => {
 
   const result = await concatToFile({
     inputs: [png1, png2],
-    layout: { columns: 2 }
+    layout: { columns: 2 },
   });
 
   assert.ok(result instanceof Readable);
@@ -813,7 +853,7 @@ test('concat (unified API) handles vertical layout', async () => {
 
   const result = await concatToBuffer({
     inputs: [png1, png2],
-    layout: { rows: 2 }
+    layout: { rows: 2 },
   });
 
   const header = parsePngHeader(result);
@@ -823,9 +863,9 @@ test('concat (unified API) handles vertical layout', async () => {
 
 test('concat with width limit wrapping produces valid PNG', async () => {
   // Create images that will wrap to multiple rows
-  const png1 = await createTestPng(40, 30, new Uint8Array([255, 0, 0, 255]));   // Red
-  const png2 = await createTestPng(40, 30, new Uint8Array([0, 255, 0, 255]));   // Green
-  const png3 = await createTestPng(40, 30, new Uint8Array([0, 0, 255, 255]));   // Blue
+  const png1 = await createTestPng(40, 30, new Uint8Array([255, 0, 0, 255])); // Red
+  const png2 = await createTestPng(40, 30, new Uint8Array([0, 255, 0, 255])); // Green
+  const png3 = await createTestPng(40, 30, new Uint8Array([0, 0, 255, 255])); // Blue
   const png4 = await createTestPng(40, 30, new Uint8Array([255, 255, 0, 255])); // Yellow
 
   // Width limit of 100 should create:
@@ -834,7 +874,7 @@ test('concat with width limit wrapping produces valid PNG', async () => {
   // But if the next image would exceed 100, it wraps
   const result = await concatToBuffer({
     inputs: [png1, png2, png3, png4],
-    layout: { width: 100 }
+    layout: { width: 100 },
   });
 
   // Verify it's a valid PNG by parsing the header
@@ -848,14 +888,18 @@ test('concat with width limit wrapping produces valid PNG', async () => {
 
   // Verify pixel data size matches header dimensions
   const expectedSize = header.width * header.height * 4; // RGBA
-  assert.strictEqual(pixelData.length, expectedSize, 'Pixel data size should match header dimensions');
+  assert.strictEqual(
+    pixelData.length,
+    expectedSize,
+    'Pixel data size should match header dimensions'
+  );
 });
 
 test('concat with width limit - different row widths', async () => {
   // Create a scenario where rows have different widths
-  const png1 = await createTestPng(50, 20, new Uint8Array([255, 0, 0, 255]));   // Red - 50px
-  const png2 = await createTestPng(50, 20, new Uint8Array([0, 255, 0, 255]));   // Green - 50px
-  const png3 = await createTestPng(30, 20, new Uint8Array([0, 0, 255, 255]));   // Blue - 30px
+  const png1 = await createTestPng(50, 20, new Uint8Array([255, 0, 0, 255])); // Red - 50px
+  const png2 = await createTestPng(50, 20, new Uint8Array([0, 255, 0, 255])); // Green - 50px
+  const png3 = await createTestPng(30, 20, new Uint8Array([0, 0, 255, 255])); // Blue - 30px
 
   // Width limit of 80 should create:
   // Row 1: png1 (50) + png2 (50) = 100 > 80, so only png1 fits
@@ -865,7 +909,7 @@ test('concat with width limit - different row widths', async () => {
   // totalWidth should be 50 (the max)
   const result = await concatToBuffer({
     inputs: [png1, png2, png3],
-    layout: { width: 80 }
+    layout: { width: 80 },
   });
 
   const header = parsePngHeader(result);
@@ -876,7 +920,11 @@ test('concat with width limit - different row widths', async () => {
 
   // Verify pixel data size matches header dimensions
   const expectedSize = header.width * header.height * 4; // RGBA
-  assert.strictEqual(pixelData.length, expectedSize, 'Pixel data size should match header dimensions');
+  assert.strictEqual(
+    pixelData.length,
+    expectedSize,
+    'Pixel data size should match header dimensions'
+  );
 });
 
 test('concat with width limit - single image per row', async () => {
@@ -892,7 +940,7 @@ test('concat with width limit - single image per row', async () => {
   // totalWidth should be 70 (the max)
   const result = await concatToBuffer({
     inputs: [png1, png2, png3],
-    layout: { width: 65 }
+    layout: { width: 65 },
   });
 
   const header = parsePngHeader(result);
@@ -906,16 +954,16 @@ test('concat with width limit - single image per row', async () => {
 
 test('concat with width limit - extreme size differences', async () => {
   // Edge case: very different image sizes
-  const png1 = await createTestPng(100, 50, new Uint8Array([255, 0, 0, 255]));  // Large
-  const png2 = await createTestPng(10, 10, new Uint8Array([0, 255, 0, 255]));   // Small
-  const png3 = await createTestPng(10, 10, new Uint8Array([0, 0, 255, 255]));   // Small
+  const png1 = await createTestPng(100, 50, new Uint8Array([255, 0, 0, 255])); // Large
+  const png2 = await createTestPng(10, 10, new Uint8Array([0, 255, 0, 255])); // Small
+  const png3 = await createTestPng(10, 10, new Uint8Array([0, 0, 255, 255])); // Small
 
   // Width limit of 150 should create:
   // Row 1: png1 (100) + png2 (10) + png3 (10) = 120
   // totalWidth = 120
   const result = await concatToBuffer({
     inputs: [png1, png2, png3],
-    layout: { width: 150 }
+    layout: { width: 150 },
   });
 
   const header = parsePngHeader(result);
@@ -940,7 +988,7 @@ test('concat with width limit - last row much narrower', async () => {
   // totalWidth = 85 (max of 80 and 85)
   const result = await concatToBuffer({
     inputs: [png1, png2, png3],
-    layout: { width: 100 }
+    layout: { width: 100 },
   });
 
   const header = parsePngHeader(result);
@@ -965,7 +1013,7 @@ test('concat with width and height limits', async () => {
   // So only row 1 fits
   const result = await concatToBuffer({
     inputs: [png1, png2, png3, png4],
-    layout: { width: 70, height: 50 }
+    layout: { width: 70, height: 50 },
   });
 
   const header = parsePngHeader(result);
@@ -982,7 +1030,7 @@ test('deprecated concat alias resolves to Uint8Array', async () => {
 
   const result = await concat({
     inputs: [png],
-    layout: { columns: 1 }
+    layout: { columns: 1 },
   });
 
   assert.ok(result instanceof Uint8Array);

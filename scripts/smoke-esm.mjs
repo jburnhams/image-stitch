@@ -9,6 +9,10 @@ const esmPath = path.join(__dirname, '..', 'dist', 'esm', 'index.js');
 const mod = await import(pathToFileURL(esmPath).href);
 
 assert.strictEqual(typeof mod.concat, 'function', 'ESM build should export concat');
-assert.strictEqual(typeof mod.StreamingConcatenator, 'function', 'ESM build should export StreamingConcatenator');
+assert.strictEqual(
+  typeof mod.StreamingConcatenator,
+  'function',
+  'ESM build should export StreamingConcatenator'
+);
 
 console.log('esm smoke test passed');

@@ -7,7 +7,7 @@ const CRC_TABLE = new Uint32Array(256);
 for (let n = 0; n < 256; n++) {
   let c = n;
   for (let k = 0; k < 8; k++) {
-    c = (c & 1) ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
   }
   CRC_TABLE[n] = c;
 }
@@ -31,11 +31,12 @@ export { pngCrc32 as crc32 };
  */
 export function readUInt32BE(buffer: Uint8Array, offset: number): number {
   return (
-    (buffer[offset] << 24) |
-    (buffer[offset + 1] << 16) |
-    (buffer[offset + 2] << 8) |
-    buffer[offset + 3]
-  ) >>> 0;
+    ((buffer[offset] << 24) |
+      (buffer[offset + 1] << 16) |
+      (buffer[offset + 2] << 8) |
+      buffer[offset + 3]) >>>
+    0
+  );
 }
 
 /**
@@ -91,12 +92,18 @@ export function isPngSignature(data: Uint8Array): boolean {
  */
 export function getSamplesPerPixel(colorType: number): number {
   switch (colorType) {
-    case 0: return 1; // Grayscale
-    case 2: return 3; // RGB
-    case 3: return 1; // Palette
-    case 4: return 2; // Grayscale + Alpha
-    case 6: return 4; // RGBA
-    default: throw new Error(`Unknown color type: ${colorType}`);
+    case 0:
+      return 1; // Grayscale
+    case 2:
+      return 3; // RGB
+    case 3:
+      return 1; // Palette
+    case 4:
+      return 2; // Grayscale + Alpha
+    case 6:
+      return 4; // RGBA
+    default:
+      throw new Error(`Unknown color type: ${colorType}`);
   }
 }
 
@@ -105,9 +112,11 @@ export function getSamplesPerPixel(colorType: number): number {
  * Prioritizes process.versions.node check over window check
  */
 export function isNode(): boolean {
-  return typeof process !== 'undefined' &&
-         process !== null &&
-         typeof process.versions === 'object' &&
-         process.versions !== null &&
-         typeof process.versions.node !== 'undefined';
+  return (
+    typeof process !== 'undefined' &&
+    process !== null &&
+    typeof process.versions === 'object' &&
+    process.versions !== null &&
+    typeof process.versions.node !== 'undefined'
+  );
 }
