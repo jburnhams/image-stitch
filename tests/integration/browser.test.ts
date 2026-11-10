@@ -78,7 +78,7 @@ describe('Browser Bundle Tests', () => {
     const navLinks = Array.from(document.querySelectorAll('nav a')).map((link) => link.getAttribute('href'));
     assert.deepStrictEqual(
       navLinks,
-      ['examples.html', 'streaming.html', 'guides.html', 'https://github.com/jburnhams/Png-concat'],
+      ['examples.html', 'streaming.html', 'guides.html', 'https://github.com/jburnhams/image-stitch'],
       'Navigation should link to examples, streaming demo, guides, and GitHub'
     );
 
@@ -99,7 +99,7 @@ describe('Browser Bundle Tests', () => {
     const navLinks = Array.from(document.querySelectorAll('nav a')).map((link) => link.getAttribute('href'));
     assert.deepStrictEqual(
       navLinks,
-      ['index.html', 'examples.html', 'streaming.html', 'https://github.com/jburnhams/Png-concat'],
+      ['index.html', 'examples.html', 'streaming.html', 'https://github.com/jburnhams/image-stitch'],
       'Guides nav should link to overview, examples, streaming demo, and GitHub'
     );
 
@@ -219,7 +219,7 @@ describe('Browser Bundle Tests', () => {
     const navLinks = Array.from(document.querySelectorAll('nav a')).map((link) => link.getAttribute('href'));
     assert.deepStrictEqual(
       navLinks,
-      ['index.html', 'examples.html', 'guides.html', 'https://github.com/jburnhams/Png-concat'],
+      ['index.html', 'examples.html', 'guides.html', 'https://github.com/jburnhams/image-stitch'],
       'Streaming nav should link across docs and GitHub'
     );
 

@@ -260,7 +260,7 @@
         <a href="index.html">🏠 Overview</a>
         <a href="examples.html">🎛️ Interactive Examples</a>
         <a href="guides.html">📘 Guides &amp; API</a>
-        <a href="https://github.com/jburnhams/Png-concat">🌐 GitHub</a>
+        <a href="https://github.com/jburnhams/image-stitch">🌐 GitHub</a>
       </nav>
     </header>
 
@@ -376,7 +376,7 @@
 
     <footer>
       Want more? Explore the <a href="guides.html">Guides &amp; API reference</a> or dive into
-      <a href="https://github.com/jburnhams/Png-concat">the GitHub repository</a>.
+      <a href="https://github.com/jburnhams/image-stitch">the GitHub repository</a>.
     </footer>
   </div>
 
@@ -594,7 +594,7 @@
           const bytes = await streamToFile(
             new StreamingConcatenator({
               inputs,
-              layout: { width, wrapBehavior: "wrap" },
+              layout: { width },
               outputFormat,
               jpegQuality
             }).stream(),
@@ -611,7 +611,7 @@
         const { blob, bytes } = await streamToBlob(
           new StreamingConcatenator({
             inputs,
-            layout: { width, wrapBehavior: "wrap" },
+            layout: { width },
             outputFormat,
             jpegQuality
           }).stream(),

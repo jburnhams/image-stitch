@@ -1,8 +1,16 @@
 name: NPM Publish Package
 
 on:
+  # "published", not "created": GitHub doesn't fire "created" for releases that
+  # start as drafts, which softprops/action-gh-release now does.
   release:
-    types: [created]
+    types: [published]
+  # Manual fallback to publish an existing tag, e.g. if a release run was missed.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to publish, e.g. v1.2.0"
+        required: true
 
 permissions:
   id-token: write  # Required for OIDC
@@ -12,11 +20,13 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
         with:
-          node-version: '20'
+          ref: ${{ inputs.tag || github.ref }}
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
           registry-url: 'https://registry.npmjs.org'
 
       # Ensure npm 11.5.1 or later is installed

@@ -10,48 +10,23 @@
 
 import { init as jpegEncoderInit, StreamingJpegEncoder, WasmColorType } from 'jpeg-encoder-wasm';
 
-let wasmInitialized = false;
-
 /**
- * Initialize the WASM module
- * Handles both Node.js and browser environments
+ * Initialize the WASM module once. jpeg-encoder-wasm finds its bundled
+ * `jpeg_encoder_bg.wasm` itself, in Node (ESM and CommonJS) and in browsers.
  */
-async function initWasm(): Promise<void> {
-  if (wasmInitialized) {
-    return;
-  }
+let wasmReady: Promise<void> | null = null;
 
-  // In Node.js, we need to load the wasm file manually
-  // The new package structure has both ESM and CJS builds with proper WASM loading
-  if (typeof process !== 'undefined' && process.versions?.node) {
-    try {
-      // Dynamic imports to avoid bundler issues
-      const { readFileSync } = await import('node:fs');
-      const { join } = await import('node:path');
-
-      // Try to load from node_modules using require.resolve
-      let wasmPath: string;
-      try {
-        // Try require.resolve first (works in both CJS and ESM with createRequire)
-        wasmPath = require.resolve('jpeg-encoder-wasm/pkg/esm/jpeg_encoder_bg.wasm');
-      } catch {
-        // Fallback: use cwd-relative path for ESM
-        wasmPath = join(process.cwd(), 'node_modules', 'jpeg-encoder-wasm', 'pkg', 'esm', 'jpeg_encoder_bg.wasm');
+function initWasm(): Promise<void> {
+  if (!wasmReady) {
+    wasmReady = Promise.resolve(jpegEncoderInit()).then(
+      () => undefined,
+      (error: unknown) => {
+        wasmReady = null;
+        throw error;
       }
-
-      const wasmBuffer = readFileSync(wasmPath);
-      await jpegEncoderInit(wasmBuffer);
-    } catch (err) {
-      // Final fallback: let the module find the wasm itself
-      // This works in browser and some Node environments
-      await jpegEncoderInit();
-    }
-  } else {
-    // In browser, the module will fetch the wasm automatically
-    await jpegEncoderInit();
+    );
   }
-
-  wasmInitialized = true;
+  return wasmReady;
 }
 
 export interface JpegEncoderOptions {

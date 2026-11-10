@@ -8,16 +8,16 @@ on:
 
 jobs:
   integration:
-    name: Integration tests (Node 25)
+    name: Integration tests (Node 24)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
-      - name: Setup Node.js 25
-        uses: actions/setup-node@v4
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v5
         with:
-          node-version: 25.x
+          node-version: 24.x
           cache: 'npm'
 
       - name: Install dependencies

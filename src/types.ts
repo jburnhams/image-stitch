@@ -74,6 +74,18 @@ export interface ConcatOptions {
      * - Positioned mode: canvas height (auto-calculated from image bounds if omitted)
      */
     height?: number;
+    /**
+     * Grid mode: line images up in columns, so every column is as wide as its widest image.
+     * When false, images in a row are packed side by side. Ignored for width/height flow layouts.
+     * Default: false
+     */
+    alignColumns?: boolean;
+    /**
+     * Grid mode: line images up in rows, so every row is as tall as its tallest image.
+     * When false, each image sits directly below the image above it (masonry style).
+     * Default: true
+     */
+    alignRows?: boolean;
   };
 
   /**

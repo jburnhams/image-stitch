@@ -4,7 +4,11 @@
   "description": "Stitch images together efficiently with multi-format support (PNG, JPEG, HEIC), streaming, for node.js and web",
   "repository": {
     "type": "git",
-    "url": "https://github.com/jburnhams/image-stitch.git"
+    "url": "git+https://github.com/jburnhams/image-stitch.git"
+  },
+  "homepage": "https://jburnhams.github.io/image-stitch/",
+  "bugs": {
+    "url": "https://github.com/jburnhams/image-stitch/issues"
   },
   "main": "dist/cjs/index.cjs",
   "module": "dist/esm/index.js",
@@ -13,16 +17,14 @@
   "exports": {
     ".": {
       "types": "./dist/types/index.d.ts",
+      "deno": "./deno/mod.ts",
+      "browser": "./dist/bundles/image-stitch.esm.js",
       "import": "./dist/esm/index.js",
       "require": "./dist/cjs/index.cjs",
-      "browser": {
-        "default": "./dist/bundles/image-stitch.esm.js"
-      },
-      "deno": "./deno/mod.ts",
       "default": "./dist/esm/index.js"
     },
     "./bundle": {
-      "types": "./dist/types/index.d.ts",
+      "types": "./dist/types/bundle.d.ts",
       "default": "./dist/bundles/image-stitch.esm.js"
     },
     "./browser": {
@@ -48,7 +50,7 @@
     },
     "./package.json": "./package.json"
   },
-  "browser": "dist/browser/image-stitch.min.js",
+  "browser": "dist/bundles/image-stitch.esm.js",
   "unpkg": "dist/browser/image-stitch.min.js",
   "jsdelivr": "dist/browser/image-stitch.min.js",
   "files": [
@@ -58,7 +60,8 @@
     "dist/browser",
     "dist/types",
     "deno",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "clean": "node scripts/clean.mjs",
@@ -75,9 +78,7 @@
     "smoke:esm": "node scripts/smoke-esm.mjs",
     "smoke:cjs": "node scripts/smoke-cjs.cjs",
     "smoke": "npm run smoke:esm && npm run smoke:cjs",
-    "coverage": "npm run build:tests && c8 --reporter=lcov --reporter=text node --expose-gc --test build/tests/tests/unit/*.test.js",
-    "example": "npm run build && node examples/basic-usage.js",
-    "example:stream": "npm run build && node examples/streaming-usage.js",
+    "coverage": "npm run build:tests && c8 node --expose-gc --test build/tests/tests/unit/*.test.js",
     "size": "npm run build && node scripts/check-bundle-size.mjs",
     "prepublishOnly": "npm run build"
   },
@@ -94,31 +95,31 @@
     "multi-format",
     "image-processing"
   ],
-  "author": "",
+  "author": "Jonathan Burnhams",
   "license": "MIT",
   "devDependencies": {
-    "@types/node": "^24.10.1",
+    "@types/node": "^24.19.2",
     "@types/pngjs": "^6.0.5",
-    "c8": "^10.1.3",
-    "esbuild": "^0.27.0",
-    "happy-dom": "^20.0.8",
+    "c8": "^12.0.0",
+    "esbuild": "^0.28.2",
+    "happy-dom": "^21.0.4",
     "heic-decode": "^2.1.0",
+    "libheif-js": "^1.23.5",
     "pngjs": "^7.0.0",
-    "typescript": "^5.9.3"
+    "typescript": "^7.0.2"
   },
   "engines": {
     "node": ">=20.0.0"
   },
   "dependencies": {
-    "@types/pako": "^2.0.4",
-    "jpeg-encoder-wasm": "github:jburnhams/jpeg-encoder#9267440ca1bd050e198fb05aab36beee1a32a458",
+    "jpeg-encoder-wasm": "^0.1.0",
     "jpeg-js": "^0.4.4",
-    "pako": "^2.1.0"
+    "pako": "^3.0.3"
   },
   "peerDependencies": {
     "heic-decode": "^2.0.0",
     "libheif-js": "^1.17.0",
-    "sharp": "^0.33.0"
+    "sharp": ">=0.33.0"
   },
   "peerDependenciesMeta": {
     "sharp": {

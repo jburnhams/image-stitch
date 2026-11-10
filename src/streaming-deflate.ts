@@ -228,7 +228,7 @@ export class StreamingDeflator {
       return;
     }
 
-    const mode: boolean | number = final ? true : this.pakoModule.constants.Z_SYNC_FLUSH;
+    const mode = final ? this.pakoModule.Z_FINISH : this.pakoModule.Z_SYNC_FLUSH;
     this.deflator.push(new Uint8Array(0), mode);
     this.pendingBytes = 0;
 

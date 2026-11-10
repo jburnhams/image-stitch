@@ -251,7 +251,7 @@
         <a href="index.html">🏠 Overview</a>
         <a href="streaming.html">⚡ Streaming demo</a>
         <a href="guides.html">📘 Guides &amp; API</a>
-        <a href="https://github.com/jburnhams/Png-concat">🌐 GitHub</a>
+        <a href="https://github.com/jburnhams/image-stitch">🌐 GitHub</a>
       </nav>
     </header>
 
@@ -360,7 +360,7 @@ const output = await concatToBuffer({
         <h2>Canvas collage helper</h2>
         <p>Use <code>concatCanvases</code> to stitch existing <code>&lt;canvas&gt;</code> elements directly. Choose a Blob for downloads or render into another canvas for on-screen previews.</p>
         <div class="code-block" data-code>
-import { concatCanvases } from "image-stitch/browser";
+import { concatCanvases } from "image-stitch/bundle";
 
 const stitched = await concatCanvases({
   canvases,
@@ -404,7 +404,7 @@ import { concatToBuffer } from "image-stitch";
 const files = Array.from(fileInput.files ?? []);
 const output = await concatToBuffer({
   inputs: files,
-  layout: { columns: 4, wrapBehavior: "wrap" }
+  layout: { columns: 4 }
 });
         </div>
         <div class="controls">
@@ -443,7 +443,7 @@ await pipeline(
     </main>
 
     <footer>
-      Need deeper dives? Explore the <a href="guides.html">Guides &amp; API reference</a> or visit <a href="https://github.com/jburnhams/Png-concat">GitHub</a> for advanced usage and source code.
+      Need deeper dives? Explore the <a href="guides.html">Guides &amp; API reference</a> or visit <a href="https://github.com/jburnhams/image-stitch">GitHub</a> for advanced usage and source code.
     </footer>
   </div>
 
@@ -699,7 +699,7 @@ await pipeline(
           status.textContent = `Processing ${files.length} file${files.length === 1 ? "" : "s"}…`;
           const stitched = await concatToBuffer({
             inputs: files,
-            layout: { columns: 4, wrapBehavior: "wrap" },
+            layout: { columns: 4 },
             outputFormat,
             ...(outputFormat === "jpeg" ? { jpegQuality } : {})
           });

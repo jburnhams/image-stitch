@@ -1,0 +1,10 @@
+{
+  "all": true,
+  "include": ["build/tests/src/**/*.js"],
+  "reporter": ["text", "lcov"],
+  "check-coverage": true,
+  "lines": 72,
+  "statements": 72,
+  "functions": 75,
+  "branches": 80
+}
